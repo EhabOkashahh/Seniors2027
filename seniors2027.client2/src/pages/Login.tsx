@@ -119,8 +119,11 @@ export default function Login() {
   ]
 
   const handleSubmit = async () => {
-    const firstError = validateStep(0) ?? validateStep(1)
-    if (firstError) return firstError
+    const error0 = await validateStep(0)
+    if (error0) return error0
+    
+    const error1 = await validateStep(1)
+    if (error1) return error1
 
     const result = await loginRequest({ username: username.trim(), password })
     if (!result.ok) return result.error ?? 'Login failed. Seniors, regroup and retry.'
