@@ -8,7 +8,7 @@ import RetroButton from '../components/auth/RetroButton'
 import LogoIntro from '../components/landing/LogoIntro'
 import maleIcon from '../assets/m.png'
 import femaleIcon from '../assets/f.png'
-import { registerRequest } from '../lib/authApi'
+import { registerRequest, uploadProfilePhotoRequest } from '../lib/authApi'
 
 type Gender = 'male' | 'female' | ''
 type ExitPhase = 'idle' | 'reverseToCenter' | 'reverseFireworks' | 'reverseToTop'
@@ -23,7 +23,8 @@ export default function Register() {
   const [gender, setGender] = useState<Gender>('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [picture, setPicture] = useState<string | null>(null)
+  const [pictureFile, setPictureFile] = useState<File | null>(null)
+  const [picturePreview, setPicturePreview] = useState<string | null>(null)
   const [exitPhase, setExitPhase] = useState<ExitPhase>('idle')
 
   const validateStep = (index: number) => {
@@ -114,7 +115,13 @@ export default function Register() {
       hideHint: true,
       content: ({ goNext }: StepRenderControls) => (
         <div className="manual-photo-step">
-          <PictureUploadStep value={picture} onChange={setPicture} />
+          <PictureUploadStep
+            value={picturePreview}
+            onChange={(file, previewUrl) => {
+              setPictureFile(file)
+              setPicturePreview(previewUrl)
+            }}
+          />
           <div className="manual-photo-actions">
             <RetroButton onClick={goNext} variant="primary">Continue</RetroButton>
           </div>
@@ -131,11 +138,20 @@ export default function Register() {
 
     if (!gender) return 'Pick a gender, senior. The yearbook committee is waiting.'
 
+    let photoUrl: string | null = null
+    if (pictureFile) {
+      const uploadResult = await uploadProfilePhotoRequest(pictureFile)
+      if (!uploadResult.ok || !uploadResult.data?.photoUrl) {
+        return uploadResult.error ?? 'Could not upload photo. Please try again.'
+      }
+      photoUrl = uploadResult.data.photoUrl
+    }
+
     const result = await registerRequest({
       username: username.trim(),
       password,
       gender,
-      photoUrl: picture
+      photoUrl
     })
 
     if (!result.ok) return result.error ?? 'Registration failed. Seniors, regroup and retry.'

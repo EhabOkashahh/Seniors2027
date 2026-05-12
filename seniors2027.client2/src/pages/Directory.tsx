@@ -1,11 +1,43 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import PortalLayout from '../components/PortalLayout'
-import { mockUsers } from '../data/mockDb'
+import { getMeRequest, getUsersRequest, type DirectoryUser } from '../lib/authApi'
 import { Search } from 'lucide-react'
+
+const PAGE_SIZE = 20
 
 export default function Directory() {
   const navigate = useNavigate()
+  const [users, setUsers] = useState<DirectoryUser[]>([])
+  const [myUserId, setMyUserId] = useState<number | null>(null)
+  const [pageNumber, setPageNumber] = useState(1)
+  const [hasNextPage, setHasNextPage] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchMe = async () => {
+      const meResult = await getMeRequest()
+      if (meResult.ok && meResult.data?.id) {
+        setMyUserId(meResult.data.id)
+      }
+    }
+    void fetchMe()
+  }, [])
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true)
+      const result = await getUsersRequest(pageNumber, PAGE_SIZE + 1)
+      if (result.ok && result.data) {
+        const filtered = myUserId ? result.data.filter((u) => u.id !== myUserId) : result.data
+        setHasNextPage(filtered.length > PAGE_SIZE)
+        setUsers(filtered.slice(0, PAGE_SIZE))
+      }
+      setLoading(false)
+    }
+    void fetchUsers()
+  }, [pageNumber, myUserId])
 
   return (
     <PortalLayout>
@@ -42,48 +74,84 @@ export default function Directory() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
             gap: '25px' 
           }}>
-            {mockUsers.map((user, index) => (
-              <motion.div
-                key={user.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ 
-                  y: -8, 
-                  x: -4,
-                  boxShadow: '12px 12px 0px black' 
-                }}
-                onClick={() => navigate(`/profile/${user.id}`)}
-                style={{
-                  background: 'white',
-                  border: '4px solid black',
-                  boxShadow: '6px 6px 0px black',
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                  transition: 'box-shadow 0.2s'
-                }}
-              >
-                <img 
-                  src={user.avatar} 
-                  alt={user.name} 
-                  style={{ width: '100%', height: '200px', objectFit: 'cover', borderBottom: '4px solid black' }}
-                />
-                <div style={{ padding: '15px', textAlign: 'center' }}>
-                  <div style={{ fontWeight: 900, fontSize: '1.1rem', textTransform: 'uppercase' }}>{user.name}</div>
-                  <div style={{ 
-                    marginTop: '8px',
-                    fontSize: '0.75rem', 
-                    fontWeight: 900, 
-                    background: user.gender === 'male' ? 'var(--accent-blue)' : 'var(--accent-pink)',
-                    padding: '4px 8px',
-                    border: '2px solid black',
-                    display: 'inline-block'
-                  }}>
-                    {user.gender.toUpperCase()}
+            {loading ? (
+              <p style={{ fontWeight: 900 }}>Loading yearbook...</p>
+            ) : (
+              users.map((user, index) => (
+                <motion.div
+                  key={user.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ 
+                    y: -8, 
+                    x: -4,
+                    boxShadow: '12px 12px 0px black' 
+                  }}
+                  onClick={() => navigate(`/profile/${user.id}`)}
+                  style={{
+                    background: 'white',
+                    border: '4px solid black',
+                    boxShadow: '6px 6px 0px black',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    transition: 'box-shadow 0.2s'
+                  }}
+                >
+                  <div style={{ width: '100%', height: '200px', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '4px solid black' }}>
+                    {user.photoUrl ? (
+                      <img src={user.photoUrl} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: '3rem', fontWeight: 900 }}>{user.username.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                  <div style={{ padding: '15px', textAlign: 'center' }}>
+                    <div style={{ fontWeight: 900, fontSize: '1.1rem', textTransform: 'uppercase' }}>{user.username}</div>
+                    <button 
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        marginTop: '15px',
+                        padding: '8px',
+                        fontWeight: 900,
+                        background: 'black',
+                        color: 'white',
+                        border: '2px solid black',
+                        cursor: 'pointer',
+                        textTransform: 'uppercase'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/profile/${user.id}`)
+                      }}
+                    >
+                      Visit
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              className="neo-btn"
+              onClick={() => setPageNumber((prev) => Math.max(1, prev - 1))}
+              disabled={pageNumber === 1 || loading}
+            >
+              Previous
+            </button>
+            <div style={{ display: 'grid', placeItems: 'center', fontWeight: 900, minWidth: '120px' }}>
+              Page {pageNumber}
+            </div>
+            <button
+              type="button"
+              className="neo-btn"
+              onClick={() => setPageNumber((prev) => prev + 1)}
+              disabled={!hasNextPage || loading}
+            >
+              Next
+            </button>
           </div>
         </div>
       </motion.div>

@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, Users, LogOut, User as UserIcon } from 'lucide-react'
 import '../App.css'
 import RetroGridBackground from './landing/RetroGridBackground'
+import { getMeRequest } from '../lib/authApi'
 
 interface PortalLayoutProps {
   children: React.ReactNode
@@ -13,11 +14,22 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [myProfilePath, setMyProfilePath] = useState('/profile/1')
+
+  useEffect(() => {
+    const run = async () => {
+      const meResult = await getMeRequest()
+      if (meResult.ok && meResult.data?.id) {
+        setMyProfilePath(`/profile/${meResult.data.id}`)
+      }
+    }
+    void run()
+  }, [])
 
   const navItems = [
     { name: 'Dashboard', path: '/portal', icon: <Home size={20} /> },
     { name: 'Seniors', path: '/directory', icon: <Users size={20} /> },
-    { name: 'My Profile', path: '/profile/1', icon: <UserIcon size={20} /> },
+    { name: 'My Profile', path: myProfilePath, icon: <UserIcon size={20} /> },
   ]
 
   const handleNavigate = (path: string) => {

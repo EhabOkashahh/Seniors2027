@@ -2,20 +2,18 @@ import type { ChangeEvent } from 'react'
 
 type PictureUploadStepProps = {
   value: string | null
-  onChange: (value: string | null) => void
+  onChange: (file: File | null, previewUrl: string | null) => void
 }
 
 export default function PictureUploadStep({ value, onChange }: PictureUploadStepProps) {
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) {
-      onChange(null)
+      onChange(null, null)
       return
     }
 
-    const reader = new FileReader()
-    reader.onloadend = () => onChange(reader.result as string)
-    reader.readAsDataURL(file)
+    onChange(file, URL.createObjectURL(file))
   }
 
   return (

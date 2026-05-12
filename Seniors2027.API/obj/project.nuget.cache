@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "HEWBW6Uv09M=",
+  "dgSpecHash": "Q+tQQS4hk+g=",
   "success": true,
   "projectFilePath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\Seniors2027.API\\Seniors2027.API.csproj",
   "expectedPackageFiles": [
@@ -9,7 +9,7 @@
     "C:\\Users\\ehaby\\.nuget\\packages\\bcrypt.net-next\\4.1.0\\bcrypt.net-next.4.1.0.nupkg.sha512",
     "C:\\Users\\ehaby\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\ehaby\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\9.0.15\\microsoft.aspnetcore.authentication.jwtbearer.9.0.15.nupkg.sha512",
-    "C:\\Users\\ehaby\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.7\\microsoft.aspnetcore.openapi.9.0.7.nupkg.sha512",
+    "C:\\Users\\ehaby\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.15\\microsoft.aspnetcore.openapi.9.0.15.nupkg.sha512",
     "C:\\Users\\ehaby\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\7.0.0\\microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",
     "C:\\Users\\ehaby\\.nuget\\packages\\microsoft.build.framework\\17.8.43\\microsoft.build.framework.17.8.43.nupkg.sha512",
     "C:\\Users\\ehaby\\.nuget\\packages\\microsoft.build.locator\\1.7.8\\microsoft.build.locator.1.7.8.nupkg.sha512",

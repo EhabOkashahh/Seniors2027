@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.FileProviders;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.BLL.Services;
 using Seniors2027.DAL.Data;
@@ -65,6 +66,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+var photosDirectory = Path.Combine(app.Environment.ContentRootPath, "SeniorsPhotos");
+Directory.CreateDirectory(photosDirectory);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(photosDirectory),
+    RequestPath = "/SeniorsPhotos"
+});
 
 app.UseCors("AllowReactApp");
 

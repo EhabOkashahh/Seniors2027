@@ -92,7 +92,7 @@
           "Microsoft.AspNetCore.App"
         ]
       },
-      "Microsoft.AspNetCore.OpenApi/9.0.7": {
+      "Microsoft.AspNetCore.OpenApi/9.0.15": {
         "type": "package",
         "dependencies": {
           "Microsoft.OpenApi": "1.6.17"
@@ -1626,7 +1626,7 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v9.0",
         "dependencies": {
-          "Microsoft.EntityFrameworkCore.SqlServer": "9.0.0"
+          "Microsoft.EntityFrameworkCore.SqlServer": "9.0.15"
         },
         "compile": {
           "bin/placeholder/Seniors2027.DAL.dll": {}
@@ -1739,10 +1739,10 @@
         "microsoft.aspnetcore.authentication.jwtbearer.nuspec"
       ]
     },
-    "Microsoft.AspNetCore.OpenApi/9.0.7": {
-      "sha512": "8aG0mkgmA38IDJ0ca5HIpdexKjHXIh0z1kIdw5WyM6CrD4+CEt97UgSwBBBCHG6QQKV0hj2mfkwtEcqrJBcu8g==",
+    "Microsoft.AspNetCore.OpenApi/9.0.15": {
+      "sha512": "QQW4lLEgMMgVSAlTocaoEf5xZstKZFLyIYtrRP/bq3BmvsJkU8ugiU7MaUWz4vEednZLNhGq1JSZq22QFQqIfg==",
       "type": "package",
-      "path": "microsoft.aspnetcore.openapi/9.0.7",
+      "path": "microsoft.aspnetcore.openapi/9.0.15",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -1751,7 +1751,7 @@
         "THIRD-PARTY-NOTICES.TXT",
         "lib/net9.0/Microsoft.AspNetCore.OpenApi.dll",
         "lib/net9.0/Microsoft.AspNetCore.OpenApi.xml",
-        "microsoft.aspnetcore.openapi.9.0.7.nupkg.sha512",
+        "microsoft.aspnetcore.openapi.9.0.15.nupkg.sha512",
         "microsoft.aspnetcore.openapi.nuspec"
       ]
     },
@@ -4584,11 +4584,11 @@
   },
   "projectFileDependencyGroups": {
     "net9.0": [
-      "Microsoft.AspNetCore.Authentication.JwtBearer >= 9.0.*",
-      "Microsoft.AspNetCore.OpenApi >= 9.0.7",
-      "Microsoft.EntityFrameworkCore.Design >= 9.0.*",
-      "Microsoft.EntityFrameworkCore.SqlServer >= 9.0.*",
-      "Microsoft.EntityFrameworkCore.Tools >= 9.0.*",
+      "Microsoft.AspNetCore.Authentication.JwtBearer >= 9.0.15",
+      "Microsoft.AspNetCore.OpenApi >= 9.0.15",
+      "Microsoft.EntityFrameworkCore.Design >= 9.0.15",
+      "Microsoft.EntityFrameworkCore.SqlServer >= 9.0.15",
+      "Microsoft.EntityFrameworkCore.Tools >= 9.0.15",
       "Seniors2027.BLL >= 1.0.0"
     ]
   },
@@ -4648,27 +4648,27 @@
         "dependencies": {
           "Microsoft.AspNetCore.Authentication.JwtBearer": {
             "target": "Package",
-            "version": "[9.0.*, )"
+            "version": "[9.0.15, )"
           },
           "Microsoft.AspNetCore.OpenApi": {
             "target": "Package",
-            "version": "[9.0.7, )"
+            "version": "[9.0.15, )"
           },
           "Microsoft.EntityFrameworkCore.Design": {
             "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
             "suppressParent": "All",
             "target": "Package",
-            "version": "[9.0.*, )"
+            "version": "[9.0.15, )"
           },
           "Microsoft.EntityFrameworkCore.SqlServer": {
             "target": "Package",
-            "version": "[9.0.*, )"
+            "version": "[9.0.15, )"
           },
           "Microsoft.EntityFrameworkCore.Tools": {
             "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
             "suppressParent": "All",
             "target": "Package",
-            "version": "[9.0.*, )"
+            "version": "[9.0.15, )"
           }
         },
         "imports": [
