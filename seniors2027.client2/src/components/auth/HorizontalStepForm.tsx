@@ -22,7 +22,7 @@ type HorizontalStepFormProps = {
   heading: string
   subtitle: string
   steps: StepItem[]
-  validateStep: (index: number) => string | null
+  validateStep: (index: number) => Promise<string | null> | string | null,
   onSubmit: () => Promise<string | null> | string | null
   onExitFromFirstStep?: () => void
 }
@@ -93,18 +93,13 @@ export default function HorizontalStepForm({
   const attemptNext = async () => {
     if (!canNavigateNow() || isSubmitting) return
 
-    const immediateError = validateStep(currentStep)
-    if (immediateError) {
-      requestAnimationFrame(() => {
-        const retryError = validateStep(currentStep)
-        if (retryError) {
-          setError(retryError)
-          markNavigated()
-          return
-        }
+    setIsSubmitting(true)
+    const immediateError = await validateStep(currentStep)
+    setIsSubmitting(false)
 
-        if (!isLastStep) moveTo(currentStep + 1)
-      })
+    if (immediateError) {
+      setError(immediateError)
+      markNavigated()
       return
     }
 
