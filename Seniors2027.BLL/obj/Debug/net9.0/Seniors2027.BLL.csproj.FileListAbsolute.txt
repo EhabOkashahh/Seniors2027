@@ -23,9 +23,9 @@ C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors2027.BLL.AssemblyInfoInputs.cache
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors2027.BLL.AssemblyInfo.cs
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors2027.BLL.csproj.CoreCompileInputs.cache
+C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors2027.BLL.sourcelink.json
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors2.88F15504.Up2Date
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors2027.BLL.dll
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\refint\Seniors2027.BLL.dll
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors2027.BLL.pdb
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\ref\Seniors2027.BLL.dll
-C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.BLL\obj\Debug\net9.0\Seniors2027.BLL.sourcelink.json

@@ -15,11 +15,13 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IWebHostEnvironment _environment;
 
-    public AuthController(IAuthService authService, IUnitOfWork unitOfWork)
+    public AuthController(IAuthService authService, IUnitOfWork unitOfWork, IWebHostEnvironment environment)
     {
         _authService = authService;
         _unitOfWork = unitOfWork;
+        _environment = environment;
     }
 
     [Authorize]
@@ -55,6 +57,7 @@ public class AuthController : ControllerBase
 
         return Ok(new
         {
+            id = user.Id,
             username = string.IsNullOrWhiteSpace(user.Username) ? "Senior" : user.Username,
             photoUrl = string.IsNullOrWhiteSpace(user.PhotoUrl) ? null : user.PhotoUrl,
             description = string.IsNullOrWhiteSpace(user.Description) ? null : user.Description
@@ -102,6 +105,32 @@ public class AuthController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+    }
+
+    [HttpPost("upload-photo")]
+    public async Task<ActionResult> UploadPhoto([FromForm] IFormFile photo)
+    {
+        if (photo == null || photo.Length == 0) return BadRequest("Photo is required.");
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension)) return BadRequest("Only jpg, jpeg, png, webp are allowed.");
+
+        const long maxSize = 5 * 1024 * 1024;
+        if (photo.Length > maxSize) return BadRequest("Photo size must be <= 5 MB.");
+
+        var fileName = $"{Guid.NewGuid():N}{extension}";
+        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+        Directory.CreateDirectory(photosDirectory);
+        var filePath = Path.Combine(photosDirectory, fileName);
+
+        await using var stream = new FileStream(filePath, FileMode.Create);
+        await photo.CopyToAsync(stream);
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var photoUrl = $"{baseUrl}/SeniorsPhotos/{fileName}";
+
+        return Ok(new { photoUrl });
     }
 
     [HttpPost("login")]

@@ -1,11 +1,12 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import PortalLayout from '../components/PortalLayout'
-import { mockUsers } from '../data/mockDb'
+import { getMeRequest, getUserByIdRequest, type User } from '../lib/authApi'
 import { Image as ImageIcon, Pin, Plus } from 'lucide-react'
 
 type MeResponse = {
+  id: number
   username: string
   photoUrl?: string | null
   description?: string | null
@@ -13,51 +14,74 @@ type MeResponse = {
 
 export default function Profile() {
   const { id } = useParams()
+  const userId = Number(id)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [profileUser, setProfileUser] = useState<User | null>(null)
   const [me, setMe] = useState<MeResponse | null>(null)
   const [descriptionInput, setDescriptionInput] = useState('')
   const [descriptionSaving, setDescriptionSaving] = useState(false)
   const [descriptionMessage, setDescriptionMessage] = useState<string | null>(null)
   const [isEditingDescription, setIsEditingDescription] = useState(false)
-
-  const user = useMemo(() => mockUsers.find((u) => u.id === id), [id])
+  const [loading, setLoading] = useState(true)
   const [localGallery, setLocalGallery] = useState<string[]>([])
 
-  useEffect(() => {
-    if (user) {
-      setLocalGallery(user.gallery)
-    }
-  }, [user])
+  const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
 
   useEffect(() => {
-    const token = localStorage.getItem('seniors2027.token')
-    if (!token) return
+    let cancelled = false
 
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5292'
     const run = async () => {
       try {
-        const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        if (!response.ok) return
+        if (!Number.isFinite(userId)) {
+          if (!cancelled) setLoading(false)
+          return
+        }
 
-        const data = (await response.json()) as MeResponse
-        setMe(data)
-        setDescriptionInput(data.description ?? '')
+        const [userResult, meResult] = await Promise.all([getUserByIdRequest(userId), getMeRequest()])
+
+        if (cancelled) return
+
+        if (userResult.ok && userResult.data) {
+          setProfileUser(userResult.data)
+          setDescriptionInput(userResult.data.description ?? '')
+        } else {
+          setProfileUser(null)
+        }
+
+        if (meResult.ok && meResult.data) {
+          const meData = meResult.data as MeResponse
+          setMe(meData)
+          if (userResult.ok && userResult.data && meData.id === userResult.data.id) {
+            setDescriptionInput(meData.description ?? userResult.data.description ?? '')
+          }
+        } else {
+          setMe(null)
+        }
+
+        setLoading(false)
       } catch {
-        // Keep fallback UI.
+        if (cancelled) return
+        setProfileUser(null)
+        setMe(null)
+        setLoading(false)
       }
     }
 
     void run()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
 
-  const displayName = me?.username || user?.name || 'Senior'
-  const displayPhoto = me?.photoUrl || user?.avatar || '/favicon.svg'
+  const displayName = profileUser?.username ?? 'Senior'
+  const displayPhoto = profileUser?.photoUrl || '/favicon.svg'
 
   const handleSaveDescription = async () => {
+    if (!isOwnProfile) {
+      setDescriptionMessage('You can only edit your own description.')
+      return
+    }
+
     const token = localStorage.getItem('seniors2027.token')
     if (!token) {
       setDescriptionMessage('Please login again to update description.')
@@ -84,6 +108,7 @@ export default function Profile() {
         return
       }
 
+      setProfileUser((prev) => (prev ? { ...prev, description: descriptionInput } : prev))
       setMe((prev) => (prev ? { ...prev, description: descriptionInput } : prev))
       setDescriptionMessage('Description saved.')
       setIsEditingDescription(false)
@@ -95,6 +120,8 @@ export default function Profile() {
   }
 
   const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isOwnProfile) return
+
     const file = e.target.files?.[0]
     if (file) {
       const reader = new FileReader()
@@ -149,7 +176,7 @@ export default function Profile() {
                   minHeight: '96px',
                 }}
               >
-                {isEditingDescription ? (
+                {isOwnProfile && isEditingDescription ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <input
                       type="text"
@@ -166,19 +193,21 @@ export default function Profile() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <button
-                        type="button"
-                        aria-label="Edit description"
-                        onClick={() => {
-                          setDescriptionMessage(null)
-                          setIsEditingDescription(true)
-                        }}
-                        style={{ width: '44px', height: '44px', display: 'grid', placeItems: 'center', padding: 0 }}
-                      >
-                        <Pin size={18} />
-                      </button>
-                    </div>
+                    {isOwnProfile && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          aria-label="Edit description"
+                          onClick={() => {
+                            setDescriptionMessage(null)
+                            setIsEditingDescription(true)
+                          }}
+                          style={{ width: '44px', height: '44px', display: 'grid', placeItems: 'center', padding: 0 }}
+                        >
+                          <Pin size={18} />
+                        </button>
+                      </div>
+                    )}
                     <p
                       style={{
                         margin: 0,
@@ -190,12 +219,13 @@ export default function Profile() {
                         wordBreak: 'break-word',
                       }}
                     >
-                      {descriptionInput?.trim() || 'Pin this and add your story.'}
+                      {descriptionInput?.trim() || 'No description yet.'}
                     </p>
                   </div>
                 )}
               </div>
               {descriptionMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{descriptionMessage}</div>}
+              {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
             </div>
           </div>
         </motion.div>
@@ -207,25 +237,27 @@ export default function Profile() {
           </div>
           <div className="window-content" style={{ padding: '20px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', width: '100%' }}>
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: '3px dashed #2d2d2d',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10px',
-                  minHeight: '240px',
-                  cursor: 'pointer',
-                  background: 'rgba(255,255,255,0.5)',
-                  order: -1,
-                }}
-              >
-                <Plus size={40} style={{ opacity: 0.8 }} />
-                <span style={{ fontWeight: 900, opacity: 0.8 }}>ADD_PHOTO.PNG</span>
-                <input type="file" hidden ref={fileInputRef} accept="image/*" onChange={handleGalleryUpload} />
-              </div>
+              {isOwnProfile && (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: '3px dashed #2d2d2d',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    minHeight: '240px',
+                    cursor: 'pointer',
+                    background: 'rgba(255,255,255,0.5)',
+                    order: -1,
+                  }}
+                >
+                  <Plus size={40} style={{ opacity: 0.8 }} />
+                  <span style={{ fontWeight: 900, opacity: 0.8 }}>ADD_PHOTO.PNG</span>
+                  <input type="file" hidden ref={fileInputRef} accept="image/*" onChange={handleGalleryUpload} />
+                </div>
+              )}
 
               {localGallery.map((img, idx) => (
                 <motion.div

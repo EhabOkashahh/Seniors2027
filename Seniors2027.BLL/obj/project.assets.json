@@ -950,7 +950,7 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v9.0",
         "dependencies": {
-          "Microsoft.EntityFrameworkCore.SqlServer": "9.0.0"
+          "Microsoft.EntityFrameworkCore.SqlServer": "9.0.15"
         },
         "compile": {
           "bin/placeholder/Seniors2027.DAL.dll": {}

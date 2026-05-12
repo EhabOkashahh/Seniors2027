@@ -324,6 +324,7 @@ C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.csproj.CoreCompileInputs.cache
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.sourcelink.json
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\rjimswa.dswa.cache.json
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\rjsmrazor.dswa.cache.json
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\rjsmcshtml.dswa.cache.json
@@ -338,4 +339,3 @@ C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\refint\
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.pdb
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.genruntimeconfig.cache
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\ref\Seniors2027.API.dll
-C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.sourcelink.json

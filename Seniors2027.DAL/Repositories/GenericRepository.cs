@@ -26,6 +26,11 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
         return await _dbSet.ToListAsync();
     }
 
+    public async Task<IEnumerable<T>> GetAllAsync(int pageNumber, int pageSize)
+    {
+        return await _dbSet.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
+    }
+
     public IEnumerable<T> Find(Expression<Func<T, bool>> expression)
     {
         return _dbSet.Where(expression);
