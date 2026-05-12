@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
 
 type AuthButtonsProps = {
   show: boolean
+  onCreateAccount: () => void
+  onLogin: () => void
 }
 
 const easing = [0.2, 0.8, 0.2, 1] as const
@@ -23,9 +24,7 @@ const item = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: easing } }
 }
 
-export default function AuthButtons({ show }: AuthButtonsProps) {
-  const navigate = useNavigate()
-
+export default function AuthButtons({ show, onCreateAccount, onLogin }: AuthButtonsProps) {
   if (!show) return null
 
   return (
@@ -34,11 +33,11 @@ export default function AuthButtons({ show }: AuthButtonsProps) {
         variants={item}
         className="neo-btn primary-btn"
         type="button"
-        onClick={() => navigate('/register')}
+        onClick={onCreateAccount}
       >
         Create Account
       </motion.button>
-      <motion.button variants={item} className="neo-btn" type="button" onClick={() => navigate('/login')}>
+      <motion.button variants={item} className="neo-btn" type="button" onClick={onLogin}>
         Login
       </motion.button>
     </motion.div>

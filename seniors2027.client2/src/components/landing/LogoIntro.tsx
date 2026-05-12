@@ -2,7 +2,8 @@ import { motion } from 'framer-motion'
 import logoImage from '../../assets/Logo.png'
 
 type LogoIntroProps = {
-  hasMoved: boolean
+  phase: 'intro' | 'ready' | 'reverseToCenter' | 'reverseFireworks' | 'reverseToTop'
+  startAtTop?: boolean
 }
 
 type Burst = {
@@ -21,10 +22,12 @@ const bursts: Burst[] = [
   { x: 0, y: -144, delay: 0.56, size: 74, color: 'var(--retro-yellow)' }
 ]
 
-export default function LogoIntro({ hasMoved }: LogoIntroProps) {
+export default function LogoIntro({ phase, startAtTop = false }: LogoIntroProps) {
+  const showEffects = phase === 'intro' || phase === 'reverseFireworks'
+
   return (
     <>
-      {!hasMoved && (
+      {showEffects && (
         <div className="effects-layer" aria-hidden="true">
           {bursts.map((burst, index) => (
             <motion.div
@@ -66,13 +69,24 @@ export default function LogoIntro({ hasMoved }: LogoIntroProps) {
         src={logoImage}
         alt="Logo"
         className="site-logo"
-        initial={{ x: '-50%', y: '-50%', left: '50%', top: '50%', scale: 1.02, rotate: 0 }}
-        animate={
-          hasMoved
+        initial={
+          startAtTop
             ? { left: 28, top: 22, x: 0, y: 0, scale: 0.5, rotate: -2.5 }
-            : { left: '50%', top: '50%', x: '-50%', y: '-50%', scale: [0.98, 1.04, 1], rotate: [0, 1.2, 0] }
+            : { x: '-50%', y: '-50%', left: '50%', top: '50%', scale: 1.02, rotate: 0 }
         }
-        transition={{ duration: hasMoved ? 1.15 : 0.95, delay: hasMoved ? 0 : 0.1, ease: [0.2, 0.95, 0.2, 1] }}
+        animate={
+          phase === 'intro'
+            ? { left: '50%', top: '50%', x: '-50%', y: '-50%', scale: [0.98, 1.04, 1], rotate: [0, 1.2, 0] }
+            : phase === 'ready' || phase === 'reverseToTop'
+              ? { left: 28, top: 22, x: 0, y: 0, scale: 0.5, rotate: -2.5 }
+              : { left: '50%', top: '50%', x: '-50%', y: '-50%', scale: [0.98, 1.03, 1], rotate: [0, 1, 0] }
+        }
+        transition={{
+          duration:
+            phase === 'ready' || phase === 'reverseToCenter' || phase === 'reverseToTop' ? 1.1 : 0.95,
+          delay: phase === 'intro' ? 0.1 : 0,
+          ease: [0.2, 0.95, 0.2, 1]
+        }}
       />
     </>
   )

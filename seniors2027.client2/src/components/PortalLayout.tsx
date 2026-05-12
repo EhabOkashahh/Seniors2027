@@ -9,6 +9,7 @@ interface PortalLayoutProps {
 }
 
 export default function PortalLayout({ children }: PortalLayoutProps) {
+  const TOKEN_STORAGE_KEY = 'seniors2027.token'
   const location = useLocation()
   const navigate = useNavigate()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -21,6 +22,12 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
 
   const handleNavigate = (path: string) => {
     navigate(path)
+    setIsMenuOpen(false)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    navigate('/', { replace: true })
     setIsMenuOpen(false)
   }
 
@@ -55,7 +62,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
           })}
         </nav>
 
-        <button onClick={() => handleNavigate('/')} className="portal-logout-btn">
+        <button onClick={handleLogout} className="portal-logout-btn">
           <LogOut size={20} />
           LOG_OUT
         </button>

@@ -5,11 +5,17 @@ import HorizontalStepForm, { type StepRenderControls } from '../components/auth/
 import RetroInput from '../components/auth/RetroInput'
 import PictureUploadStep from '../components/auth/PictureUploadStep'
 import RetroButton from '../components/auth/RetroButton'
+import LogoIntro from '../components/landing/LogoIntro'
 import maleIcon from '../assets/m.png'
 import femaleIcon from '../assets/f.png'
 import { registerRequest } from '../lib/authApi'
 
 type Gender = 'male' | 'female' | ''
+type ExitPhase = 'idle' | 'reverseToCenter' | 'reverseFireworks' | 'reverseToTop'
+
+const EXIT_TO_CENTER_MS = 1050
+const EXIT_FIREWORKS_MS = 950
+const EXIT_TO_TOP_MS = 1050
 
 export default function Register() {
   const navigate = useNavigate()
@@ -18,6 +24,7 @@ export default function Register() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [picture, setPicture] = useState<string | null>(null)
+  const [exitPhase, setExitPhase] = useState<ExitPhase>('idle')
 
   const validateStep = (index: number) => {
     if (index === 0 && !username.trim()) return 'Senior legend needs a username. Don\'t be anonymous at graduation.'
@@ -141,16 +148,32 @@ export default function Register() {
     return null
   }
 
+  const handleExitToOnboarding = () => {
+    if (exitPhase !== 'idle') return
+    setExitPhase('reverseToCenter')
+    window.setTimeout(() => setExitPhase('reverseFireworks'), EXIT_TO_CENTER_MS)
+    window.setTimeout(() => setExitPhase('reverseToTop'), EXIT_TO_CENTER_MS + EXIT_FIREWORKS_MS)
+    window.setTimeout(
+      () => navigate('/', { state: { skipIntro: true } }),
+      EXIT_TO_CENTER_MS + EXIT_FIREWORKS_MS + EXIT_TO_TOP_MS
+    )
+  }
+
   return (
     <main className="landing-page auth-page">
       <RetroGridBackground />
-      <HorizontalStepForm
-        heading="Create Account"
-        subtitle="A retro journey to build your class profile."
-        steps={steps}
-        validateStep={validateStep}
-        onSubmit={handleSubmit}
-      />
+      {exitPhase === 'idle' ? (
+        <HorizontalStepForm
+          heading="Create Account"
+          subtitle="A retro journey to build your class profile."
+          steps={steps}
+          validateStep={validateStep}
+          onSubmit={handleSubmit}
+          onExitFromFirstStep={handleExitToOnboarding}
+        />
+      ) : (
+        <LogoIntro phase={exitPhase} startAtTop />
+      )}
     </main>
   )
 }

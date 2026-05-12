@@ -24,6 +24,7 @@ type HorizontalStepFormProps = {
   steps: StepItem[]
   validateStep: (index: number) => string | null
   onSubmit: () => Promise<string | null> | string | null
+  onExitFromFirstStep?: () => void
 }
 
 const SCROLL_LOCK_MS = 720
@@ -31,7 +32,14 @@ const NAV_COOLDOWN_MS = 760
 const WHEEL_THRESHOLD = 78
 const WHEEL_IDLE_MS = 140
 
-export default function HorizontalStepForm({ heading, subtitle, steps, validateStep, onSubmit }: HorizontalStepFormProps) {
+export default function HorizontalStepForm({
+  heading,
+  subtitle,
+  steps,
+  validateStep,
+  onSubmit,
+  onExitFromFirstStep
+}: HorizontalStepFormProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isLocked, setIsLocked] = useState(false)
@@ -121,6 +129,11 @@ export default function HorizontalStepForm({ heading, subtitle, steps, validateS
   const attemptBack = () => {
     if (!canNavigateNow() || isSubmitting) return
     if (currentStep === 0) {
+      if (onExitFromFirstStep) {
+        onExitFromFirstStep()
+        markNavigated()
+        return
+      }
       markNavigated()
       return
     }

@@ -3,13 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import RetroGridBackground from '../components/landing/RetroGridBackground'
 import HorizontalStepForm from '../components/auth/HorizontalStepForm'
 import RetroInput from '../components/auth/RetroInput'
+import LogoIntro from '../components/landing/LogoIntro'
 import { loginRequest } from '../lib/authApi'
+
+const EXIT_TO_CENTER_MS = 1050
+const EXIT_FIREWORKS_MS = 950
+const EXIT_TO_TOP_MS = 1050
+
+type ExitPhase = 'idle' | 'reverseToCenter' | 'reverseFireworks' | 'reverseToTop'
 
 export default function Login() {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [recognizedPhoto, setRecognizedPhoto] = useState<string | null>(null)
+  const [exitPhase, setExitPhase] = useState<ExitPhase>('idle')
 
   useEffect(() => {
     const trimmed = username.trim()
@@ -115,16 +123,32 @@ export default function Login() {
     return null
   }
 
+  const handleExitToOnboarding = () => {
+    if (exitPhase !== 'idle') return
+    setExitPhase('reverseToCenter')
+    window.setTimeout(() => setExitPhase('reverseFireworks'), EXIT_TO_CENTER_MS)
+    window.setTimeout(() => setExitPhase('reverseToTop'), EXIT_TO_CENTER_MS + EXIT_FIREWORKS_MS)
+    window.setTimeout(
+      () => navigate('/', { state: { skipIntro: true } }),
+      EXIT_TO_CENTER_MS + EXIT_FIREWORKS_MS + EXIT_TO_TOP_MS
+    )
+  }
+
   return (
     <main className="landing-page auth-page">
       <RetroGridBackground />
-      <HorizontalStepForm
-        heading="Login"
-        subtitle="Welcome back. Move step by step."
-        steps={steps}
-        validateStep={validateStep}
-        onSubmit={handleSubmit}
-      />
+      {exitPhase === 'idle' ? (
+        <HorizontalStepForm
+          heading="Login"
+          subtitle="Welcome back. Move step by step."
+          steps={steps}
+          validateStep={validateStep}
+          onSubmit={handleSubmit}
+          onExitFromFirstStep={handleExitToOnboarding}
+        />
+      ) : (
+        <LogoIntro phase={exitPhase} startAtTop />
+      )}
     </main>
   )
 }
