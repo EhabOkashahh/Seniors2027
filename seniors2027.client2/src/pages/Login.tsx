@@ -50,9 +50,19 @@ export default function Login() {
     }
   }, [username])
 
-  const validateStep = (index: number) => {
+  const validateStep = async (index: number) => {
     if (index === 0) {
       if (!username.trim()) return 'Senior, we need your username. Ghost entries are not allowed in the yearbook.'
+      
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5292'
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/auth/recognize/${encodeURIComponent(username.trim())}`)
+        if (!response.ok) {
+          return 'Senior not found. Check the spelling, the yearbook is strict.'
+        }
+      } catch {
+        return 'The yearbook database is currently unreachable. Try again shortly.'
+      }
     }
 
     if (index === 1) {
