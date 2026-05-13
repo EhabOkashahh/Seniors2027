@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 260" role="img" aria-label="Crossed caution tape">
+  <defs>
+    <pattern id="cautionPattern" width="48" height="48" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
+      <rect width="48" height="48" fill="#f6ca2f"/>
+      <rect x="0" y="0" width="24" height="48" fill="#111111"/>
+    </pattern>
+  </defs>
+
+  <!-- Center strip -->
+  <rect x="-120" y="108" width="1440" height="44" fill="url(#cautionPattern)" stroke="#111111" stroke-width="2"/>
+
+  <!-- Top-left to center -->
+  <rect x="-40" y="108" width="760" height="44" fill="url(#cautionPattern)" stroke="#111111" stroke-width="2"
+        transform="rotate(16 580 130)"/>
+
+  <!-- Bottom-center to right -->
+  <rect x="500" y="108" width="760" height="44" fill="url(#cautionPattern)" stroke="#111111" stroke-width="2"
+        transform="rotate(-16 580 130)"/>
+</svg>

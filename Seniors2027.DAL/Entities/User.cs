@@ -21,4 +21,9 @@ public class User
     [MaxLength(1000)]
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<Note> SentNotes { get; set; } = new List<Note>();
+    public ICollection<Note> ReceivedNotes { get; set; } = new List<Note>();
+    public ICollection<GalleryPhoto> GalleryPhotos { get; set; } = new List<GalleryPhoto>();
+    public ICollection<DailyHighlight> DailyHighlights { get; set; } = new List<DailyHighlight>();
 }
