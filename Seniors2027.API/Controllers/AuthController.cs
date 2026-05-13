@@ -133,6 +133,55 @@ public class AuthController : ControllerBase
         return Ok(new { photoUrl });
     }
 
+    [Authorize]
+    [HttpPut("me/photo")]
+    public async Task<ActionResult> UpdateMyPhoto([FromForm] IFormFile photo)
+    {
+        if (photo == null || photo.Length == 0) return BadRequest("Photo is required.");
+
+        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("nameid")?.Value;
+
+        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+
+        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        if (user == null) return NotFound();
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension)) return BadRequest("Only jpg, jpeg, png, webp are allowed.");
+
+        const long maxSize = 5 * 1024 * 1024;
+        if (photo.Length > maxSize) return BadRequest("Photo size must be <= 5 MB.");
+
+        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+        Directory.CreateDirectory(photosDirectory);
+
+        // Remove old local seniors photo file if present.
+        if (TryGetLocalSeniorsPhotoPath(user.PhotoUrl, photosDirectory, out var oldPhotoPath) && System.IO.File.Exists(oldPhotoPath))
+        {
+            System.IO.File.Delete(oldPhotoPath);
+        }
+
+        var fileName = $"{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Combine(photosDirectory, fileName);
+
+        await using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await photo.CopyToAsync(stream);
+        }
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var photoUrl = $"{baseUrl}/SeniorsPhotos/{fileName}";
+
+        user.PhotoUrl = photoUrl;
+        _unitOfWork.Repository<User>().Update(user);
+        await _unitOfWork.CompleteAsync();
+
+        return Ok(new { photoUrl });
+    }
+
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login(LoginDto loginDto)
     {
@@ -145,5 +194,24 @@ public class AuthController : ControllerBase
         {
             return Unauthorized(ex.Message);
         }
+    }
+
+    private static bool TryGetLocalSeniorsPhotoPath(string? photoUrl, string photosDirectory, out string filePath)
+    {
+        filePath = string.Empty;
+        if (string.IsNullOrWhiteSpace(photoUrl)) return false;
+        if (!photoUrl.Contains("/SeniorsPhotos/", StringComparison.OrdinalIgnoreCase)) return false;
+
+        if (!Uri.TryCreate(photoUrl, UriKind.Absolute, out var uri)) return false;
+
+        var fileName = Path.GetFileName(uri.LocalPath);
+        if (string.IsNullOrWhiteSpace(fileName)) return false;
+
+        var candidate = Path.GetFullPath(Path.Combine(photosDirectory, fileName));
+        var root = Path.GetFullPath(photosDirectory);
+        if (!candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return false;
+
+        filePath = candidate;
+        return true;
     }
 }

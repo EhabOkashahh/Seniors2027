@@ -22,6 +22,94 @@ namespace Seniors2027.DAL.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Seniors2027.DAL.Entities.DailyHighlight", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("GalleryPhotoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("GalleryPhotoId");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("DailyHighlights");
+                });
+
+            modelBuilder.Entity("Seniors2027.DAL.Entities.GalleryPhoto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PhotoUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("GalleryPhotos");
+                });
+
+            modelBuilder.Entity("Seniors2027.DAL.Entities.Note", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RecipientId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SenderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderId");
+
+                    b.HasIndex("RecipientId", "CreatedAt");
+
+                    b.ToTable("Notes");
+                });
+
             modelBuilder.Entity("Seniors2027.DAL.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -55,6 +143,71 @@ namespace Seniors2027.DAL.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Seniors2027.DAL.Entities.DailyHighlight", b =>
+                {
+                    b.HasOne("Seniors2027.DAL.Entities.GalleryPhoto", "GalleryPhoto")
+                        .WithMany("DailyHighlights")
+                        .HasForeignKey("GalleryPhotoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Seniors2027.DAL.Entities.User", "User")
+                        .WithMany("DailyHighlights")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("GalleryPhoto");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Seniors2027.DAL.Entities.GalleryPhoto", b =>
+                {
+                    b.HasOne("Seniors2027.DAL.Entities.User", "User")
+                        .WithMany("GalleryPhotos")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Seniors2027.DAL.Entities.Note", b =>
+                {
+                    b.HasOne("Seniors2027.DAL.Entities.User", "Recipient")
+                        .WithMany("ReceivedNotes")
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Seniors2027.DAL.Entities.User", "Sender")
+                        .WithMany("SentNotes")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Recipient");
+
+                    b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("Seniors2027.DAL.Entities.GalleryPhoto", b =>
+                {
+                    b.Navigation("DailyHighlights");
+                });
+
+            modelBuilder.Entity("Seniors2027.DAL.Entities.User", b =>
+                {
+                    b.Navigation("DailyHighlights");
+
+                    b.Navigation("GalleryPhotos");
+
+                    b.Navigation("ReceivedNotes");
+
+                    b.Navigation("SentNotes");
                 });
 #pragma warning restore 612, 618
         }

@@ -6,14 +6,24 @@ import { getMeRequest, getUsersRequest, type DirectoryUser } from '../lib/authAp
 import { Search } from 'lucide-react'
 
 const PAGE_SIZE = 20
+const FETCH_SIZE = PAGE_SIZE + 2
 
 export default function Directory() {
   const navigate = useNavigate()
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [users, setUsers] = useState<DirectoryUser[]>([])
   const [myUserId, setMyUserId] = useState<number | null>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [pageNumber, setPageNumber] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 760)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -26,18 +36,36 @@ export default function Directory() {
   }, [])
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim())
+    }, 320)
+
+    return () => window.clearTimeout(timer)
+  }, [searchInput])
+
+  useEffect(() => {
+    setPageNumber(1)
+  }, [debouncedSearch])
+
+  useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true)
-      const result = await getUsersRequest(pageNumber, PAGE_SIZE + 1)
+      const result = await getUsersRequest(pageNumber, FETCH_SIZE, debouncedSearch)
       if (result.ok && result.data) {
         const filtered = myUserId ? result.data.filter((u) => u.id !== myUserId) : result.data
         setHasNextPage(filtered.length > PAGE_SIZE)
         setUsers(filtered.slice(0, PAGE_SIZE))
+      } else {
+        setUsers([])
+        setHasNextPage(false)
       }
       setLoading(false)
     }
     void fetchUsers()
-  }, [pageNumber, myUserId])
+  }, [pageNumber, myUserId, debouncedSearch])
+
+  const isPreviousDisabled = pageNumber === 1 || loading
+  const isNextDisabled = loading || !hasNextPage || users.length === 0
 
   return (
     <PortalLayout>
@@ -48,19 +76,29 @@ export default function Directory() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
           {/* Page Header & Search */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: isMobile ? 'stretch' : 'flex-end',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: isMobile ? '14px' : '0'
+            }}
+          >
             <div>
-              <h1 style={{ fontSize: '3rem', margin: 0 }}>Senior Directory</h1>
+              <h1 style={{ fontSize: isMobile ? '2rem' : '3rem', margin: 0 }}>Senior Directory</h1>
               <p style={{ fontWeight: 800, opacity: 0.7 }}>Browse the faces of the Class of 2027</p>
             </div>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', width: isMobile ? '100%' : undefined }}>
               <input 
                 type="text" 
                 placeholder="Search seniors..." 
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 style={{ 
                   padding: '12px 15px 12px 45px', 
                   fontSize: '1rem', 
-                  width: '300px',
+                  width: isMobile ? '100%' : '300px',
                   background: 'white'
                 }}
               />
@@ -71,7 +109,7 @@ export default function Directory() {
           {/* Directory Grid */}
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+            gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(160px, 1fr))' : 'repeat(auto-fill, minmax(220px, 1fr))', 
             gap: '25px' 
           }}>
             {loading ? (
@@ -98,7 +136,7 @@ export default function Directory() {
                     transition: 'box-shadow 0.2s'
                   }}
                 >
-                  <div style={{ width: '100%', height: '200px', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '4px solid black' }}>
+                  <div style={{ width: '100%', height: isMobile ? '150px' : '200px', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '4px solid black' }}>
                     {user.photoUrl ? (
                       <img src={user.photoUrl} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
@@ -132,12 +170,16 @@ export default function Directory() {
               ))
             )}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="neo-btn"
-              onClick={() => setPageNumber((prev) => Math.max(1, prev - 1))}
-              disabled={pageNumber === 1 || loading}
+              onClick={() => {
+                if (isPreviousDisabled) return
+                setPageNumber((prev) => Math.max(1, prev - 1))
+              }}
+              disabled={isPreviousDisabled}
+              style={isPreviousDisabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
             >
               Previous
             </button>
@@ -147,8 +189,12 @@ export default function Directory() {
             <button
               type="button"
               className="neo-btn"
-              onClick={() => setPageNumber((prev) => prev + 1)}
-              disabled={!hasNextPage || loading}
+              onClick={() => {
+                if (isNextDisabled) return
+                setPageNumber((prev) => prev + 1)
+              }}
+              disabled={isNextDisabled}
+              style={isNextDisabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
             >
               Next
             </button>

@@ -87,9 +87,64 @@ export type MeUser = {
   description?: string | null
 }
 
-export async function getUsersRequest(pageNumber: number = 1, pageSize: number = 10): Promise<ApiResult<DirectoryUser[]>> {
+export type NoteSender = {
+  id: number
+  username: string
+  photoUrl?: string | null
+}
+
+export type NoteItem = {
+  id: number
+  content: string
+  createdAt: string
+  sender: NoteSender
+}
+
+export type PagedNotes = {
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  items: NoteItem[]
+}
+
+export type GalleryPhoto = {
+  id: number
+  userId: number
+  photoUrl: string
+  createdAt: string
+}
+
+export type DailyHighlightUser = {
+  id: number
+  username: string
+  photoUrl?: string | null
+}
+
+export type DailyHighlight = {
+  id: number
+  userId: number
+  galleryPhotoId: number
+  photoUrl: string
+  createdAt: string
+  expiresAt: string
+  user: DailyHighlightUser
+}
+
+export async function getUsersRequest(
+  pageNumber: number = 1,
+  pageSize: number = 10,
+  search: string = ''
+): Promise<ApiResult<DirectoryUser[]>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users?pageNumber=${pageNumber}&pageSize=${pageSize}`)
+    const params = new URLSearchParams({
+      pageNumber: String(pageNumber),
+      pageSize: String(pageSize)
+    })
+
+    if (search.trim()) params.set('search', search.trim())
+
+    const response = await fetch(`${API_BASE_URL}/api/users?${params.toString()}`)
 
     if (!response.ok) {
       const message = await safeError(response)
@@ -158,6 +213,262 @@ export async function uploadProfilePhotoRequest(file: File): Promise<ApiResult<{
     }
 
     const data = (await response.json()) as { photoUrl: string }
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function updateMyPhotoRequest(file: File): Promise<ApiResult<{ photoUrl: string }>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const formData = new FormData()
+    formData.append('photo', file)
+
+    const response = await fetch(`${API_BASE_URL}/api/auth/me/photo`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as { photoUrl: string }
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function sendNoteRequest(recipientId: number, content: string): Promise<ApiResult<NoteItem>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/notes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ recipientId, content })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as NoteItem
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getLatestReceivedNotesRequest(recipientId: number, count: number = 3): Promise<ApiResult<NoteItem[]>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/notes/received/${recipientId}/latest?count=${count}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as NoteItem[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getReceivedNotesPageRequest(
+  recipientId: number,
+  pageNumber: number = 1,
+  pageSize: number = 2
+): Promise<ApiResult<PagedNotes>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/notes/received/${recipientId}?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as PagedNotes
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function deleteNoteRequest(noteId: number): Promise<ApiResult<null>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/notes/${noteId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    return { ok: true, data: null }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getUserGalleryPhotosRequest(userId: number): Promise<ApiResult<GalleryPhoto[]>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/gallery/user/${userId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as GalleryPhoto[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function uploadGalleryPhotoRequest(file: File): Promise<ApiResult<GalleryPhoto>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const formData = new FormData()
+    formData.append('photo', file)
+
+    const response = await fetch(`${API_BASE_URL}/api/gallery/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as GalleryPhoto
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getActiveDailyHighlightsRequest(maxCount: number = 50): Promise<ApiResult<DailyHighlight[]>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/active?maxCount=${maxCount}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as DailyHighlight[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function uploadDailyHighlightRequest(file: File): Promise<ApiResult<DailyHighlight>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const formData = new FormData()
+    formData.append('photo', file)
+
+    const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as DailyHighlight
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function deleteDailyHighlightRequest(id: number): Promise<ApiResult<DailyHighlight>> {
+  try {
+    const token = localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as DailyHighlight
     return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
