@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Bell, BookImage, Calendar, ChevronLeft, ChevronRight, Lock, Trash2, Upload } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
+import GenderCapAvatar from '../components/GenderCapAvatar'
 import Logo from '../assets/Logo.png'
 import {
   deleteDailyHighlightRequest,
   getMeRequest,
+  getUserByIdRequest,
   getActiveDailyHighlightsRequest,
   type DailyHighlight,
   uploadDailyHighlightRequest
@@ -22,6 +24,7 @@ export default function PortalHome() {
   const [isArchivePreviewHovered, setIsArchivePreviewHovered] = useState(false)
   const [highlightsMessage, setHighlightsMessage] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+  const [genderByUserId, setGenderByUserId] = useState<Record<number, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchHighlights = async () => {
@@ -52,6 +55,39 @@ export default function PortalHome() {
     }
     void run()
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const run = async () => {
+      const missingIds = Array.from(new Set(highlights.map((item) => item.user.id)))
+        .filter((id) => genderByUserId[id] === undefined)
+
+      if (missingIds.length === 0) return
+
+      const pairs = await Promise.all(
+        missingIds.map(async (id) => {
+          const result = await getUserByIdRequest(id)
+          return { id, gender: result.ok && result.data ? result.data.gender : '' }
+        })
+      )
+
+      if (cancelled) return
+
+      setGenderByUserId((prev) => {
+        const next = { ...prev }
+        for (const pair of pairs) {
+          next[pair.id] = pair.gender
+        }
+        return next
+      })
+    }
+
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [highlights, genderByUserId])
 
   const current = highlights[activeIndex] ?? null
   const latestPreviewHighlights = highlights.slice(0, 4)
@@ -413,10 +449,13 @@ export default function PortalHome() {
                           gap: '8px'
                         }}
                       >
-                        <img
+                        <GenderCapAvatar
                           src={current?.user.photoUrl || '/favicon.svg'}
                           alt={current?.user.username || 'Senior'}
-                          style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
+                          gender={current ? genderByUserId[current.user.id] : null}
+                          containerStyle={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid black' }}
+                          imageStyle={{ borderRadius: '50%' }}
+                          capScale={0.75}
                         />
                         <div style={{ fontWeight: 900, fontSize: '0.85rem', lineHeight: 1.2 }}>
                           Latest by {current?.user.username}
@@ -500,10 +539,13 @@ export default function PortalHome() {
             </div>
 
             <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <img
+              <GenderCapAvatar
                 src={current?.user.photoUrl || '/favicon.svg'}
                 alt={current?.user.username || 'Senior'}
-                style={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
+                gender={current ? genderByUserId[current.user.id] : null}
+                containerStyle={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black' }}
+                imageStyle={{ borderRadius: '50%' }}
+                capScale={0.75}
               />
               <div style={{ fontWeight: 900, fontSize: '0.88rem' }}>{current?.user.username}</div>
               <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.75 }}>

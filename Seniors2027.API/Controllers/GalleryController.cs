@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
@@ -13,12 +14,12 @@ namespace Seniors2027.API.Controllers;
 public class GalleryController : ControllerBase
 {
     private readonly IGalleryService _galleryService;
-    private readonly IWebHostEnvironment _environment;
+    private readonly IImageUploadProcessor _imageUploadProcessor;
 
-    public GalleryController(IGalleryService galleryService, IWebHostEnvironment environment)
+    public GalleryController(IGalleryService galleryService, IImageUploadProcessor imageUploadProcessor)
     {
         _galleryService = galleryService;
-        _environment = environment;
+        _imageUploadProcessor = imageUploadProcessor;
     }
 
     [HttpGet("user/{userId:int}")]
@@ -40,36 +41,13 @@ public class GalleryController : ControllerBase
 
         try
         {
-            var photoUrl = await SavePhotoAsync(photo);
-            var created = await _galleryService.AddPhotoAsync(userId, photoUrl);
+            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+            var created = await _galleryService.AddPhotoAsync(userId, storedPhoto.PhotoUrl);
             return Ok(created);
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);
         }
-    }
-
-    private async Task<string> SavePhotoAsync(IFormFile photo)
-    {
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
-        if (!allowedExtensions.Contains(extension)) throw new InvalidOperationException("Only jpg, jpeg, png, webp are allowed.");
-
-        const long maxSize = 5 * 1024 * 1024;
-        if (photo.Length > maxSize) throw new InvalidOperationException("Photo size must be <= 5 MB.");
-
-        var fileName = $"{Guid.NewGuid():N}{extension}";
-        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
-        Directory.CreateDirectory(photosDirectory);
-        var filePath = Path.Combine(photosDirectory, fileName);
-
-        await using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await photo.CopyToAsync(stream);
-        }
-
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        return $"{baseUrl}/SeniorsPhotos/{fileName}";
     }
 }

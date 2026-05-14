@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.BLL.Services;
+using Seniors2027.API.Services;
 using Seniors2027.DAL.Data;
 using Seniors2027.DAL.Interfaces;
 using Seniors2027.DAL.Repositories;
@@ -22,6 +23,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<INoteService, NoteService>();
 builder.Services.AddScoped<IGalleryService, GalleryService>();
 builder.Services.AddScoped<IDailyHighlightService, DailyHighlightService>();
+builder.Services.AddScoped<IImageUploadProcessor, ImageUploadProcessor>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -72,6 +74,7 @@ app.UseHttpsRedirection();
 
 var photosDirectory = Path.Combine(app.Environment.ContentRootPath, "SeniorsPhotos");
 Directory.CreateDirectory(photosDirectory);
+await LegacyPhotoNormalizer.NormalizeToWebpAsync(photosDirectory);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(photosDirectory),

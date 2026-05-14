@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
@@ -14,11 +15,13 @@ public class DailyHighlightsController : ControllerBase
 {
     private readonly IDailyHighlightService _dailyHighlightService;
     private readonly IWebHostEnvironment _environment;
+    private readonly IImageUploadProcessor _imageUploadProcessor;
 
-    public DailyHighlightsController(IDailyHighlightService dailyHighlightService, IWebHostEnvironment environment)
+    public DailyHighlightsController(IDailyHighlightService dailyHighlightService, IWebHostEnvironment environment, IImageUploadProcessor imageUploadProcessor)
     {
         _dailyHighlightService = dailyHighlightService;
         _environment = environment;
+        _imageUploadProcessor = imageUploadProcessor;
     }
 
     [HttpGet("active")]
@@ -40,8 +43,8 @@ public class DailyHighlightsController : ControllerBase
 
         try
         {
-            var photoUrl = await SavePhotoAsync(photo);
-            var created = await _dailyHighlightService.AddHighlightAsync(userId, photoUrl);
+            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+            var created = await _dailyHighlightService.AddHighlightAsync(userId, storedPhoto.PhotoUrl);
             return Ok(created);
         }
         catch (InvalidOperationException ex)
@@ -69,29 +72,6 @@ public class DailyHighlightsController : ControllerBase
         }
 
         return Ok(deleted);
-    }
-
-    private async Task<string> SavePhotoAsync(IFormFile photo)
-    {
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
-        if (!allowedExtensions.Contains(extension)) throw new InvalidOperationException("Only jpg, jpeg, png, webp are allowed.");
-
-        const long maxSize = 5 * 1024 * 1024;
-        if (photo.Length > maxSize) throw new InvalidOperationException("Photo size must be <= 5 MB.");
-
-        var fileName = $"{Guid.NewGuid():N}{extension}";
-        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
-        Directory.CreateDirectory(photosDirectory);
-        var filePath = Path.Combine(photosDirectory, fileName);
-
-        await using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await photo.CopyToAsync(stream);
-        }
-
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        return $"{baseUrl}/SeniorsPhotos/{fileName}";
     }
 
     private static bool TryGetLocalSeniorsPhotoPath(string? photoUrl, string photosDirectory, out string filePath)

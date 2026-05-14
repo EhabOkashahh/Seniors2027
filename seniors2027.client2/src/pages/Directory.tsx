@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import PortalLayout from '../components/PortalLayout'
-import { getMeRequest, getUsersRequest, type DirectoryUser } from '../lib/authApi'
+import GenderCapAvatar from '../components/GenderCapAvatar'
+import { getMeRequest, getUserByIdRequest, getUsersRequest, type DirectoryUser } from '../lib/authApi'
 import { Search } from 'lucide-react'
 
 const PAGE_SIZE = 20
@@ -12,6 +13,7 @@ export default function Directory() {
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [users, setUsers] = useState<DirectoryUser[]>([])
+  const [genderByUserId, setGenderByUserId] = useState<Record<number, string>>({})
   const [myUserId, setMyUserId] = useState<number | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -63,6 +65,40 @@ export default function Directory() {
     }
     void fetchUsers()
   }, [pageNumber, myUserId, debouncedSearch])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const run = async () => {
+      const missingIds = users
+        .map((user) => user.id)
+        .filter((id) => genderByUserId[id] === undefined)
+
+      if (missingIds.length === 0) return
+
+      const pairs = await Promise.all(
+        missingIds.map(async (id) => {
+          const result = await getUserByIdRequest(id)
+          return { id, gender: result.ok && result.data ? result.data.gender : '' }
+        })
+      )
+
+      if (cancelled) return
+
+      setGenderByUserId((prev) => {
+        const next = { ...prev }
+        for (const pair of pairs) {
+          next[pair.id] = pair.gender
+        }
+        return next
+      })
+    }
+
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [users, genderByUserId])
 
   const isPreviousDisabled = pageNumber === 1 || loading
   const isNextDisabled = loading || !hasNextPage || users.length === 0
@@ -136,12 +172,17 @@ export default function Directory() {
                     transition: 'box-shadow 0.2s'
                   }}
                 >
-                  <div style={{ width: '100%', height: isMobile ? '150px' : '200px', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '4px solid black' }}>
-                    {user.photoUrl ? (
-                      <img src={user.photoUrl} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <span style={{ fontSize: '3rem', fontWeight: 900 }}>{user.username.charAt(0).toUpperCase()}</span>
-                    )}
+                  <div style={{ width: '100%', height: isMobile ? '150px' : '200px', borderBottom: '4px solid black' }}>
+                    <GenderCapAvatar
+                      src={user.photoUrl}
+                      alt={user.username}
+                      gender={genderByUserId[user.id]}
+                      fallbackText={user.username.charAt(0).toUpperCase()}
+                      containerStyle={{ width: '100%', height: '100%', background: '#eee' }}
+                      imageStyle={{ objectFit: 'cover' }}
+                      fallbackStyle={{ fontSize: '3rem', background: '#eee' }}
+                      capScale={0.5}
+                    />
                   </div>
                   <div style={{ padding: '15px', textAlign: 'center' }}>
                     <div style={{ fontWeight: 900, fontSize: '1.1rem', textTransform: 'uppercase' }}>{user.username}</div>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useParams } from 'react-router-dom'
 import { Image as ImageIcon, Pin, BookOpen, Pencil } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
+import GenderCapAvatar from '../components/GenderCapAvatar'
 import {
   deleteNoteRequest,
   getUserGalleryPhotosRequest,
@@ -438,16 +439,18 @@ export default function Profile() {
             }}
           >
             <div style={{ position: 'relative' }}>
-              <img
+              <GenderCapAvatar
                 src={displayPhoto}
                 alt={displayName}
-                style={{
+                gender={profileUser?.gender}
+                containerStyle={{
                   width: '100%',
                   height: isMobile ? '240px' : '320px',
-                  objectFit: 'cover',
                   border: '4px solid black',
                   boxShadow: '8px 8px 0 black'
                 }}
+                imageStyle={{ objectFit: 'cover' }}
+                capScale={0.42}
               />
               {isOwnProfile && (
                 <>

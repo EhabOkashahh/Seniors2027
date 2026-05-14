@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
@@ -16,12 +17,14 @@ public class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;
+    private readonly IImageUploadProcessor _imageUploadProcessor;
 
-    public AuthController(IAuthService authService, IUnitOfWork unitOfWork, IWebHostEnvironment environment)
+    public AuthController(IAuthService authService, IUnitOfWork unitOfWork, IWebHostEnvironment environment, IImageUploadProcessor imageUploadProcessor)
     {
         _authService = authService;
         _unitOfWork = unitOfWork;
         _environment = environment;
+        _imageUploadProcessor = imageUploadProcessor;
     }
 
     [Authorize]
@@ -110,27 +113,20 @@ public class AuthController : ControllerBase
     [HttpPost("upload-photo")]
     public async Task<ActionResult> UploadPhoto([FromForm] IFormFile photo)
     {
-        if (photo == null || photo.Length == 0) return BadRequest("Photo is required.");
-
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
-        if (!allowedExtensions.Contains(extension)) return BadRequest("Only jpg, jpeg, png, webp are allowed.");
-
-        const long maxSize = 5 * 1024 * 1024;
-        if (photo.Length > maxSize) return BadRequest("Photo size must be <= 5 MB.");
-
-        var fileName = $"{Guid.NewGuid():N}{extension}";
-        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
-        Directory.CreateDirectory(photosDirectory);
-        var filePath = Path.Combine(photosDirectory, fileName);
-
-        await using var stream = new FileStream(filePath, FileMode.Create);
-        await photo.CopyToAsync(stream);
-
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var photoUrl = $"{baseUrl}/SeniorsPhotos/{fileName}";
-
-        return Ok(new { photoUrl });
+        try
+        {
+            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+            return Ok(new
+            {
+                photoUrl = storedPhoto.PhotoUrl,
+                savedFileName = storedPhoto.FileName,
+                savedPath = storedPhoto.FilePath
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [Authorize]
@@ -148,38 +144,37 @@ public class AuthController : ControllerBase
         var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
         if (user == null) return NotFound();
 
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
-        if (!allowedExtensions.Contains(extension)) return BadRequest("Only jpg, jpeg, png, webp are allowed.");
-
-        const long maxSize = 5 * 1024 * 1024;
-        if (photo.Length > maxSize) return BadRequest("Photo size must be <= 5 MB.");
-
         var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
         Directory.CreateDirectory(photosDirectory);
 
-        // Remove old local seniors photo file if present.
-        if (TryGetLocalSeniorsPhotoPath(user.PhotoUrl, photosDirectory, out var oldPhotoPath) && System.IO.File.Exists(oldPhotoPath))
+        StoredPhotoInfo storedPhoto;
+        try
+        {
+            storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+
+        var oldPhotoPath = string.Empty;
+        var hadLocalOldPhoto = TryGetLocalSeniorsPhotoPath(user.PhotoUrl, photosDirectory, out oldPhotoPath) && System.IO.File.Exists(oldPhotoPath);
+
+        user.PhotoUrl = storedPhoto.PhotoUrl;
+        _unitOfWork.Repository<User>().Update(user);
+        await _unitOfWork.CompleteAsync();
+
+        if (hadLocalOldPhoto)
         {
             System.IO.File.Delete(oldPhotoPath);
         }
 
-        var fileName = $"{Guid.NewGuid():N}{extension}";
-        var filePath = Path.Combine(photosDirectory, fileName);
-
-        await using (var stream = new FileStream(filePath, FileMode.Create))
+        return Ok(new
         {
-            await photo.CopyToAsync(stream);
-        }
-
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var photoUrl = $"{baseUrl}/SeniorsPhotos/{fileName}";
-
-        user.PhotoUrl = photoUrl;
-        _unitOfWork.Repository<User>().Update(user);
-        await _unitOfWork.CompleteAsync();
-
-        return Ok(new { photoUrl });
+            photoUrl = storedPhoto.PhotoUrl,
+            savedFileName = storedPhoto.FileName,
+            savedPath = storedPhoto.FilePath
+        });
     }
 
     [HttpPost("login")]
