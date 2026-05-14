@@ -4,6 +4,7 @@ import { Bell, BookImage, Calendar, ChevronLeft, ChevronRight, Lock, Trash2, Upl
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import Logo from '../assets/Logo.png'
+import NoteAsset from '../assets/Asset1.svg'
 import {
   deleteDailyHighlightRequest,
   getMeRequest,
@@ -176,7 +177,9 @@ export default function PortalHome() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  flexWrap: 'wrap'
+                  flexWrap: 'wrap',
+                  position: 'relative',
+                  overflow: 'visible'
                 }}
               >
                 <img
@@ -185,6 +188,21 @@ export default function PortalHome() {
                   style={{
                     width: 'clamp(110px, 12vw, 150px)',
                     filter: 'drop-shadow(7px 7px 0 black)'
+                  }}
+                />
+                <img
+                  src={NoteAsset}
+                  alt=""
+                  aria-hidden="true"
+                  style={{
+                    width: 'clamp(88px, 11vw, 140px)',
+                    position: 'absolute',
+                    left: '20px',
+                    top: '38%',
+                    filter: 'drop-shadow(4px 4px 0 black)',
+                    transform: 'translateY(-50%) rotate(-10deg)',
+                    flexShrink: 0,
+                    pointerEvents: 'none'
                   }}
                 />
                 <div

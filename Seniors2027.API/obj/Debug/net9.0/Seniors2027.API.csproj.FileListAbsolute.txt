@@ -168,6 +168,14 @@ C:\Users\ehaby\OneDrive\Desktop\Seniros2027\Seniors2027.API\bin\Debug\net9.0\Sen
 C:\Users\ehaby\OneDrive\Desktop\Seniros2027\Seniors2027.API\bin\Debug\net9.0\Seniors2027.DAL.pdb
 C:\Users\ehaby\OneDrive\Desktop\Seniros2027\Seniors2027.API\bin\Debug\net9.0\BCrypt.Net-Next.dll
 C:\Users\ehaby\OneDrive\Desktop\Seniros2027\Seniors2027.API\bin\Debug\net9.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\appsettings.Development.json
+C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\appsettings.json
+C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.staticwebassets.endpoints.json
+C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.exe
+C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.deps.json
+C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.runtimeconfig.json
+C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.dll
+C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.pdb
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\appsettings.Development.json
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\appsettings.json
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\Seniors2027.API.staticwebassets.endpoints.json
@@ -218,6 +226,7 @@ C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\Microso
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\Microsoft.SqlServer.Server.dll
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\Microsoft.Win32.SystemEvents.dll
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\Mono.TextTemplating.dll
+C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\SixLabors.ImageSharp.dll
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\System.ClientModel.dll
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\System.CodeDom.dll
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\System.Composition.AttributedModel.dll
@@ -339,12 +348,3 @@ C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\refint\
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.pdb
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.genruntimeconfig.cache
 C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\obj\Debug\net9.0\ref\Seniors2027.API.dll
-C:\Users\ehaby\OneDrive\Desktop\project\Seniors2027.API\bin\Debug\net9.0\SixLabors.ImageSharp.dll
-C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\appsettings.Development.json
-C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\appsettings.json
-C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.staticwebassets.endpoints.json
-C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.exe
-C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.deps.json
-C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.runtimeconfig.json
-C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.dll
-C:\Users\ehaby\OneDrive\Desktop\project\build-check\api-verify\Seniors2027.API.pdb
