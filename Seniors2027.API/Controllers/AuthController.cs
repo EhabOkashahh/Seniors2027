@@ -1,12 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Seniors2027.API.Extensions;
 using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
 using Seniors2027.DAL.Interfaces;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 
 namespace Seniors2027.API.Controllers;
 
@@ -18,31 +17,9 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     [HttpGet("me")]
     public ActionResult GetMe()
     {
-        var username = User.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value
-            ?? User.FindFirst("unique_name")?.Value
-            ?? User.FindFirst(ClaimTypes.Name)?.Value
-            ?? User.FindFirst("name")?.Value;
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
 
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("nameid")?.Value;
-
-        User? user = null;
-
-        if (!string.IsNullOrWhiteSpace(username))
-        {
-            user = _unitOfWork.Repository<User>()
-                .Find(u => u.Username.ToLower() == username.ToLower())
-                .FirstOrDefault();
-        }
-
-        if (user == null && int.TryParse(userIdClaim, out var userId))
-        {
-            user = _unitOfWork.Repository<User>()
-                .Find(u => u.Id == userId)
-                .FirstOrDefault();
-        }
-
+        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
         if (user == null) return NotFound();
 
         return Ok(new
@@ -50,7 +27,8 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
             id = user.Id,
             username = string.IsNullOrWhiteSpace(user.Username) ? "Senior" : user.Username,
             photoUrl = string.IsNullOrWhiteSpace(user.PhotoUrl) ? null : user.PhotoUrl,
-            description = string.IsNullOrWhiteSpace(user.Description) ? null : user.Description
+            description = string.IsNullOrWhiteSpace(user.Description) ? null : user.Description,
+            role = user.Role
         });
     }
 
@@ -58,11 +36,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     [HttpPut("me/username")]
     public async Task<ActionResult> UpdateMyUsername(UpdateUsernameDto dto)
     {
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("nameid")?.Value;
-
-        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
 
         try
         {
@@ -81,11 +55,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     [HttpPut("me/description")]
     public async Task<ActionResult> UpdateMyDescription(UpdateDescriptionDto dto)
     {
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("nameid")?.Value;
-
-        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
 
         var updated = await _authService.UpdateDescriptionAsync(userId, dto.Description);
         if (!updated) return NotFound();
@@ -97,11 +67,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     [HttpPut("me/gender")]
     public async Task<ActionResult> UpdateMyGender(UpdateGenderDto dto)
     {
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("nameid")?.Value;
-
-        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
 
         var updated = await _authService.UpdateGenderAsync(userId, dto.Gender);
         if (!updated) return NotFound();
@@ -159,12 +125,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     public async Task<ActionResult> UpdateMyPhoto([FromForm] IFormFile photo)
     {
         if (photo == null || photo.Length == 0) return BadRequest("Photo is required.");
-
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("nameid")?.Value;
-
-        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
 
         var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
         if (user == null) return NotFound();

@@ -1,26 +1,29 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Users, LogOut, User as UserIcon } from 'lucide-react'
+import { Home, Users, LogOut, Shield, User as UserIcon } from 'lucide-react'
 import '../App.css'
 import RetroGridBackground from './landing/RetroGridBackground'
 import { getMeRequest } from '../lib/authApi'
+import { clearSession, setStoredRole, type AppUserRole } from '../lib/session'
 
 interface PortalLayoutProps {
   children: React.ReactNode
 }
 
 export default function PortalLayout({ children }: PortalLayoutProps) {
-  const TOKEN_STORAGE_KEY = 'seniors2027.token'
   const location = useLocation()
   const navigate = useNavigate()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [myProfilePath, setMyProfilePath] = useState('/profile/1')
+  const [myRole, setMyRole] = useState<AppUserRole | null>(null)
 
   useEffect(() => {
     const run = async () => {
       const meResult = await getMeRequest()
       if (meResult.ok && meResult.data?.id) {
         setMyProfilePath(`/profile/${meResult.data.id}`)
+        setMyRole(meResult.data.role ?? null)
+        setStoredRole(meResult.data.role ?? null)
       }
     }
     void run()
@@ -30,6 +33,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
     { name: 'Dashboard', path: '/portal', icon: <Home size={20} /> },
     { name: 'Seniors', path: '/directory', icon: <Users size={20} /> },
     { name: 'My Profile', path: myProfilePath, icon: <UserIcon size={20} /> },
+    ...(myRole === 'Admin' ? [{ name: 'Admin', path: '/admin/join-requests', icon: <Shield size={20} /> }] : [])
   ]
 
   const handleNavigate = (path: string) => {
@@ -38,7 +42,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    clearSession()
     navigate('/', { replace: true })
     setIsMenuOpen(false)
   }

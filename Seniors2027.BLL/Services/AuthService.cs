@@ -2,11 +2,17 @@ using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
 using Seniors2027.DAL.Interfaces;
+using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 
 namespace Seniors2027.BLL.Services;
 
-public class AuthService(IUnitOfWork _unitOfWork, IJwtService _jwtService, IEmailService _emailService) : IAuthService
+public class AuthService(
+    IUnitOfWork unitOfWork,
+    IJwtService jwtService,
+    IEmailService emailService,
+    IJoinRequestService joinRequestService,
+    IConfiguration configuration) : IAuthService
 {
     // public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
     // {
@@ -36,20 +42,29 @@ public class AuthService(IUnitOfWork _unitOfWork, IJwtService _jwtService, IEmai
     //     };
     // }
 
+    private readonly IUnitOfWork _unitOfWork = unitOfWork;
+    private readonly IJwtService _jwtService = jwtService;
+    private readonly IEmailService _emailService = emailService;
+    private readonly IJoinRequestService _joinRequestService = joinRequestService;
+    private readonly HashSet<string> _adminEmails = configuration
+        .GetSection("Authorization:AdminEmails")
+        .GetChildren()
+        .Select(x => x.Value ?? string.Empty)
+        .Select(x => x.Trim().ToLowerInvariant())
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .ToHashSet();
+
     public async Task<LoginStartResponseDto> LoginAsync(LoginDto loginDto)
     {
-        var email = loginDto.Email.Trim();
+        var email = loginDto.Email.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(email))
         {
             throw new Exception("Email is required");
         }
 
-        var user = _unitOfWork.Repository<User>().Find(u => u.Email.ToLower() == email.ToLower()).FirstOrDefault();
-
-        if (user == null)
-        {
-            throw new Exception("Invalid email");
-        }
+        var user = _unitOfWork.Repository<User>()
+            .Find(u => u.Email.ToLower() == email)
+            .FirstOrDefault();
 
         var otp = GenerateOtp();
         await _emailService.SendOtpEmailAsync(email, otp);
@@ -58,9 +73,10 @@ public class AuthService(IUnitOfWork _unitOfWork, IJwtService _jwtService, IEmai
         {
             OtpCode = otp,
             Email = email,
-            userId = user.Id,
+            UserId = user?.Id,
             ExpiryTime = DateTime.UtcNow.AddMinutes(5)
         };
+
         await _unitOfWork.Repository<UserOtp>().AddAsync(userOtp);
         await _unitOfWork.CompleteAsync();
 
@@ -72,7 +88,7 @@ public class AuthService(IUnitOfWork _unitOfWork, IJwtService _jwtService, IEmai
 
     public async Task<AuthResponseDto> VerifyOtpAsync(VerifyOtpDto verifyOtpDto)
     {
-        var email = verifyOtpDto.Email.Trim();
+        var email = verifyOtpDto.Email.Trim().ToLowerInvariant();
         var otp = verifyOtpDto.Otp.Trim();
         if (string.IsNullOrWhiteSpace(email))
         {
@@ -84,27 +100,49 @@ public class AuthService(IUnitOfWork _unitOfWork, IJwtService _jwtService, IEmai
             throw new Exception("OTP is required");
         }
 
-        var user = _unitOfWork.Repository<User>()
-            .Find(u => u.Email.ToLower() == email.ToLower())
-            .FirstOrDefault();
-
-        if (user == null)
-        {
-            throw new Exception("Invalid email");
-        }
-
         var res = await ConsumeOtpAsync(email, otp);
         if (!res)
         {
             throw new Exception("Invalid or expired OTP");
         }
 
+        var user = _unitOfWork.Repository<User>()
+            .Find(u => u.Email.ToLower() == email)
+            .FirstOrDefault();
+
+        if (user == null)
+        {
+            await _joinRequestService.EnsurePendingRequestAsync(email);
+            return new AuthResponseDto
+            {
+                Status = AuthResultStatus.PendingApproval,
+                Message = "Your join request is pending approval.",
+                Token = null,
+                Username = null,
+                Role = null,
+                PhotoUrl = null,
+                Description = null,
+                ProfileCompletionRequired = false
+            };
+        }
+
+        if (_adminEmails.Contains(email) && user.Role != UserRole.Admin)
+        {
+            user.Role = UserRole.Admin;
+            _unitOfWork.Repository<User>().Update(user);
+            await _unitOfWork.CompleteAsync();
+        }
+
         return new AuthResponseDto
         {
+            Status = AuthResultStatus.Authenticated,
+            Message = "Authenticated successfully.",
             Username = user.Username,
             Token = _jwtService.CreateToken(user),
+            Role = user.Role,
             PhotoUrl = user.PhotoUrl,
-            Description = user.Description
+            Description = user.Description,
+            ProfileCompletionRequired = IsProfileCompletionRequired(user)
         };
     }
 
@@ -181,10 +219,18 @@ public class AuthService(IUnitOfWork _unitOfWork, IJwtService _jwtService, IEmai
         return true;
     }
 
-      private string GenerateOtp()
+    private string GenerateOtp()
     {
         return RandomNumberGenerator
             .GetInt32(100000, 999999)
             .ToString();
+    }
+
+    private static bool IsProfileCompletionRequired(User user)
+    {
+        var hasUsername = !string.IsNullOrWhiteSpace(user.Username);
+        var hasPhoto = !string.IsNullOrWhiteSpace(user.PhotoUrl);
+        var hasGender = user.Gender != Gender.Unknown;
+        return !(hasUsername && hasPhoto && hasGender);
     }
 }

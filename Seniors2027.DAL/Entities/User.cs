@@ -15,7 +15,11 @@ public class User
     public string? PhotoUrl { get; set; }
     [MaxLength(1000)]
     public string? Description { get; set; }
-    public string Email { get; set; }
+    [Required]
+    [MaxLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [Required]
+    public UserRole Role { get; set; } = UserRole.Member;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<Note> SentNotes { get; set; } = new List<Note>();
     public ICollection<Note> ReceivedNotes { get; set; } = new List<Note>();

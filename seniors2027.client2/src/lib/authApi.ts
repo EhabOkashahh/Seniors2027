@@ -1,7 +1,9 @@
+import { getAuthToken, type AppUserRole } from './session'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5292'
 const EMAIL_EXISTS_ENDPOINT = import.meta.env.VITE_AUTH_EMAIL_EXISTS_ENDPOINT ?? '/api/auth/recognize/{email}'
 
-type ApiResult<T> = {
+export type ApiResult<T> = {
   ok: boolean
   data?: T
   error?: string
@@ -22,6 +24,8 @@ type VerifyOtpPayload = {
   email: string
   otp: string
 }
+
+export type AuthResultStatus = 'Authenticated' | 'PendingApproval'
 
 export async function registerRequest(payload: RegisterPayload): Promise<ApiResult<{ token?: string }>> {
   try {
@@ -95,10 +99,14 @@ export async function loginRequest(payload: LoginPayload): Promise<ApiResult<{ m
 
 export async function verifyOtpRequest(payload: VerifyOtpPayload): Promise<
   ApiResult<{
+    status?: AuthResultStatus
+    message?: string
     token?: string
     username?: string | null
+    role?: AppUserRole | null
     photoUrl?: string | null
     description?: string | null
+    profileCompletionRequired?: boolean
   }>
 > {
   try {
@@ -117,10 +125,14 @@ export async function verifyOtpRequest(payload: VerifyOtpPayload): Promise<
     }
 
     const data = (await response.json()) as {
+      status?: AuthResultStatus
+      message?: string
       token?: string
       username?: string | null
+      role?: AppUserRole | null
       photoUrl?: string | null
       description?: string | null
+      profileCompletionRequired?: boolean
     }
     return { ok: true, data }
   } catch {
@@ -147,6 +159,21 @@ export type MeUser = {
   username: string
   photoUrl?: string | null
   description?: string | null
+  role?: AppUserRole | null
+}
+
+export type JoinRequestStatus = 'Pending' | 'Accepted' | 'Declined'
+export type JoinRequestDecision = 'Accept' | 'Decline'
+
+export type JoinRequestItem = {
+  id: number
+  name: string
+  email: string
+  status: JoinRequestStatus
+  requestedAt: string
+  reviewedAt?: string | null
+  reviewedByUsername?: string | null
+  approvedUserId?: number | null
 }
 
 export type NoteSender = {
@@ -238,7 +265,7 @@ export async function getUserByIdRequest(id: number): Promise<ApiResult<User>> {
 
 export async function getMeRequest(): Promise<ApiResult<MeUser>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
@@ -286,7 +313,7 @@ export async function updateMyPhotoRequest(
   tokenOverride?: string
 ): Promise<ApiResult<{ photoUrl: string }>> {
   try {
-    const token = tokenOverride ?? localStorage.getItem('seniors2027.token')
+    const token = tokenOverride ?? getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const formData = new FormData()
@@ -314,7 +341,7 @@ export async function updateMyPhotoRequest(
 
 export async function sendNoteRequest(recipientId: number, content: string): Promise<ApiResult<NoteItem>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/notes`, {
@@ -340,7 +367,7 @@ export async function sendNoteRequest(recipientId: number, content: string): Pro
 
 export async function getLatestReceivedNotesRequest(recipientId: number, count: number = 3): Promise<ApiResult<NoteItem[]>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/notes/received/${recipientId}/latest?count=${count}`, {
@@ -367,7 +394,7 @@ export async function getReceivedNotesPageRequest(
   pageSize: number = 2
 ): Promise<ApiResult<PagedNotes>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(
@@ -393,7 +420,7 @@ export async function getReceivedNotesPageRequest(
 
 export async function deleteNoteRequest(noteId: number): Promise<ApiResult<null>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/notes/${noteId}`, {
@@ -416,7 +443,7 @@ export async function deleteNoteRequest(noteId: number): Promise<ApiResult<null>
 
 export async function getUserGalleryPhotosRequest(userId: number): Promise<ApiResult<GalleryPhoto[]>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/gallery/user/${userId}`, {
@@ -439,7 +466,7 @@ export async function getUserGalleryPhotosRequest(userId: number): Promise<ApiRe
 
 export async function uploadGalleryPhotoRequest(file: File): Promise<ApiResult<GalleryPhoto>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const formData = new FormData()
@@ -467,7 +494,7 @@ export async function uploadGalleryPhotoRequest(file: File): Promise<ApiResult<G
 
 export async function getActiveDailyHighlightsRequest(maxCount: number = 50): Promise<ApiResult<DailyHighlight[]>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/active?maxCount=${maxCount}`, {
@@ -490,7 +517,7 @@ export async function getActiveDailyHighlightsRequest(maxCount: number = 50): Pr
 
 export async function uploadDailyHighlightRequest(file: File): Promise<ApiResult<DailyHighlight>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const formData = new FormData()
@@ -518,7 +545,7 @@ export async function uploadDailyHighlightRequest(file: File): Promise<ApiResult
 
 export async function deleteDailyHighlightRequest(id: number): Promise<ApiResult<DailyHighlight>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/${id}`, {
@@ -554,7 +581,7 @@ export async function updateMyUsernameRequest(
   tokenOverride?: string
 ): Promise<ApiResult<{ message?: string }>> {
   try {
-    const token = tokenOverride ?? localStorage.getItem('seniors2027.token')
+    const token = tokenOverride ?? getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/auth/me/username`, {
@@ -583,7 +610,7 @@ export async function updateMyGenderRequest(
   tokenOverride?: string
 ): Promise<ApiResult<{ message?: string }>> {
   try {
-    const token = tokenOverride ?? localStorage.getItem('seniors2027.token')
+    const token = tokenOverride ?? getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
     const normalizedGender = gender.charAt(0).toUpperCase() + gender.slice(1)
 
@@ -630,5 +657,59 @@ async function tryReadJson(response: Response): Promise<unknown | null> {
     return await response.json()
   } catch {
     return null
+  }
+}
+
+export async function getJoinRequestsRequest(
+  status: JoinRequestStatus = 'Pending'
+): Promise<ApiResult<JoinRequestItem[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/join-requests?status=${encodeURIComponent(status)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as JoinRequestItem[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function reviewJoinRequestRequest(
+  requestId: number,
+  decision: JoinRequestDecision
+): Promise<ApiResult<JoinRequestItem>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/join-requests/${requestId}/decision`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ decision })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as JoinRequestItem
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
   }
 }

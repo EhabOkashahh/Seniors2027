@@ -29,10 +29,20 @@ public class LoginStartResponseDto
 
 public class AuthResponseDto
 {
-    public required string Username { get; set; }
-    public required string Token { get; set; }
+    public required AuthResultStatus Status { get; set; }
+    public string? Message { get; set; }
+    public string? Username { get; set; }
+    public string? Token { get; set; }
+    public UserRole? Role { get; set; }
     public string? PhotoUrl { get; set; }
     public string? Description { get; set; }
+    public bool ProfileCompletionRequired { get; set; }
+}
+
+public enum AuthResultStatus
+{
+    Authenticated = 0,
+    PendingApproval = 1
 }
 
 public class UpdateDescriptionDto

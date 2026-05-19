@@ -54,7 +54,7 @@ export default function Directory() {
       setLoading(true)
       const result = await getUsersRequest(pageNumber, FETCH_SIZE, debouncedSearch)
       if (result.ok && result.data) {
-        const filtered = myUserId ? result.data.filter((u) => u.id !== myUserId) : result.data
+        const filtered = myUserId ? result.data.filter((u) => u.id !== myUserId && u.username && u.username.trim() !== '') : result.data.filter((u) => u.username && u.username.trim() !== '')
         setHasNextPage(filtered.length > PAGE_SIZE)
         setUsers(filtered.slice(0, PAGE_SIZE))
       } else {

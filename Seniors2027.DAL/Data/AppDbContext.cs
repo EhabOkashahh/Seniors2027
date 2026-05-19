@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<GalleryPhoto> GalleryPhotos { get; set; }
     public DbSet<DailyHighlight> DailyHighlights { get; set; }
     public DbSet<UserOtp> UsersOTPs { get; set; }
+    public DbSet<JoinRequest> JoinRequests { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +23,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(320);
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.Property(e => e.Role).HasConversion<int>();
         });
 
         modelBuilder.Entity<Note>(entity =>
@@ -63,6 +67,37 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => e.ExpiresAt);
             entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<UserOtp>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(320);
+            entity.Property(e => e.OtpCode).IsRequired().HasMaxLength(20);
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => new { e.Email, e.CreatedAt });
+            entity.HasIndex(e => e.ExpiryTime);
+        });
+
+        modelBuilder.Entity<JoinRequest>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(320);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.HasIndex(e => new { e.Email, e.Status });
+
+            entity.HasOne(e => e.ReviewedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.ApprovedUser)
+                .WithMany()
+                .HasForeignKey(e => e.ApprovedUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

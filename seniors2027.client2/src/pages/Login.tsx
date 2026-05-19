@@ -8,13 +8,13 @@ import LogoIntro from '../components/landing/LogoIntro'
 import maleIcon from '../assets/m.png'
 import femaleIcon from '../assets/f.png'
 import {
-  checkEmailExistsRequest,
   loginRequest,
   updateMyGenderRequest,
   updateMyPhotoRequest,
   updateMyUsernameRequest,
   verifyOtpRequest
 } from '../lib/authApi'
+import { saveSession, type AppUserRole } from '../lib/session'
 
 const EXIT_TO_CENTER_MS = 1050
 const EXIT_FIREWORKS_MS = 950
@@ -29,7 +29,10 @@ export default function Login() {
   const [otp, setOtp] = useState('')
   const [otpRequestedFor, setOtpRequestedFor] = useState('')
   const [pendingToken, setPendingToken] = useState('')
+  const [pendingRole, setPendingRole] = useState<AppUserRole | null>(null)
   const [profileCompletionRequired, setProfileCompletionRequired] = useState(false)
+  const [joinRequestSubmitted, setJoinRequestSubmitted] = useState(false)
+  const [joinRequestMessage, setJoinRequestMessage] = useState('Your request has been sent successfully.')
   const [username, setUsername] = useState('')
   const [gender, setGender] = useState<Gender>('')
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
@@ -45,15 +48,6 @@ export default function Login() {
 
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailPattern.test(trimmedEmail)) return 'Enter a valid email address to continue.'
-
-      const existsResult = await checkEmailExistsRequest(trimmedEmail)
-      if (!existsResult.ok) {
-        return existsResult.error ?? 'Could not verify this email right now. Please try again.'
-      }
-
-      if (!existsResult.data?.exists) {
-        return 'Email not found. Check spelling and try again.'
-      }
 
       if (otpRequestedFor.toLowerCase() === trimmedEmail.toLowerCase()) return null
 
@@ -88,6 +82,10 @@ export default function Login() {
       if (!profilePhotoFile) return 'Upload your profile photo to continue.'
     }
 
+    if (joinRequestSubmitted && index === 2) {
+      return null
+    }
+
     return null
   }
 
@@ -108,11 +106,14 @@ export default function Login() {
                 setOtp('')
                 setOtpRequestedFor('')
                 setPendingToken('')
+                setPendingRole(null)
                 setUsername('')
                 setGender('')
                 setProfilePhotoFile(null)
                 setProfilePhotoPreview(null)
                 setProfileCompletionRequired(false)
+                setJoinRequestSubmitted(false)
+                setJoinRequestMessage('Your request has been sent successfully.')
                 setNotice(null)
               }
             }}
@@ -189,27 +190,64 @@ export default function Login() {
             )
           }
         ]
+      : []),
+    ...(joinRequestSubmitted
+      ? [
+          {
+            key: 'request-sent',
+            title: 'Request Sent',
+            subtitle: joinRequestMessage,
+            hideHint: true,
+            content: (
+              <div style={{ display: 'grid', gap: '10px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontWeight: 900, fontSize: '1.02rem' }}>Your request has been sent successfully.</p>
+                <p style={{ margin: 0, fontWeight: 700, opacity: 0.8 }}>
+                  Admin approval is required before you can enter the portal.
+                </p>
+              </div>
+            )
+          }
+        ]
       : [])
   ]
 
   const handleSubmit = async () => {
     setNotice(null)
 
+    if (joinRequestSubmitted) {
+      return null
+    }
+
     if (!profileCompletionRequired) {
       const result = await verifyOtpRequest({ email: email.trim(), otp: otp.trim() })
       if (!result.ok) return result.error ?? 'Login failed. Seniors, regroup and retry.'
 
-      const token = result.data?.token?.trim()
+      if (result.data?.status === 'PendingApproval') {
+        setJoinRequestSubmitted(true)
+        setJoinRequestMessage(result.data.message ?? 'Your request has been sent successfully.')
+        setNotice(null)
+        return null
+      }
+
+      if (result.data?.status !== 'Authenticated') {
+        return 'Unexpected authentication response. Please try again.'
+      }
+
+      setJoinRequestSubmitted(false)
+      setJoinRequestMessage('Your request has been sent successfully.')
+
+      const token = result.data.token?.trim()
       if (!token) return 'Login failed: token missing from response.'
 
-      const existingUsername = result.data?.username?.trim() ?? ''
-      if (existingUsername) {
-        localStorage.setItem('seniors2027.token', token)
+      if (!result.data.profileCompletionRequired) {
+        saveSession(token, result.data.role ?? null)
         navigate('/portal')
         return null
       }
 
       setPendingToken(token)
+      setPendingRole(result.data.role ?? null)
+      setUsername(result.data.username?.trim() ?? '')
       setProfileCompletionRequired(true)
       setNotice('OTP verified. Complete username, gender, and photo to enter the portal.')
       return null
@@ -236,7 +274,7 @@ export default function Login() {
       return photoResult.error ?? 'Could not save profile photo. Please try again.'
     }
 
-    localStorage.setItem('seniors2027.token', pendingToken)
+    saveSession(pendingToken, pendingRole)
     navigate('/portal')
     return null
   }
