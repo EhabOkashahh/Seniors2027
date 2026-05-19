@@ -30,7 +30,7 @@ export default function Onboarding() {
     return () => window.clearTimeout(timer)
   }, [skipIntro])
 
-  const playReverseSequence = (targetRoute: '/register' | '/login') => {
+  const playReverseSequence = () => {
     if (phase !== 'ready') return
 
     setPhase('reverseToCenter')
@@ -38,7 +38,7 @@ export default function Onboarding() {
     window.setTimeout(() => setPhase('reverseToTop'), REVERSE_TO_CENTER_MS + FIREWORKS_MS)
     window.setTimeout(() => {
       setPhase('ready')
-      navigate(targetRoute)
+      navigate('/login')
     }, REVERSE_TO_CENTER_MS + FIREWORKS_MS + RETURN_TO_TOP_MS)
   }
 
@@ -61,8 +61,7 @@ export default function Onboarding() {
             <QuoteSection show={showContent} />
             <AuthButtons
               show={showContent}
-              onCreateAccount={() => playReverseSequence('/register')}
-              onLogin={() => playReverseSequence('/login')}
+              onLogin={playReverseSequence}
             />
           </motion.div>
         )}

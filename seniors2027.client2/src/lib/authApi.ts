@@ -1,4 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5292'
+const EMAIL_EXISTS_ENDPOINT = import.meta.env.VITE_AUTH_EMAIL_EXISTS_ENDPOINT ?? '/api/auth/recognize/{email}'
 
 type ApiResult<T> = {
   ok: boolean
@@ -14,8 +15,12 @@ type RegisterPayload = {
 }
 
 type LoginPayload = {
-  username: string
-  password: string
+  email: string
+}
+
+type VerifyOtpPayload = {
+  email: string
+  otp: string
 }
 
 export async function registerRequest(payload: RegisterPayload): Promise<ApiResult<{ token?: string }>> {
@@ -43,14 +48,36 @@ export async function registerRequest(payload: RegisterPayload): Promise<ApiResu
   }
 }
 
-export async function loginRequest(payload: LoginPayload): Promise<ApiResult<{ token?: string }>> {
+export async function checkEmailExistsRequest(email: string): Promise<ApiResult<{ exists: boolean }>> {
+  try {
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) return { ok: true, data: { exists: false } }
+
+    const response = await fetch(resolveEmailExistsUrl(trimmedEmail))
+
+    if (!response.ok) {
+      if (response.status === 404) return { ok: true, data: { exists: false } }
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const payload = (await tryReadJson(response)) as Record<string, unknown> | null
+    const existsValue = payload?.exists ?? payload?.isExists ?? payload?.found
+    if (typeof existsValue === 'boolean') return { ok: true, data: { exists: existsValue } }
+
+    return { ok: true, data: { exists: true } }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function loginRequest(payload: LoginPayload): Promise<ApiResult<{ message?: string }>> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: payload.username,
-        password: payload.password
+        email: payload.email
       })
     })
 
@@ -59,7 +86,42 @@ export async function loginRequest(payload: LoginPayload): Promise<ApiResult<{ t
       return { ok: false, error: message }
     }
 
-    const data = (await response.json()) as { token?: string }
+    const data = (await response.json()) as { message?: string }
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function verifyOtpRequest(payload: VerifyOtpPayload): Promise<
+  ApiResult<{
+    token?: string
+    username?: string | null
+    photoUrl?: string | null
+    description?: string | null
+  }>
+> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: payload.email,
+        otp: payload.otp
+      })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as {
+      token?: string
+      username?: string | null
+      photoUrl?: string | null
+      description?: string | null
+    }
     return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
@@ -219,9 +281,12 @@ export async function uploadProfilePhotoRequest(file: File): Promise<ApiResult<{
   }
 }
 
-export async function updateMyPhotoRequest(file: File): Promise<ApiResult<{ photoUrl: string }>> {
+export async function updateMyPhotoRequest(
+  file: File,
+  tokenOverride?: string
+): Promise<ApiResult<{ photoUrl: string }>> {
   try {
-    const token = localStorage.getItem('seniors2027.token')
+    const token = tokenOverride ?? localStorage.getItem('seniors2027.token')
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const formData = new FormData()
@@ -481,5 +546,89 @@ async function safeError(response: Response): Promise<string> {
     return text || `Request failed (${response.status})`
   } catch {
     return `Request failed (${response.status})`
+  }
+}
+
+export async function updateMyUsernameRequest(
+  username: string,
+  tokenOverride?: string
+): Promise<ApiResult<{ message?: string }>> {
+  try {
+    const token = tokenOverride ?? localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/auth/me/username`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ username: username.trim() })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await tryReadJson(response)) as { message?: string } | null
+    return { ok: true, data: data ?? {} }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function updateMyGenderRequest(
+  gender: 'male' | 'female',
+  tokenOverride?: string
+): Promise<ApiResult<{ message?: string }>> {
+  try {
+    const token = tokenOverride ?? localStorage.getItem('seniors2027.token')
+    if (!token) return { ok: false, error: 'Missing auth token' }
+    const normalizedGender = gender.charAt(0).toUpperCase() + gender.slice(1)
+
+    const response = await fetch(`${API_BASE_URL}/api/auth/me/gender`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ gender: normalizedGender })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await tryReadJson(response)) as { message?: string } | null
+    return { ok: true, data: data ?? {} }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+function resolveEmailExistsUrl(email: string): string {
+  const encoded = encodeURIComponent(email.trim())
+  const endpoint = EMAIL_EXISTS_ENDPOINT.trim() || '/api/auth/recognize/{email}'
+
+  if (endpoint.includes('{email}')) {
+    return `${API_BASE_URL}${endpoint.replace('{email}', encoded)}`
+  }
+
+  if (endpoint.includes('?')) {
+    const separator = endpoint.endsWith('?') || endpoint.endsWith('&') ? '' : '&'
+    return `${API_BASE_URL}${endpoint}${separator}email=${encoded}`
+  }
+
+  const baseEndpoint = endpoint.endsWith('/') ? endpoint.slice(0, -1) : endpoint
+  return `${API_BASE_URL}${baseEndpoint}/${encoded}`
+}
+
+async function tryReadJson(response: Response): Promise<unknown | null> {
+  try {
+    return await response.json()
+  } catch {
+    return null
   }
 }

@@ -24,6 +24,7 @@ builder.Services.AddScoped<INoteService, NoteService>();
 builder.Services.AddScoped<IGalleryService, GalleryService>();
 builder.Services.AddScoped<IDailyHighlightService, DailyHighlightService>();
 builder.Services.AddScoped<IImageUploadProcessor, ImageUploadProcessor>();
+builder.Services.AddScoped<IEmailService, EmailService >();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

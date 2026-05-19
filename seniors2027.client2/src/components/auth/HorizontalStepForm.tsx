@@ -49,6 +49,7 @@ export default function HorizontalStepForm({
   const touchStartXRef = useRef<number | null>(null)
   const containerRef = useRef<HTMLElement | null>(null)
   const lastNavAtRef = useRef(0)
+  const previousTotalStepsRef = useRef(steps.length)
 
   const totalSteps = steps.length
   const isLastStep = currentStep === totalSteps - 1
@@ -221,6 +222,19 @@ export default function HorizontalStepForm({
     stepIndex: currentStep,
     isLastStep
   }
+
+  useEffect(() => {
+    const previousTotalSteps = previousTotalStepsRef.current
+    const stepsExpanded = totalSteps > previousTotalSteps
+    const wasOnPreviousLastStep = currentStep === previousTotalSteps - 1
+
+    if (stepsExpanded && wasOnPreviousLastStep) {
+      setCurrentStep((current) => Math.min(current + 1, totalSteps - 1))
+      setError(null)
+    }
+
+    previousTotalStepsRef.current = totalSteps
+  }, [totalSteps, currentStep])
 
   return (
     <motion.section

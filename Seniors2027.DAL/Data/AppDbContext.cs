@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Note> Notes { get; set; }
     public DbSet<GalleryPhoto> GalleryPhotos { get; set; }
     public DbSet<DailyHighlight> DailyHighlights { get; set; }
+    public DbSet<UserOtp> UsersOTPs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -13,8 +13,18 @@ public class RegisterDto
 
 public class LoginDto
 {
-    public required string Username { get; set; }
-    public required string Password { get; set; }
+    public required string Email { get; set; }
+}
+
+public class VerifyOtpDto
+{
+    public required string Email { get; set; }
+    public required string Otp { get; set; }
+}
+
+public class LoginStartResponseDto
+{
+    public required string Message { get; set; }
 }
 
 public class AuthResponseDto
@@ -28,4 +38,14 @@ public class AuthResponseDto
 public class UpdateDescriptionDto
 {
     public string? Description { get; set; }
+}
+
+public class UpdateUsernameDto
+{
+    public required string Username { get; set; }
+}
+
+public class UpdateGenderDto
+{
+    public required Gender Gender { get; set; }
 }

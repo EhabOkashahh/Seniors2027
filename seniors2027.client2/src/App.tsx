@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import Onboarding from './pages/Onboarding'
-import Register from './pages/Register'
 import Login from './pages/Login'
 import PortalHome from './pages/PortalHome'
 import Directory from './pages/Directory'
@@ -34,14 +33,6 @@ function App() {
           }
         />
         <Route
-          path="/register"
-          element={
-            <PublicOnlyRoute>
-              <Register />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
           path="/login"
           element={
             <PublicOnlyRoute>
@@ -49,6 +40,7 @@ function App() {
             </PublicOnlyRoute>
           }
         />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route
           path="/portal"
           element={

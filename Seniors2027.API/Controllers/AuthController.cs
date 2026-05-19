@@ -12,24 +12,11 @@ namespace Seniors2027.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, IWebHostEnvironment _environment, IImageUploadProcessor _imageUploadProcessor) : ControllerBase
 {
-    private readonly IAuthService _authService;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IWebHostEnvironment _environment;
-    private readonly IImageUploadProcessor _imageUploadProcessor;
-
-    public AuthController(IAuthService authService, IUnitOfWork unitOfWork, IWebHostEnvironment environment, IImageUploadProcessor imageUploadProcessor)
-    {
-        _authService = authService;
-        _unitOfWork = unitOfWork;
-        _environment = environment;
-        _imageUploadProcessor = imageUploadProcessor;
-    }
-
     [Authorize]
     [HttpGet("me")]
-    public async Task<ActionResult> GetMe()
+    public ActionResult GetMe()
     {
         var username = User.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value
             ?? User.FindFirst("unique_name")?.Value
@@ -68,47 +55,85 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
-    [HttpPut("me/description")]
-    public async Task<ActionResult> UpdateMyDescription(UpdateDescriptionDto dto)
+    [HttpPut("me/username")]
+    public async Task<ActionResult> UpdateMyUsername(UpdateUsernameDto dto)
     {
-        var username = User.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value
-            ?? User.FindFirst("unique_name")?.Value
-            ?? User.FindFirst(ClaimTypes.Name)?.Value
-            ?? User.FindFirst("name")?.Value;
+        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("nameid")?.Value;
 
-        if (string.IsNullOrWhiteSpace(username)) return Unauthorized();
+        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
 
-        var updated = await _authService.UpdateDescriptionAsync(username, dto.Description);
-        if (!updated) return NotFound();
-
-        return Ok(new { message = "Description updated successfully." });
-    }
-
-    [HttpGet("recognize/{username}")]
-    public async Task<ActionResult> Recognize(string username)
-    {
-        var user = _unitOfWork.Repository<User>().Find(u => u.Username.ToLower() == username.ToLower()).FirstOrDefault();
-        if (user == null) 
-        {
-            return NotFound("Senior not found");
-        }
-
-        return Ok(new { username = user.Username, photoUrl = user.PhotoUrl });
-    }
-
-    [HttpPost("register")]
-    public async Task<ActionResult<AuthResponseDto>> Register(RegisterDto registerDto) 
-    {
         try
         {
-            var result = await _authService.RegisterAsync(registerDto);
-            return Ok(result);
+            var updated = await _authService.UpdateUsernameAsync(userId, dto.Username);
+            if (!updated) return NotFound();
+
+            return Ok(new { message = "Username updated successfully." });
         }
         catch (Exception ex)
         {
             return BadRequest(ex.Message);
         }
     }
+
+    [Authorize]
+    [HttpPut("me/description")]
+    public async Task<ActionResult> UpdateMyDescription(UpdateDescriptionDto dto)
+    {
+        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("nameid")?.Value;
+
+        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+
+        var updated = await _authService.UpdateDescriptionAsync(userId, dto.Description);
+        if (!updated) return NotFound();
+
+        return Ok(new { message = "Description updated successfully." });
+    }
+
+    [Authorize]
+    [HttpPut("me/gender")]
+    public async Task<ActionResult> UpdateMyGender(UpdateGenderDto dto)
+    {
+        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("nameid")?.Value;
+
+        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+
+        var updated = await _authService.UpdateGenderAsync(userId, dto.Gender);
+        if (!updated) return NotFound();
+
+        return Ok(new { message = "Gender updated successfully." });
+    }
+
+    [HttpGet("recognize/{email}")]
+    public ActionResult Recognize(string email)
+    {
+        var user = _unitOfWork.Repository<User>().Find(u => u.Email.ToLower() == email.ToLower()).FirstOrDefault();
+        if (user == null) 
+        {
+            return NotFound("Senior not found");
+        }
+
+        return Ok(new { username = user.Username, photoUrl = user.PhotoUrl, email = user.Email });
+    }
+
+    // [HttpPost("register")]
+    // public async Task<ActionResult<AuthResponseDto>> Register(RegisterDto registerDto) 
+    // {
+    //     try
+    //     {
+    //         var result = await _authService.RegisterAsync(registerDto);
+    //         return Ok(result);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return BadRequest(ex.Message);
+    //     }
+    // }
 
     [HttpPost("upload-photo")]
     public async Task<ActionResult> UploadPhoto([FromForm] IFormFile photo)
@@ -178,11 +203,25 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResponseDto>> Login(LoginDto loginDto)
+    public async Task<ActionResult<LoginStartResponseDto>> Login(LoginDto loginDto)
     {
         try
         {
             var result = await _authService.LoginAsync(loginDto);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("verify-otp")]
+    public async Task<ActionResult<AuthResponseDto>> VerifyOtp(VerifyOtpDto verifyOtpDto)
+    {
+        try
+        {
+            var result = await _authService.VerifyOtpAsync(verifyOtpDto);
             return Ok(result);
         }
         catch (Exception ex)
@@ -209,4 +248,5 @@ public class AuthController : ControllerBase
         filePath = candidate;
         return true;
     }
+
 }

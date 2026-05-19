@@ -2,7 +2,6 @@ import { motion } from 'framer-motion'
 
 type AuthButtonsProps = {
   show: boolean
-  onCreateAccount: () => void
   onLogin: () => void
 }
 
@@ -24,20 +23,12 @@ const item = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: easing } }
 }
 
-export default function AuthButtons({ show, onCreateAccount, onLogin }: AuthButtonsProps) {
+export default function AuthButtons({ show, onLogin }: AuthButtonsProps) {
   if (!show) return null
 
   return (
     <motion.div className="auth-buttons" variants={container} initial="hidden" animate="visible">
-      <motion.button
-        variants={item}
-        className="neo-btn primary-btn"
-        type="button"
-        onClick={onCreateAccount}
-      >
-        Create Account
-      </motion.button>
-      <motion.button variants={item} className="neo-btn" type="button" onClick={onLogin}>
+      <motion.button variants={item} className="neo-btn primary-btn" type="button" onClick={onLogin}>
         Login
       </motion.button>
     </motion.div>
