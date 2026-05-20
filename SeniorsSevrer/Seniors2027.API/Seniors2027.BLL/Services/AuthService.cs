@@ -2,6 +2,7 @@ using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
 using Seniors2027.DAL.Interfaces;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 
@@ -62,9 +63,7 @@ public class AuthService(
             throw new Exception("Email is required");
         }
 
-        var user = _unitOfWork.Repository<User>()
-            .Find(u => u.Email.ToLower() == email)
-            .FirstOrDefault();
+        var user = GetUserAuthSnapshot(email);
 
         if (user is { IsLocked: true })
         {
@@ -111,9 +110,7 @@ public class AuthService(
             throw new Exception("Invalid or expired OTP");
         }
 
-        var user = _unitOfWork.Repository<User>()
-            .Find(u => u.Email.ToLower() == email)
-            .FirstOrDefault();
+        var user = GetUserAuthSnapshot(email);
 
         if (user is { IsLocked: true })
         {
@@ -136,24 +133,91 @@ public class AuthService(
             };
         }
 
-        if (_adminEmails.Contains(email) && user.Role != UserRole.Admin)
+        var currentRole = user.Role;
+        if (_adminEmails.Contains(email) && currentRole != UserRole.Admin)
         {
-            user.Role = UserRole.Admin;
-            _unitOfWork.Repository<User>().Update(user);
-            await _unitOfWork.CompleteAsync();
+            var persistedUser = _unitOfWork.Repository<User>().Find(u => u.Id == user.Id).FirstOrDefault();
+            if (persistedUser != null)
+            {
+                persistedUser.Role = UserRole.Admin;
+                _unitOfWork.Repository<User>().Update(persistedUser);
+                await _unitOfWork.CompleteAsync();
+                currentRole = UserRole.Admin;
+            }
         }
+
+        var tokenUser = new User
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Gender = user.Gender,
+            Role = currentRole,
+            PhotoUrl = user.PhotoUrl,
+            Description = user.Description
+        };
 
         return new AuthResponseDto
         {
             Status = AuthResultStatus.Authenticated,
             Message = "Authenticated successfully.",
             Username = user.Username,
-            Token = _jwtService.CreateToken(user),
-            Role = user.Role,
+            Token = _jwtService.CreateToken(tokenUser),
+            Role = currentRole,
             PhotoUrl = user.PhotoUrl,
             Description = user.Description,
-            ProfileCompletionRequired = IsProfileCompletionRequired(user)
+            ProfileCompletionRequired = IsProfileCompletionRequired(tokenUser)
         };
+    }
+
+    private UserAuthSnapshot? GetUserAuthSnapshot(string email)
+    {
+        try
+        {
+            return _unitOfWork.Repository<User>()
+                .Find(u => u.Email.ToLower() == email)
+                .Select(u => new UserAuthSnapshot
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    Email = u.Email,
+                    Gender = u.Gender,
+                    Role = u.Role,
+                    PhotoUrl = u.PhotoUrl,
+                    Description = u.Description,
+                    IsLocked = u.IsLocked
+                })
+                .FirstOrDefault();
+        }
+        catch (SqlException ex) when (ex.Message.Contains("Invalid column name 'IsLocked'", StringComparison.OrdinalIgnoreCase))
+        {
+            return _unitOfWork.Repository<User>()
+                .Find(u => u.Email.ToLower() == email)
+                .Select(u => new UserAuthSnapshot
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    Email = u.Email,
+                    Gender = u.Gender,
+                    Role = u.Role,
+                    PhotoUrl = u.PhotoUrl,
+                    Description = u.Description,
+                    IsLocked = false
+                })
+                .FirstOrDefault();
+        }
+    }
+
+    private sealed class UserAuthSnapshot
+    {
+        public int Id { get; init; }
+        public string Username { get; init; } = string.Empty;
+        public string Email { get; init; } = string.Empty;
+        public Gender Gender { get; init; }
+        public UserRole Role { get; init; }
+        public string? PhotoUrl { get; init; }
+        public string? Description { get; init; }
+        public bool IsLocked { get; init; }
     }
 
 

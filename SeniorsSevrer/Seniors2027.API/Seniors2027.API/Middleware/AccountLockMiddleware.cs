@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using Seniors2027.DAL.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -34,11 +35,21 @@ public class AccountLockMiddleware
             return;
         }
 
-        var isLocked = await dbContext.Users
-            .AsNoTracking()
-            .Where(u => u.Id == userId)
-            .Select(u => u.IsLocked)
-            .FirstOrDefaultAsync(context.RequestAborted);
+        bool isLocked;
+        try
+        {
+            isLocked = await dbContext.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.IsLocked)
+                .FirstOrDefaultAsync(context.RequestAborted);
+        }
+        catch (SqlException ex) when (ex.Message.Contains("Invalid column name 'IsLocked'", StringComparison.OrdinalIgnoreCase))
+        {
+            // Backward-compatible fallback while pending migrations are being applied.
+            await _next(context);
+            return;
+        }
 
         if (isLocked)
         {

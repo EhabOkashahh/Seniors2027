@@ -19,7 +19,17 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized();
 
-        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        var user = _unitOfWork.Repository<User>()
+            .Find(u => u.Id == userId)
+            .Select(u => new
+            {
+                u.Id,
+                u.Username,
+                u.PhotoUrl,
+                u.Description,
+                u.Role
+            })
+            .FirstOrDefault();
         if (user == null) return NotFound();
 
         return Ok(new
