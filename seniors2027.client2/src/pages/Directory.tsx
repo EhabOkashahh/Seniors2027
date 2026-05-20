@@ -178,10 +178,17 @@ export default function Directory() {
                       alt={user.username}
                       gender={genderByUserId[user.id]}
                       fallbackText={user.username.charAt(0).toUpperCase()}
-                      containerStyle={{ width: '100%', height: '100%', background: '#eee' }}
+                      containerStyle={{
+                        width: '100%',
+                        height: '100%',
+                        background: '#eee',
+                        boxSizing: 'border-box',
+                        paddingTop: isMobile ? '20px' : '26px'
+                      }}
                       imageStyle={{ objectFit: 'cover' }}
                       fallbackStyle={{ fontSize: '3rem', background: '#eee' }}
                       capScale={0.5}
+                      capPlacement="above"
                     />
                   </div>
                   <div style={{ padding: '15px', textAlign: 'center' }}>

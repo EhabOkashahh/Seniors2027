@@ -9,6 +9,7 @@ type GenderCapAvatarProps = {
   imageStyle?: CSSProperties
   fallbackStyle?: CSSProperties
   capScale?: number
+  capPlacement?: 'corner' | 'above'
 }
 
 function normalizeGender(value?: string | null): 'male' | 'female' | null {
@@ -27,12 +28,34 @@ export default function GenderCapAvatar({
   containerStyle,
   imageStyle,
   fallbackStyle,
-  capScale = 0.56
+  capScale = 0.56,
+  capPlacement = 'corner'
 }: GenderCapAvatarProps) {
   const normalizedGender = normalizeGender(gender)
   const capMain = normalizedGender === 'female' ? '#ec4899' : '#2563eb'
   const capDark = normalizedGender === 'female' ? '#be185d' : '#1d4ed8'
   const capLight = normalizedGender === 'female' ? '#f9a8d4' : '#93c5fd'
+  const capWidthPercent = `${Math.max(42, Math.min(96, capScale * 130))}%`
+  const capStyle: CSSProperties =
+    capPlacement === 'above'
+      ? {
+          position: 'absolute',
+          left: '50%',
+          top: '4%',
+          width: capWidthPercent,
+          transform: 'translateX(-50%) rotate(0deg)',
+          pointerEvents: 'none',
+          filter: 'drop-shadow(2px 3px 0 rgba(0,0,0,0.35))'
+        }
+      : {
+          position: 'absolute',
+          right: '-22%',
+          top: '-16%',
+          width: capWidthPercent,
+          transform: 'rotate(20deg)',
+          pointerEvents: 'none',
+          filter: 'drop-shadow(2px 3px 0 rgba(0,0,0,0.35))'
+        }
 
   return (
     <div
@@ -74,15 +97,7 @@ export default function GenderCapAvatar({
         <svg
           viewBox="0 0 160 90"
           aria-hidden="true"
-          style={{
-            position: 'absolute',
-            right: '-22%',
-            top: '-16%',
-            width: `${Math.max(42, Math.min(96, capScale * 130))}%`,
-            transform: 'rotate(20deg)',
-            pointerEvents: 'none',
-            filter: 'drop-shadow(2px 3px 0 rgba(0,0,0,0.35))'
-          }}
+          style={capStyle}
         >
           <polygon points="80,8 152,38 80,68 8,38" fill={capMain} stroke="black" strokeWidth="4" />
           <polygon points="80,15 138,38 80,61 22,38" fill={capLight} opacity="0.45" />
