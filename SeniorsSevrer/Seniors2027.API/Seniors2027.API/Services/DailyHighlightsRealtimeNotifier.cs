@@ -24,7 +24,6 @@ public class DailyHighlightsRealtimeNotifier : IDailyHighlightsRealtimeNotifier
         }
         catch (Exception ex)
         {
-            // Highlight write succeeded; realtime push failure should not fail API calls.
             _logger.LogWarning(ex, "Failed to broadcast daily highlights update.");
         }
     }

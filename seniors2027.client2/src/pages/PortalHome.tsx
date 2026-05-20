@@ -14,9 +14,8 @@ import {
   uploadDailyHighlightRequest
 } from '../lib/authApi'
 import { subscribeDailyHighlightsRealtime } from '../lib/dailyHighlightsRealtime'
-import { optimizeDailyHighlightFileForUpload } from '../lib/imageUploadOptimizer'
 
-const HIGHLIGHTS_RESYNC_INTERVAL_MS = 60000
+const HIGHLIGHTS_SYNC_INTERVAL_MS = 5000
 
 export default function PortalHome() {
   const [highlights, setHighlights] = useState<DailyHighlight[]>([])
@@ -99,7 +98,7 @@ export default function PortalHome() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       void fetchHighlights({ silent: true })
-    }, HIGHLIGHTS_RESYNC_INTERVAL_MS)
+    }, HIGHLIGHTS_SYNC_INTERVAL_MS)
 
     const onVisibilityOrFocus = () => {
       if (document.visibilityState !== 'hidden') {
@@ -181,8 +180,7 @@ export default function PortalHome() {
     setHighlightsMessage(null)
 
     try {
-      const optimizedFile = await optimizeDailyHighlightFileForUpload(file)
-      const result = await uploadDailyHighlightRequest(optimizedFile)
+      const result = await uploadDailyHighlightRequest(file)
       const createdHighlight = result.data
 
       if (!result.ok || !createdHighlight) {
@@ -195,7 +193,7 @@ export default function PortalHome() {
       setFlipDirection('next')
       setHighlightsMessage('Daily highlight added. It will expire automatically after 24h.')
     } catch {
-      setHighlightsMessage('Could not prepare highlight image. Please try another photo.')
+      setHighlightsMessage('Could not upload highlight. Please try another photo.')
     } finally {
       setUploadingHighlight(false)
     }

@@ -34,7 +34,7 @@ export function subscribeDailyHighlightsRealtime(onUpdated: () => void): () => v
       }
     })
     .catch(() => {
-      // Keep UI functional without hard-failing when realtime transport is unavailable.
+      // Keep normal polling fallback when realtime cannot connect.
     })
 
   return () => {
