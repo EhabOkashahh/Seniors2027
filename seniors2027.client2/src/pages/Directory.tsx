@@ -181,14 +181,13 @@ export default function Directory() {
                       containerStyle={{
                         width: '100%',
                         height: '100%',
-                        background: '#eee',
-                        boxSizing: 'border-box',
-                        paddingTop: isMobile ? '20px' : '26px'
+                        background: '#eee'
                       }}
                       imageStyle={{ objectFit: 'cover' }}
                       fallbackStyle={{ fontSize: '3rem', background: '#eee' }}
                       capScale={0.5}
-                      capPlacement="above"
+                      capPlacement="corner"
+                      capRotationDeg={45}
                     />
                   </div>
                   <div style={{ padding: '15px', textAlign: 'center' }}>

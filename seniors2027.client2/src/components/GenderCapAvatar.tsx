@@ -10,6 +10,7 @@ type GenderCapAvatarProps = {
   fallbackStyle?: CSSProperties
   capScale?: number
   capPlacement?: 'corner' | 'above'
+  capRotationDeg?: number
 }
 
 function normalizeGender(value?: string | null): 'male' | 'female' | null {
@@ -29,12 +30,14 @@ export default function GenderCapAvatar({
   imageStyle,
   fallbackStyle,
   capScale = 0.56,
-  capPlacement = 'corner'
+  capPlacement = 'corner',
+  capRotationDeg
 }: GenderCapAvatarProps) {
   const normalizedGender = normalizeGender(gender)
   const capMain = normalizedGender === 'female' ? '#ec4899' : '#2563eb'
   const capDark = normalizedGender === 'female' ? '#be185d' : '#1d4ed8'
   const capLight = normalizedGender === 'female' ? '#f9a8d4' : '#93c5fd'
+  const capRotation = capRotationDeg ?? (capPlacement === 'above' ? 0 : 20)
   const capWidthPercent = `${Math.max(42, Math.min(96, capScale * 130))}%`
   const capStyle: CSSProperties =
     capPlacement === 'above'
@@ -43,7 +46,7 @@ export default function GenderCapAvatar({
           left: '50%',
           top: '4%',
           width: capWidthPercent,
-          transform: 'translateX(-50%) rotate(0deg)',
+          transform: `translateX(-50%) rotate(${capRotation}deg)`,
           pointerEvents: 'none',
           filter: 'drop-shadow(2px 3px 0 rgba(0,0,0,0.35))'
         }
@@ -52,7 +55,7 @@ export default function GenderCapAvatar({
           right: '-22%',
           top: '-16%',
           width: capWidthPercent,
-          transform: 'rotate(20deg)',
+          transform: `rotate(${capRotation}deg)`,
           pointerEvents: 'none',
           filter: 'drop-shadow(2px 3px 0 rgba(0,0,0,0.35))'
         }
