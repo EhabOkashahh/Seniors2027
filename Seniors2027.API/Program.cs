@@ -55,7 +55,22 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+        policy.SetIsOriginAllowed(origin =>
+              {
+                  if (string.IsNullOrWhiteSpace(origin)) return false;
+
+                  if (origin.Equals("http://localhost:5173", StringComparison.OrdinalIgnoreCase) ||
+                      origin.Equals("http://localhost:5174", StringComparison.OrdinalIgnoreCase))
+                  {
+                      return true;
+                  }
+
+                  if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+
+                  return uri.Scheme == Uri.UriSchemeHttps &&
+                         (uri.Host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase) ||
+                          uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase));
+              })
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
