@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import { Image as ImageIcon, Pin, BookOpen, Pencil } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
+import ImageCropEditorModal, { type ImageCropResult } from '../components/photo/ImageCropEditorModal'
 import {
   deleteGalleryPhotoRequest,
   deleteNoteRequest,
@@ -37,12 +38,7 @@ export default function Profile() {
   const [photoUpdating, setPhotoUpdating] = useState(false)
   const [photoMessage, setPhotoMessage] = useState<string | null>(null)
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false)
-  const [photoEditorUrl, setPhotoEditorUrl] = useState<string | null>(null)
-  const [photoEditorZoom, setPhotoEditorZoom] = useState(1)
-  const [photoEditorOffsetX, setPhotoEditorOffsetX] = useState(0)
-  const [photoEditorOffsetY, setPhotoEditorOffsetY] = useState(0)
-  const [photoEditorImageSize, setPhotoEditorImageSize] = useState<{ width: number; height: number } | null>(null)
-  const [photoEditorDragging, setPhotoEditorDragging] = useState(false)
+  const [photoEditorSourceUrl, setPhotoEditorSourceUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [galleryLoading, setGalleryLoading] = useState(false)
@@ -66,16 +62,9 @@ export default function Profile() {
   const [deletingNoteIds, setDeletingNoteIds] = useState<number[]>([])
   const [deletingGalleryPhotoIds, setDeletingGalleryPhotoIds] = useState<number[]>([])
   const [noteMessage, setNoteMessage] = useState<string | null>(null)
-  const photoEditorImageRef = useRef<HTMLImageElement>(null)
-  const photoDragStartRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null)
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
   const isAdmin = me?.role === 'Admin'
-  const cropPreviewSize = isMobile ? 220 : 280
-  const photoEditorBaseScale = photoEditorImageSize
-    ? Math.max(cropPreviewSize / photoEditorImageSize.width, cropPreviewSize / photoEditorImageSize.height)
-    : 1
-  const photoEditorRenderScale = photoEditorBaseScale * photoEditorZoom
 
   useEffect(() => {
     const onResize = () => {
@@ -198,23 +187,11 @@ export default function Profile() {
 
   useEffect(() => {
     return () => {
-      if (photoEditorUrl) {
-        URL.revokeObjectURL(photoEditorUrl)
+      if (photoEditorSourceUrl) {
+        URL.revokeObjectURL(photoEditorSourceUrl)
       }
     }
-  }, [photoEditorUrl])
-
-  useEffect(() => {
-    const clamped = clampPhotoOffsets(
-      photoEditorOffsetX,
-      photoEditorOffsetY,
-      photoEditorZoom,
-      photoEditorImageSize,
-      cropPreviewSize
-    )
-    if (clamped.x !== photoEditorOffsetX) setPhotoEditorOffsetX(clamped.x)
-    if (clamped.y !== photoEditorOffsetY) setPhotoEditorOffsetY(clamped.y)
-  }, [photoEditorZoom, photoEditorImageSize, cropPreviewSize, photoEditorOffsetX, photoEditorOffsetY])
+  }, [photoEditorSourceUrl])
 
   const displayName = profileUser?.username ?? 'Senior'
   const displayPhoto = profileUser?.photoUrl || '/favicon.svg'
@@ -358,92 +335,35 @@ export default function Profile() {
     if (!file) return
     e.target.value = ''
 
-    if (photoEditorUrl) URL.revokeObjectURL(photoEditorUrl)
+    if (photoEditorSourceUrl) URL.revokeObjectURL(photoEditorSourceUrl)
 
     const objectUrl = URL.createObjectURL(file)
-    setPhotoEditorUrl(objectUrl)
+    setPhotoEditorSourceUrl(objectUrl)
     setPhotoEditorOpen(true)
-    setPhotoEditorZoom(1)
-    setPhotoEditorOffsetX(0)
-    setPhotoEditorOffsetY(0)
-    setPhotoEditorImageSize(null)
     setPhotoMessage(null)
   }
 
   const handleClosePhotoEditor = () => {
     setPhotoEditorOpen(false)
-    setPhotoEditorDragging(false)
-    photoDragStartRef.current = null
-    if (photoEditorUrl) URL.revokeObjectURL(photoEditorUrl)
-    setPhotoEditorUrl(null)
-    setPhotoEditorImageSize(null)
-    setPhotoEditorZoom(1)
-    setPhotoEditorOffsetX(0)
-    setPhotoEditorOffsetY(0)
+    if (photoEditorSourceUrl) URL.revokeObjectURL(photoEditorSourceUrl)
+    setPhotoEditorSourceUrl(null)
   }
 
-  const handleApplyProfilePhoto = async () => {
-    if (!photoEditorImageRef.current || !photoEditorImageSize) return
-
+  const handleApplyProfilePhoto = async (result: ImageCropResult) => {
     setPhotoUpdating(true)
     setPhotoMessage(null)
-    const croppedFile = await buildCroppedProfileFile({
-      image: photoEditorImageRef.current,
-      cropSize: cropPreviewSize,
-      zoom: photoEditorZoom,
-      offsetX: photoEditorOffsetX,
-      offsetY: photoEditorOffsetY
-    })
-
-    if (!croppedFile) {
-      setPhotoUpdating(false)
-      setPhotoMessage('Could not prepare photo.')
-      return
-    }
-
-    const result = await updateMyPhotoRequest(croppedFile)
+    const uploadResult = await updateMyPhotoRequest(result.file)
     setPhotoUpdating(false)
+    URL.revokeObjectURL(result.previewUrl)
 
-    if (!result.ok || !result.data?.photoUrl) {
-      setPhotoMessage(result.error ?? 'Could not update photo.')
+    if (!uploadResult.ok || !uploadResult.data?.photoUrl) {
+      setPhotoMessage(uploadResult.error ?? 'Could not update photo.')
       return
     }
 
-    setProfileUser((prev) => (prev ? { ...prev, photoUrl: result.data?.photoUrl } : prev))
+    setProfileUser((prev) => (prev ? { ...prev, photoUrl: uploadResult.data?.photoUrl } : prev))
     setPhotoMessage('Photo updated.')
     handleClosePhotoEditor()
-  }
-
-  const handlePhotoEditorPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!photoEditorImageSize) return
-    setPhotoEditorDragging(true)
-    photoDragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      originX: photoEditorOffsetX,
-      originY: photoEditorOffsetY
-    }
-  }
-
-  const handlePhotoEditorPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!photoEditorDragging || !photoDragStartRef.current) return
-
-    const deltaX = e.clientX - photoDragStartRef.current.x
-    const deltaY = e.clientY - photoDragStartRef.current.y
-    const clamped = clampPhotoOffsets(
-      photoDragStartRef.current.originX + deltaX,
-      photoDragStartRef.current.originY + deltaY,
-      photoEditorZoom,
-      photoEditorImageSize,
-      cropPreviewSize
-    )
-    setPhotoEditorOffsetX(clamped.x)
-    setPhotoEditorOffsetY(clamped.y)
-  }
-
-  const handlePhotoEditorPointerUp = () => {
-    setPhotoEditorDragging(false)
-    photoDragStartRef.current = null
   }
 
   return (
@@ -974,109 +894,15 @@ export default function Profile() {
         </div>
       )}
 
-      {photoEditorOpen && photoEditorUrl && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={handleClosePhotoEditor}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'grid',
-            placeItems: 'center',
-            zIndex: 80,
-            padding: '20px'
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 'min(560px, 100%)',
-              border: '4px solid black',
-              boxShadow: '12px 12px 0 black',
-              background: 'var(--retro-paper)',
-              padding: isMobile ? '12px' : '16px',
-              display: 'grid',
-              gap: '12px'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, textTransform: 'uppercase' }}>Adjust Profile Photo</h3>
-              <button type="button" className="neo-btn" onClick={handleClosePhotoEditor}>Close</button>
-            </div>
-
-            <div
-              onPointerDown={handlePhotoEditorPointerDown}
-              onPointerMove={handlePhotoEditorPointerMove}
-              onPointerUp={handlePhotoEditorPointerUp}
-              onPointerCancel={handlePhotoEditorPointerUp}
-              style={{
-                margin: '0 auto',
-                width: `${cropPreviewSize}px`,
-                height: `${cropPreviewSize}px`,
-                overflow: 'hidden',
-                border: '4px solid black',
-                boxShadow: '7px 7px 0 black',
-                background: '#111',
-                position: 'relative',
-                touchAction: 'none',
-                cursor: photoEditorDragging ? 'grabbing' : 'grab'
-              }}
-            >
-              <img
-                ref={photoEditorImageRef}
-                src={photoEditorUrl}
-                alt="Profile crop preview"
-                onLoad={(e) => {
-                  const img = e.currentTarget
-                  setPhotoEditorImageSize({ width: img.naturalWidth, height: img.naturalHeight })
-                }}
-                draggable={false}
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: `translate(-50%, -50%) translate(${photoEditorOffsetX}px, ${photoEditorOffsetY}px) scale(${photoEditorRenderScale})`,
-                  transformOrigin: 'center center',
-                  userSelect: 'none',
-                  pointerEvents: 'none'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gap: '6px' }}>
-              <label htmlFor="photo-zoom" style={{ fontWeight: 800 }}>Zoom</label>
-              <input
-                id="photo-zoom"
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={photoEditorZoom}
-                onChange={(e) => setPhotoEditorZoom(Number(e.target.value))}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                className="neo-btn"
-                onClick={() => {
-                  setPhotoEditorZoom(1)
-                  setPhotoEditorOffsetX(0)
-                  setPhotoEditorOffsetY(0)
-                }}
-              >
-                Reset
-              </button>
-              <button type="button" className="neo-btn" onClick={handleApplyProfilePhoto} disabled={photoUpdating}>
-                {photoUpdating ? 'Saving...' : 'Apply Photo'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ImageCropEditorModal
+        open={photoEditorOpen}
+        sourceUrl={photoEditorSourceUrl}
+        title="Adjust Profile Photo"
+        confirmLabel="Apply Photo"
+        isSubmitting={photoUpdating}
+        onCancel={handleClosePhotoEditor}
+        onConfirm={handleApplyProfilePhoto}
+      />
     </PortalLayout>
   )
 }
@@ -1087,64 +913,3 @@ function formatNoteDate(value: string): string {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-function clampPhotoOffsets(
-  nextX: number,
-  nextY: number,
-  zoom: number,
-  imageSize: { width: number; height: number } | null,
-  cropSize: number
-): { x: number; y: number } {
-  if (!imageSize) return { x: 0, y: 0 }
-
-  const baseScale = Math.max(cropSize / imageSize.width, cropSize / imageSize.height)
-  const renderScale = baseScale * zoom
-  const renderedWidth = imageSize.width * renderScale
-  const renderedHeight = imageSize.height * renderScale
-
-  const maxX = Math.max(0, (renderedWidth - cropSize) / 2)
-  const maxY = Math.max(0, (renderedHeight - cropSize) / 2)
-
-  return {
-    x: Math.min(maxX, Math.max(-maxX, nextX)),
-    y: Math.min(maxY, Math.max(-maxY, nextY))
-  }
-}
-
-async function buildCroppedProfileFile(args: {
-  image: HTMLImageElement
-  cropSize: number
-  zoom: number
-  offsetX: number
-  offsetY: number
-}): Promise<File | null> {
-  const { image, cropSize, zoom, offsetX, offsetY } = args
-  const imageWidth = image.naturalWidth
-  const imageHeight = image.naturalHeight
-  if (!imageWidth || !imageHeight) return null
-
-  const baseScale = Math.max(cropSize / imageWidth, cropSize / imageHeight)
-  const renderScale = baseScale * zoom
-
-  const outputSize = 720
-  const canvas = document.createElement('canvas')
-  canvas.width = outputSize
-  canvas.height = outputSize
-
-  const context = canvas.getContext('2d')
-  if (!context) return null
-
-  context.fillStyle = '#ffffff'
-  context.fillRect(0, 0, outputSize, outputSize)
-
-  const scaleToOutput = outputSize / cropSize
-  context.translate(outputSize / 2 + offsetX * scaleToOutput, outputSize / 2 + offsetY * scaleToOutput)
-  context.scale(renderScale * scaleToOutput, renderScale * scaleToOutput)
-  context.drawImage(image, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight)
-
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((value) => resolve(value), 'image/jpeg', 0.92)
-  })
-
-  if (!blob) return null
-  return new File([blob], `profile-${Date.now()}.jpg`, { type: 'image/jpeg' })
-}
