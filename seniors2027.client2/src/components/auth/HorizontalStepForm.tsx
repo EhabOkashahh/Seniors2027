@@ -22,6 +22,7 @@ type HorizontalStepFormProps = {
   heading: string
   subtitle: string
   steps: StepItem[]
+  activeStepKey?: string | null
   validateStep: (index: number) => Promise<string | null> | string | null,
   onSubmit: () => Promise<string | null> | string | null
   onExitFromFirstStep?: () => void
@@ -36,6 +37,7 @@ export default function HorizontalStepForm({
   heading,
   subtitle,
   steps,
+  activeStepKey,
   validateStep,
   onSubmit,
   onExitFromFirstStep
@@ -50,6 +52,7 @@ export default function HorizontalStepForm({
   const containerRef = useRef<HTMLElement | null>(null)
   const lastNavAtRef = useRef(0)
   const previousTotalStepsRef = useRef(steps.length)
+  const handledActiveStepKeyRef = useRef<string | null>(null)
 
   const totalSteps = steps.length
   const isLastStep = currentStep === totalSteps - 1
@@ -235,6 +238,22 @@ export default function HorizontalStepForm({
 
     previousTotalStepsRef.current = totalSteps
   }, [totalSteps, currentStep])
+
+  useEffect(() => {
+    if (!activeStepKey) {
+      handledActiveStepKeyRef.current = null
+      return
+    }
+
+    if (handledActiveStepKeyRef.current === activeStepKey) return
+
+    const targetStep = steps.findIndex((step) => step.key === activeStepKey)
+    if (targetStep < 0) return
+
+    setCurrentStep(targetStep)
+    setError(null)
+    handledActiveStepKeyRef.current = activeStepKey
+  }, [activeStepKey, steps])
 
   return (
     <motion.section

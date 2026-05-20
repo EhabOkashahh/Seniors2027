@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RetroGridBackground from '../components/landing/RetroGridBackground'
 import HorizontalStepForm from '../components/auth/HorizontalStepForm'
@@ -19,9 +19,20 @@ import { saveSession, type AppUserRole } from '../lib/session'
 const EXIT_TO_CENTER_MS = 1050
 const EXIT_FIREWORKS_MS = 950
 const EXIT_TO_TOP_MS = 1050
+const WAITING_APPROVAL_POLL_MS = 7000
+const DEFAULT_JOIN_REQUEST_MESSAGE = 'Your request has been sent successfully.'
+const OTP_VERIFIED_NOTICE = 'OTP verified. Complete username, gender, and photo to enter the portal.'
 
 type ExitPhase = 'idle' | 'reverseToCenter' | 'reverseFireworks' | 'reverseToTop'
 type Gender = 'male' | 'female' | ''
+type VerifyOtpData = {
+  status?: 'Authenticated' | 'PendingApproval'
+  message?: string
+  token?: string
+  username?: string | null
+  role?: AppUserRole | null
+  profileCompletionRequired?: boolean
+}
 
 export default function Login() {
   const navigate = useNavigate()
@@ -32,13 +43,127 @@ export default function Login() {
   const [pendingRole, setPendingRole] = useState<AppUserRole | null>(null)
   const [profileCompletionRequired, setProfileCompletionRequired] = useState(false)
   const [joinRequestSubmitted, setJoinRequestSubmitted] = useState(false)
-  const [joinRequestMessage, setJoinRequestMessage] = useState('Your request has been sent successfully.')
+  const [joinRequestMessage, setJoinRequestMessage] = useState(DEFAULT_JOIN_REQUEST_MESSAGE)
   const [username, setUsername] = useState('')
   const [gender, setGender] = useState<Gender>('')
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [exitPhase, setExitPhase] = useState<ExitPhase>('idle')
+  const [activeStepKey, setActiveStepKey] = useState<string | null>(null)
+  const approvalCheckInFlightRef = useRef(false)
+
+  const resetFlowForEmailChange = useCallback(() => {
+    setOtp('')
+    setOtpRequestedFor('')
+    setPendingToken('')
+    setPendingRole(null)
+    setProfileCompletionRequired(false)
+    setJoinRequestSubmitted(false)
+    setJoinRequestMessage(DEFAULT_JOIN_REQUEST_MESSAGE)
+    setUsername('')
+    setGender('')
+    setProfilePhotoFile(null)
+    setProfilePhotoPreview(null)
+    setActiveStepKey(null)
+    setNotice(null)
+    approvalCheckInFlightRef.current = false
+  }, [])
+
+  const moveBackToEmailForNewOtp = useCallback(() => {
+    setOtp('')
+    setOtpRequestedFor('')
+    setJoinRequestSubmitted(false)
+    setJoinRequestMessage(DEFAULT_JOIN_REQUEST_MESSAGE)
+    setNotice('Approval is still pending. Your OTP expired, request a new OTP from Email.')
+    setActiveStepKey('email')
+    approvalCheckInFlightRef.current = false
+  }, [])
+
+  const finishAuthenticatedLogin = useCallback(
+    (data: VerifyOtpData, completionNotice: string = OTP_VERIFIED_NOTICE): string | null => {
+      setJoinRequestSubmitted(false)
+      setJoinRequestMessage(DEFAULT_JOIN_REQUEST_MESSAGE)
+
+      const token = data.token?.trim()
+      if (!token) return 'Login failed: token missing from response.'
+
+      if (!data.profileCompletionRequired) {
+        saveSession(token, data.role ?? null)
+        navigate('/portal')
+        return null
+      }
+
+      setPendingToken(token)
+      setPendingRole(data.role ?? null)
+      setUsername(data.username?.trim() ?? '')
+      setProfileCompletionRequired(true)
+      setNotice(completionNotice)
+      setActiveStepKey('username')
+      return null
+    },
+    [navigate]
+  )
+
+  const checkPendingApproval = useCallback(async (): Promise<string | null> => {
+    if (!joinRequestSubmitted) return null
+
+    const trimmedEmail = email.trim()
+    const trimmedOtp = otp.trim()
+    if (!trimmedEmail || !/^\d{6}$/.test(trimmedOtp)) return null
+
+    if (approvalCheckInFlightRef.current) return null
+    approvalCheckInFlightRef.current = true
+
+    try {
+      const result = await verifyOtpRequest({ email: trimmedEmail, otp: trimmedOtp })
+      if (!result.ok) {
+        const normalized = (result.error ?? '').toLowerCase()
+        if (normalized.includes('invalid or expired otp')) {
+          moveBackToEmailForNewOtp()
+          return null
+        }
+
+        return result.error ?? null
+      }
+
+      if (result.data?.status === 'PendingApproval') {
+        setJoinRequestSubmitted(true)
+        setJoinRequestMessage(result.data.message ?? 'Your join request is pending approval.')
+        setNotice(null)
+        return null
+      }
+
+      if (result.data?.status !== 'Authenticated') {
+        return 'Unexpected authentication response. Please try again.'
+      }
+
+      return finishAuthenticatedLogin(result.data, 'Your account was approved. Continue your registration.')
+    } finally {
+      approvalCheckInFlightRef.current = false
+    }
+  }, [email, finishAuthenticatedLogin, joinRequestSubmitted, moveBackToEmailForNewOtp, otp])
+
+  useEffect(() => {
+    if (!joinRequestSubmitted) return
+
+    let disposed = false
+    const poll = async () => {
+      if (disposed) return
+      await checkPendingApproval()
+    }
+
+    void poll()
+
+    const timer = window.setInterval(() => {
+      void poll()
+    }, WAITING_APPROVAL_POLL_MS)
+
+    return () => {
+      disposed = true
+      window.clearInterval(timer)
+    }
+  }, [checkPendingApproval, joinRequestSubmitted])
 
   const validateStep = async (index: number) => {
     if (index === 0) {
@@ -101,20 +226,12 @@ export default function Login() {
             label="Email"
             value={email}
             onChange={(value) => {
+              const nextEmail = value.trim().toLowerCase()
+              const currentEmail = email.trim().toLowerCase()
+
               setEmail(value)
-              if (otpRequestedFor && otpRequestedFor.toLowerCase() !== value.trim().toLowerCase()) {
-                setOtp('')
-                setOtpRequestedFor('')
-                setPendingToken('')
-                setPendingRole(null)
-                setUsername('')
-                setGender('')
-                setProfilePhotoFile(null)
-                setProfilePhotoPreview(null)
-                setProfileCompletionRequired(false)
-                setJoinRequestSubmitted(false)
-                setJoinRequestMessage('Your request has been sent successfully.')
-                setNotice(null)
+              if (currentEmail !== nextEmail) {
+                resetFlowForEmailChange()
               }
             }}
             placeholder="ENTER EMAIL"
@@ -200,7 +317,7 @@ export default function Login() {
             hideHint: true,
             content: (
               <div style={{ display: 'grid', gap: '10px', textAlign: 'center' }}>
-                <p style={{ margin: 0, fontWeight: 900, fontSize: '1.02rem' }}>Your request has been sent successfully.</p>
+                <p style={{ margin: 0, fontWeight: 900, fontSize: '1.02rem' }}>{joinRequestMessage}</p>
                 <p style={{ margin: 0, fontWeight: 700, opacity: 0.8 }}>
                   Admin approval is required before you can enter the portal.
                 </p>
@@ -215,7 +332,7 @@ export default function Login() {
     setNotice(null)
 
     if (joinRequestSubmitted) {
-      return null
+      return checkPendingApproval()
     }
 
     if (!profileCompletionRequired) {
@@ -224,8 +341,9 @@ export default function Login() {
 
       if (result.data?.status === 'PendingApproval') {
         setJoinRequestSubmitted(true)
-        setJoinRequestMessage(result.data.message ?? 'Your request has been sent successfully.')
+        setJoinRequestMessage(result.data.message ?? 'Your join request is pending approval.')
         setNotice(null)
+        setActiveStepKey('request-sent')
         return null
       }
 
@@ -233,24 +351,7 @@ export default function Login() {
         return 'Unexpected authentication response. Please try again.'
       }
 
-      setJoinRequestSubmitted(false)
-      setJoinRequestMessage('Your request has been sent successfully.')
-
-      const token = result.data.token?.trim()
-      if (!token) return 'Login failed: token missing from response.'
-
-      if (!result.data.profileCompletionRequired) {
-        saveSession(token, result.data.role ?? null)
-        navigate('/portal')
-        return null
-      }
-
-      setPendingToken(token)
-      setPendingRole(result.data.role ?? null)
-      setUsername(result.data.username?.trim() ?? '')
-      setProfileCompletionRequired(true)
-      setNotice('OTP verified. Complete username, gender, and photo to enter the portal.')
-      return null
+      return finishAuthenticatedLogin(result.data)
     }
 
     if (!pendingToken) return 'Session expired. Please login again from the first step.'
@@ -298,6 +399,7 @@ export default function Login() {
           heading="Login"
           subtitle="Welcome back. Move step by step."
           steps={steps}
+          activeStepKey={activeStepKey}
           validateStep={validateStep}
           onSubmit={handleSubmit}
           onExitFromFirstStep={handleExitToOnboarding}

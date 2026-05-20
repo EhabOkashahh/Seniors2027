@@ -104,18 +104,13 @@ public class AuthService(
             throw new Exception("OTP is required");
         }
 
-        var res = await ConsumeOtpAsync(email, otp);
-        if (!res)
+        var otpRecord = FindActiveOtp(email, otp);
+        if (otpRecord == null)
         {
             throw new Exception("Invalid or expired OTP");
         }
 
         var user = GetUserAuthSnapshot(email);
-
-        if (user is { IsLocked: true })
-        {
-            throw new Exception("This account is locked. Contact an admin.");
-        }
 
         if (user == null)
         {
@@ -131,6 +126,13 @@ public class AuthService(
                 Description = null,
                 ProfileCompletionRequired = false
             };
+        }
+
+        await MarkOtpAsUsedAsync(otpRecord);
+
+        if (user is { IsLocked: true })
+        {
+            throw new Exception("This account is locked. Contact an admin.");
         }
 
         var currentRole = user.Role;
@@ -221,29 +223,25 @@ public class AuthService(
     }
 
 
-    private async Task<bool> ConsumeOtpAsync(string email, string otp)
+    private UserOtp? FindActiveOtp(string email, string otp)
     {
-        var otpRecord = _unitOfWork.Repository<UserOtp>()
+        return _unitOfWork.Repository<UserOtp>()
             .Find(x =>
-                x.Email.ToLower() == email.ToLower()
+                x.Email.ToLower() == email
                 && x.OtpCode == otp
                 && x.IsUsed == false
                 && x.ExpiryTime > DateTime.UtcNow
             )
             .OrderByDescending(x => x.CreatedAt)
             .FirstOrDefault();
+    }
 
-        if (otpRecord == null)
-        {
-            return false;
-        }
-
+    private async Task MarkOtpAsUsedAsync(UserOtp otpRecord)
+    {
         otpRecord.IsUsed = true;
 
         _unitOfWork.Repository<UserOtp>().Update(otpRecord);
         await _unitOfWork.CompleteAsync();
-
-        return true;
     }
 
     public async Task<bool> UpdateUsernameAsync(int userId, string username)
