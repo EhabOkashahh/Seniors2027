@@ -253,6 +253,22 @@ public class AuthService(
         await _unitOfWork.CompleteAsync();
     }
 
+    public Task<bool> IsUsernameTakenAsync(string username, int? excludeUserId = null)
+    {
+        var trimmedUsername = username.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedUsername))
+        {
+            return Task.FromResult(false);
+        }
+
+        var normalized = trimmedUsername.ToLowerInvariant();
+        var taken = _unitOfWork.Repository<User>()
+            .Find(u => u.Username.ToLower() == normalized && (!excludeUserId.HasValue || u.Id != excludeUserId.Value))
+            .Any();
+
+        return Task.FromResult(taken);
+    }
+
     public async Task<bool> UpdateUsernameAsync(int userId, string username)
     {
         var trimmedUsername = username.Trim();
@@ -264,9 +280,7 @@ public class AuthService(
         var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
         if (user == null) return false;
 
-        var taken = _unitOfWork.Repository<User>()
-            .Find(u => u.Id != userId && u.Username.ToLower() == trimmedUsername.ToLower())
-            .Any();
+        var taken = await IsUsernameTakenAsync(trimmedUsername, userId);
         if (taken)
         {
             throw new Exception("Username is already taken");

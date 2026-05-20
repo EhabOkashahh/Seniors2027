@@ -672,6 +672,45 @@ export async function updateMyUsernameRequest(
   }
 }
 
+export async function checkMyUsernameAvailabilityRequest(
+  username: string,
+  tokenOverride?: string
+): Promise<ApiResult<{ exists: boolean; available: boolean; username?: string }>> {
+  try {
+    const token = tokenOverride ?? getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const trimmedUsername = username.trim()
+    if (!trimmedUsername) return { ok: false, error: 'Username is required' }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/auth/me/username-availability?username=${encodeURIComponent(trimmedUsername)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await tryReadJson(response)) as { exists?: unknown; available?: unknown; username?: unknown } | null
+    return {
+      ok: true,
+      data: {
+        exists: data?.exists === true,
+        available: data?.available === true,
+        username: typeof data?.username === 'string' ? data.username : undefined
+      }
+    }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
 export async function updateMyGenderRequest(
   gender: 'male' | 'female',
   tokenOverride?: string

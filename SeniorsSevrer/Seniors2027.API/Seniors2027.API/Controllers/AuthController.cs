@@ -62,6 +62,27 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     }
 
     [Authorize]
+    [HttpGet("me/username-availability")]
+    public async Task<ActionResult> CheckMyUsernameAvailability([FromQuery] string username)
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+
+        var trimmedUsername = username.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedUsername))
+        {
+            return BadRequest("Username is required.");
+        }
+
+        var exists = await _authService.IsUsernameTakenAsync(trimmedUsername, userId);
+        return Ok(new
+        {
+            username = trimmedUsername,
+            exists,
+            available = !exists
+        });
+    }
+
+    [Authorize]
     [HttpPut("me/description")]
     public async Task<ActionResult> UpdateMyDescription(UpdateDescriptionDto dto)
     {

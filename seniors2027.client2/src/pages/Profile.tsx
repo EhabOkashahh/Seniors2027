@@ -6,6 +6,7 @@ import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import ImageCropEditorModal, { type ImageCropResult } from '../components/photo/ImageCropEditorModal'
 import {
+  checkMyUsernameAvailabilityRequest,
   deleteGalleryPhotoRequest,
   deleteNoteRequest,
   getUserGalleryPhotosRequest,
@@ -15,6 +16,7 @@ import {
   getUserByIdRequest,
   sendNoteRequest,
   updateMyPhotoRequest,
+  updateMyUsernameRequest,
   type GalleryPhoto,
   type MeUser,
   type NoteItem,
@@ -31,6 +33,11 @@ export default function Profile() {
 
   const [profileUser, setProfileUser] = useState<User | null>(null)
   const [me, setMe] = useState<MeUser | null>(null)
+  const [usernameInput, setUsernameInput] = useState('')
+  const [usernameSaving, setUsernameSaving] = useState(false)
+  const [usernameChecking, setUsernameChecking] = useState(false)
+  const [usernameMessage, setUsernameMessage] = useState<string | null>(null)
+  const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [descriptionInput, setDescriptionInput] = useState('')
   const [descriptionSaving, setDescriptionSaving] = useState(false)
   const [descriptionMessage, setDescriptionMessage] = useState<string | null>(null)
@@ -91,6 +98,7 @@ export default function Profile() {
 
         if (userResult.ok && userResult.data) {
           setProfileUser(userResult.data)
+          setUsernameInput(userResult.data.username ?? '')
           setDescriptionInput(userResult.data.description ?? '')
         } else {
           setProfileUser(null)
@@ -99,6 +107,7 @@ export default function Profile() {
         if (meResult.ok && meResult.data) {
           setMe(meResult.data)
           if (userResult.ok && userResult.data && meResult.data.id === userResult.data.id) {
+            setUsernameInput(meResult.data.username ?? userResult.data.username ?? '')
             setDescriptionInput(meResult.data.description ?? userResult.data.description ?? '')
           }
         } else {
@@ -203,6 +212,101 @@ export default function Profile() {
     safeGalleryPageNumber * galleryPageSize
   )
   const galleryPreviewLayers = galleryPhotos.slice(0, 4)
+
+  const normalizeUsername = (value: string) => value.trim()
+
+  const validateUsernameFormat = (value: string): string | null => {
+    const normalized = normalizeUsername(value)
+    if (!normalized) return 'Username is required.'
+    if (normalized.length < 3) return 'Username must be at least 3 characters.'
+    if (normalized.length > 40) return 'Username must be 40 characters or less.'
+    return null
+  }
+
+  const handleCheckUsernameAvailability = async (candidate: string): Promise<boolean> => {
+    if (!isOwnProfile) return false
+
+    const normalized = normalizeUsername(candidate)
+    const formatError = validateUsernameFormat(normalized)
+    if (formatError) {
+      setUsernameMessage(formatError)
+      return false
+    }
+
+    const currentUsername = normalizeUsername(profileUser?.username ?? '')
+    if (normalized.toLowerCase() === currentUsername.toLowerCase()) {
+      setUsernameMessage('This is your current username.')
+      return true
+    }
+
+    setUsernameChecking(true)
+    setUsernameMessage(null)
+    const availability = await checkMyUsernameAvailabilityRequest(normalized)
+    setUsernameChecking(false)
+
+    if (!availability.ok) {
+      setUsernameMessage(availability.error ?? 'Could not verify username availability.')
+      return false
+    }
+
+    if (availability.data?.exists) {
+      setUsernameMessage('Username is already taken.')
+      return false
+    }
+
+    setUsernameMessage('Username is available.')
+    return true
+  }
+
+  const handleSaveUsername = async () => {
+    if (!isOwnProfile) {
+      setUsernameMessage('You can only edit your own username.')
+      return
+    }
+
+    const normalized = normalizeUsername(usernameInput)
+    const formatError = validateUsernameFormat(normalized)
+    if (formatError) {
+      setUsernameMessage(formatError)
+      return
+    }
+
+    const currentUsername = normalizeUsername(profileUser?.username ?? '')
+    if (normalized.toLowerCase() === currentUsername.toLowerCase()) {
+      setUsernameMessage('No changes to save.')
+      setIsEditingUsername(false)
+      return
+    }
+
+    setUsernameSaving(true)
+    setUsernameMessage(null)
+
+    const availability = await checkMyUsernameAvailabilityRequest(normalized)
+    if (!availability.ok) {
+      setUsernameSaving(false)
+      setUsernameMessage(availability.error ?? 'Could not verify username availability.')
+      return
+    }
+
+    if (availability.data?.exists) {
+      setUsernameSaving(false)
+      setUsernameMessage('Username is already taken.')
+      return
+    }
+
+    const updateResult = await updateMyUsernameRequest(normalized)
+    setUsernameSaving(false)
+
+    if (!updateResult.ok) {
+      setUsernameMessage(updateResult.error ?? 'Could not update username.')
+      return
+    }
+
+    setProfileUser((prev) => (prev ? { ...prev, username: normalized } : prev))
+    setUsernameInput(normalized)
+    setUsernameMessage('Username updated.')
+    setIsEditingUsername(false)
+  }
 
   const handleSaveDescription = async () => {
     if (!isOwnProfile) {
@@ -430,7 +534,73 @@ export default function Profile() {
               )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '12px' }}>
-              <h2 style={{ margin: 0, fontSize: 'clamp(1.8rem, 5vw, 3.2rem)', lineHeight: 1, textTransform: 'uppercase' }}>Hello senior {displayName}</h2>
+              {isOwnProfile && isEditingUsername ? (
+                <div
+                  style={{
+                    border: '3px solid black',
+                    boxShadow: '6px 6px 0 black',
+                    background: 'white',
+                    padding: '10px',
+                    display: 'grid',
+                    gap: '8px'
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder="Enter username..."
+                    value={usernameInput}
+                    onChange={(e) => {
+                      setUsernameInput(e.target.value)
+                      setUsernameMessage(null)
+                    }}
+                    onBlur={() => {
+                      void handleCheckUsernameAvailability(usernameInput)
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUsernameInput(profileUser?.username ?? '')
+                        setUsernameMessage(null)
+                        setIsEditingUsername(false)
+                      }}
+                      style={{ minWidth: '92px' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveUsername()}
+                      disabled={usernameSaving || usernameChecking}
+                      style={{ minWidth: '92px' }}
+                    >
+                      {usernameSaving ? 'Saving...' : usernameChecking ? 'Checking...' : 'Save Username'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
+                  <h2 style={{ margin: 0, fontSize: 'clamp(1.8rem, 5vw, 3.2rem)', lineHeight: 1, textTransform: 'uppercase' }}>
+                    Hello senior {displayName}
+                  </h2>
+                  {isOwnProfile && (
+                    <button
+                      type="button"
+                      aria-label="Edit username"
+                      onClick={() => {
+                        setUsernameInput(profileUser?.username ?? '')
+                        setUsernameMessage(null)
+                        setIsEditingUsername(true)
+                      }}
+                      style={{ width: '44px', height: '44px', display: 'grid', placeItems: 'center', padding: 0, flexShrink: 0 }}
+                    >
+                      <Pencil size={18} />
+                    </button>
+                  )}
+                </div>
+              )}
               <div
                 style={{
                   border: '3px solid black',
@@ -488,6 +658,7 @@ export default function Profile() {
                   </div>
                 )}
               </div>
+              {usernameMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{usernameMessage}</div>}
               {descriptionMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{descriptionMessage}</div>}
               {photoMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{photoMessage}</div>}
               {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
