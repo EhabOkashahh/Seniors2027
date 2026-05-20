@@ -35,13 +35,16 @@ public class AccountLockMiddleware
             return;
         }
 
-        bool isLocked;
+        AccountState? accountState;
         try
         {
-            isLocked = await dbContext.Users
+            accountState = await dbContext.Users
                 .AsNoTracking()
                 .Where(u => u.Id == userId)
-                .Select(u => u.IsLocked)
+                .Select(u => new AccountState
+                {
+                    IsLocked = u.IsLocked
+                })
                 .FirstOrDefaultAsync(context.RequestAborted);
         }
         catch (SqlException ex) when (ex.Message.Contains("Invalid column name 'IsLocked'", StringComparison.OrdinalIgnoreCase))
@@ -51,17 +54,45 @@ public class AccountLockMiddleware
             return;
         }
 
-        if (isLocked)
+        if (accountState is null)
         {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            context.Response.ContentType = "application/json";
-            await JsonSerializer.SerializeAsync(
-                context.Response.Body,
-                new { message = "This account is locked. Contact an admin." },
-                cancellationToken: context.RequestAborted);
+            await WriteForcedLogoutResponse(
+                context,
+                message: "Your account no longer exists. You have been logged out.",
+                code: "ACCOUNT_DELETED");
+            return;
+        }
+
+        if (accountState.IsLocked)
+        {
+            await WriteForcedLogoutResponse(
+                context,
+                message: "Your account has been locked. You have been logged out.",
+                code: "ACCOUNT_LOCKED");
             return;
         }
 
         await _next(context);
+    }
+
+    private static async Task WriteForcedLogoutResponse(HttpContext context, string message, string code)
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        context.Response.ContentType = "application/json";
+        context.Response.Headers["X-Session-Invalidated"] = "true";
+        context.Response.Headers["X-Session-Invalidation-Code"] = code;
+        await JsonSerializer.SerializeAsync(
+            context.Response.Body,
+            new
+            {
+                code,
+                message
+            },
+            cancellationToken: context.RequestAborted);
+    }
+
+    private sealed class AccountState
+    {
+        public bool IsLocked { get; init; }
     }
 }

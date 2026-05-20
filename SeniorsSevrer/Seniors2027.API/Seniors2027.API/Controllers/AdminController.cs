@@ -57,6 +57,11 @@ public class AdminController(
             .AsNoTracking()
             .AsQueryable();
 
+        if (User.TryGetUserId(out var requesterUserId))
+        {
+            query = query.Where(u => u.Id != requesterUserId);
+        }
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             var normalized = search.Trim();

@@ -1,4 +1,4 @@
-import { getAuthToken, type AppUserRole } from './session'
+import { clearSession, getAuthToken, type AppUserRole } from './session'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'https://sneiors2027.runasp.net')
   .replace(/^http:\/\//i, 'https://')
@@ -583,10 +583,14 @@ export async function deleteDailyHighlightRequest(id: number): Promise<ApiResult
 async function safeError(response: Response): Promise<string> {
   try {
     const text = await response.text()
-    if (!text) return `Request failed (${response.status})`
+    if (!text) {
+      handleSessionInvalidation(response, null)
+      return `Request failed (${response.status})`
+    }
 
     try {
-      const payload = JSON.parse(text) as { message?: unknown; error?: unknown }
+      const payload = JSON.parse(text) as { code?: unknown; message?: unknown; error?: unknown }
+      handleSessionInvalidation(response, payload)
       if (typeof payload.message === 'string' && payload.message.trim()) return payload.message
       if (typeof payload.error === 'string' && payload.error.trim()) return payload.error
     } catch {
@@ -596,6 +600,22 @@ async function safeError(response: Response): Promise<string> {
     return text
   } catch {
     return `Request failed (${response.status})`
+  }
+}
+
+function handleSessionInvalidation(
+  response: Response,
+  _payload: { code?: unknown; message?: unknown; error?: unknown } | null
+): void {
+  const hasSession = Boolean(getAuthToken())
+  if (!hasSession) return
+
+  if (response.status !== 401) return
+
+  clearSession()
+
+  if (typeof window !== 'undefined') {
+    window.location.replace('/login')
   }
 }
 
