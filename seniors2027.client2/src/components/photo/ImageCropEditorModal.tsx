@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const MOBILE_BREAKPOINT = 640
 const MOBILE_CROP_SIZE = 220
@@ -140,8 +141,9 @@ export default function ImageCropEditorModal({
   }
 
   if (!open || !sourceUrl) return null
+  if (typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -155,7 +157,7 @@ export default function ImageCropEditorModal({
         background: 'rgba(0,0,0,0.6)',
         display: 'grid',
         placeItems: 'center',
-        zIndex: 90,
+        zIndex: 10000,
         padding: '20px'
       }}
     >
@@ -253,7 +255,8 @@ export default function ImageCropEditorModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
