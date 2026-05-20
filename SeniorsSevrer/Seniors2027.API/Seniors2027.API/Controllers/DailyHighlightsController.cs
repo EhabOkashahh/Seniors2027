@@ -17,12 +17,18 @@ public class DailyHighlightsController : ControllerBase
     private readonly IDailyHighlightService _dailyHighlightService;
     private readonly IWebHostEnvironment _environment;
     private readonly IImageUploadProcessor _imageUploadProcessor;
+    private readonly IDailyHighlightsRealtimeNotifier _highlightsRealtimeNotifier;
 
-    public DailyHighlightsController(IDailyHighlightService dailyHighlightService, IWebHostEnvironment environment, IImageUploadProcessor imageUploadProcessor)
+    public DailyHighlightsController(
+        IDailyHighlightService dailyHighlightService,
+        IWebHostEnvironment environment,
+        IImageUploadProcessor imageUploadProcessor,
+        IDailyHighlightsRealtimeNotifier highlightsRealtimeNotifier)
     {
         _dailyHighlightService = dailyHighlightService;
         _environment = environment;
         _imageUploadProcessor = imageUploadProcessor;
+        _highlightsRealtimeNotifier = highlightsRealtimeNotifier;
     }
 
     [HttpGet("active")]
@@ -59,6 +65,7 @@ public class DailyHighlightsController : ControllerBase
         try
         {
             var created = await _dailyHighlightService.AddHighlightAsync(userId, storedPhoto.PhotoUrl);
+            await _highlightsRealtimeNotifier.NotifyHighlightsUpdatedAsync(HttpContext.RequestAborted);
             return Ok(created);
         }
         catch (InvalidOperationException ex)
@@ -92,6 +99,7 @@ public class DailyHighlightsController : ControllerBase
             System.IO.File.Delete(photoPath);
         }
 
+        await _highlightsRealtimeNotifier.NotifyHighlightsUpdatedAsync(HttpContext.RequestAborted);
         return Ok(deleted);
     }
 

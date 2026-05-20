@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Bell, BookImage, Calendar, ChevronLeft, ChevronRight, Lock, Trash2, Upload } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
@@ -13,7 +13,10 @@ import {
   type DailyHighlight,
   uploadDailyHighlightRequest
 } from '../lib/authApi'
+import { subscribeDailyHighlightsRealtime } from '../lib/dailyHighlightsRealtime'
 import { optimizeDailyHighlightFileForUpload } from '../lib/imageUploadOptimizer'
+
+const HIGHLIGHTS_RESYNC_INTERVAL_MS = 60000
 
 export default function PortalHome() {
   const [highlights, setHighlights] = useState<DailyHighlight[]>([])
@@ -29,27 +32,90 @@ export default function PortalHome() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [genderByUserId, setGenderByUserId] = useState<Record<number, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const highlightsRef = useRef<DailyHighlight[]>([])
+  const activeIndexRef = useRef(0)
 
-  const fetchHighlights = async () => {
-    setLoadingHighlights(true)
+  const fetchHighlights = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setLoadingHighlights(true)
+    }
+
     const result = await getActiveDailyHighlightsRequest(80)
     if (result.ok && result.data) {
       const highlightsData = result.data
+      const previousCurrentId = highlightsRef.current[activeIndexRef.current]?.id ?? null
+
       setHighlights(highlightsData)
-      if (highlightsData.length === 0) setActiveIndex(0)
-      else setActiveIndex((prev) => Math.min(prev, highlightsData.length - 1))
-      setHighlightsMessage(null)
-    } else {
+
+      if (highlightsData.length === 0) {
+        setActiveIndex(0)
+      } else if (previousCurrentId !== null) {
+        const nextActiveIndex = highlightsData.findIndex((item) => item.id === previousCurrentId)
+        if (nextActiveIndex >= 0) {
+          setActiveIndex(nextActiveIndex)
+        } else {
+          setActiveIndex((prev) => Math.min(prev, highlightsData.length - 1))
+        }
+      } else {
+        setActiveIndex((prev) => Math.min(prev, highlightsData.length - 1))
+      }
+
+      if (!silent) {
+        setHighlightsMessage(null)
+      }
+    } else if (!silent) {
       setHighlights([])
       setActiveIndex(0)
       setHighlightsMessage(result.error ?? 'Could not load highlights.')
     }
-    setLoadingHighlights(false)
-  }
+
+    if (!silent) {
+      setLoadingHighlights(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    highlightsRef.current = highlights
+  }, [highlights])
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex
+  }, [activeIndex])
 
   useEffect(() => {
     void fetchHighlights()
-  }, [])
+  }, [fetchHighlights])
+
+  useEffect(() => {
+    const unsubscribe = subscribeDailyHighlightsRealtime(() => {
+      void fetchHighlights({ silent: true })
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [fetchHighlights])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void fetchHighlights({ silent: true })
+    }, HIGHLIGHTS_RESYNC_INTERVAL_MS)
+
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState !== 'hidden') {
+        void fetchHighlights({ silent: true })
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+    }
+  }, [fetchHighlights])
 
   useEffect(() => {
     const run = async () => {
