@@ -19,7 +19,7 @@ import { saveSession, type AppUserRole } from '../lib/session'
 const EXIT_TO_CENTER_MS = 1050
 const EXIT_FIREWORKS_MS = 950
 const EXIT_TO_TOP_MS = 1050
-const WAITING_APPROVAL_POLL_MS = 7000
+const WAITING_APPROVAL_POLL_MS = 1000
 const DEFAULT_JOIN_REQUEST_MESSAGE = 'Your request has been sent successfully.'
 const OTP_VERIFIED_NOTICE = 'OTP verified. Complete username, gender, and photo to enter the portal.'
 
@@ -32,6 +32,11 @@ type VerifyOtpData = {
   username?: string | null
   role?: AppUserRole | null
   profileCompletionRequired?: boolean
+}
+
+type PendingAuthContext = {
+  email: string
+  otp: string
 }
 
 export default function Login() {
@@ -51,6 +56,7 @@ export default function Login() {
   const [notice, setNotice] = useState<string | null>(null)
   const [exitPhase, setExitPhase] = useState<ExitPhase>('idle')
   const [activeStepKey, setActiveStepKey] = useState<string | null>(null)
+  const [pendingAuthContext, setPendingAuthContext] = useState<PendingAuthContext | null>(null)
   const approvalCheckInFlightRef = useRef(false)
 
   const resetFlowForEmailChange = useCallback(() => {
@@ -66,6 +72,7 @@ export default function Login() {
     setProfilePhotoFile(null)
     setProfilePhotoPreview(null)
     setActiveStepKey(null)
+    setPendingAuthContext(null)
     setNotice(null)
     approvalCheckInFlightRef.current = false
   }, [])
@@ -75,6 +82,7 @@ export default function Login() {
     setOtpRequestedFor('')
     setJoinRequestSubmitted(false)
     setJoinRequestMessage(DEFAULT_JOIN_REQUEST_MESSAGE)
+    setPendingAuthContext(null)
     setNotice('Approval is still pending. Your OTP expired, request a new OTP from Email.')
     setActiveStepKey('email')
     approvalCheckInFlightRef.current = false
@@ -84,6 +92,7 @@ export default function Login() {
     (data: VerifyOtpData, completionNotice: string = OTP_VERIFIED_NOTICE): string | null => {
       setJoinRequestSubmitted(false)
       setJoinRequestMessage(DEFAULT_JOIN_REQUEST_MESSAGE)
+      setPendingAuthContext(null)
 
       const token = data.token?.trim()
       if (!token) return 'Login failed: token missing from response.'
@@ -108,15 +117,14 @@ export default function Login() {
   const checkPendingApproval = useCallback(async (): Promise<string | null> => {
     if (!joinRequestSubmitted) return null
 
-    const trimmedEmail = email.trim()
-    const trimmedOtp = otp.trim()
-    if (!trimmedEmail || !/^\d{6}$/.test(trimmedOtp)) return null
+    const context = pendingAuthContext
+    if (!context) return null
 
     if (approvalCheckInFlightRef.current) return null
     approvalCheckInFlightRef.current = true
 
     try {
-      const result = await verifyOtpRequest({ email: trimmedEmail, otp: trimmedOtp })
+      const result = await verifyOtpRequest({ email: context.email, otp: context.otp })
       if (!result.ok) {
         const normalized = (result.error ?? '').toLowerCase()
         if (normalized.includes('invalid or expired otp')) {
@@ -142,7 +150,7 @@ export default function Login() {
     } finally {
       approvalCheckInFlightRef.current = false
     }
-  }, [email, finishAuthenticatedLogin, joinRequestSubmitted, moveBackToEmailForNewOtp, otp])
+  }, [finishAuthenticatedLogin, joinRequestSubmitted, moveBackToEmailForNewOtp, pendingAuthContext])
 
   useEffect(() => {
     if (!joinRequestSubmitted) return
@@ -159,9 +167,19 @@ export default function Login() {
       void poll()
     }, WAITING_APPROVAL_POLL_MS)
 
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState !== 'hidden') {
+        void poll()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+
     return () => {
       disposed = true
       window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
     }
   }, [checkPendingApproval, joinRequestSubmitted])
 
@@ -340,8 +358,11 @@ export default function Login() {
       if (!result.ok) return result.error ?? 'Login failed. Seniors, regroup and retry.'
 
       if (result.data?.status === 'PendingApproval') {
+        const pendingEmail = email.trim().toLowerCase()
+        const pendingOtp = otp.trim()
         setJoinRequestSubmitted(true)
         setJoinRequestMessage(result.data.message ?? 'Your join request is pending approval.')
+        setPendingAuthContext({ email: pendingEmail, otp: pendingOtp })
         setNotice(null)
         setActiveStepKey('request-sent')
         return null

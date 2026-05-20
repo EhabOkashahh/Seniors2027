@@ -11,6 +11,8 @@ namespace Seniors2027.BLL.Services
 {
     public class EmailService(IConfiguration _config) : IEmailService
     {
+        private const int OtpExpiryMinutes = 20;
+
         public async Task SendOtpEmailAsync(string toEmail, string otp)
         {
             try
@@ -45,7 +47,7 @@ namespace Seniors2027.BLL.Services
                           <div style='background:#b9f282;border:4px solid #101010;border-radius:12px;box-shadow:8px 8px 0 #101010;padding:14px 10px;text-align:center;font-family:Consolas,Monaco,monospace;font-size:36px;letter-spacing:8px;font-weight:900;'>
                             {otp}
                           </div>
-                          <p style='margin:14px 0 0 0;font-size:14px;'>This code expires in <strong>5 minutes</strong>.</p>
+                          <p style='margin:14px 0 0 0;font-size:14px;'>This code expires in <strong>{OtpExpiryMinutes} minutes</strong>.</p>
                           <p style='margin:8px 0 0 0;font-size:13px;opacity:0.85;'>If this was not you, ignore this email.</p>
                         </div>
                       </div>

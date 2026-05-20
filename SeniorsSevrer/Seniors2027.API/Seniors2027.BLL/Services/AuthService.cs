@@ -15,6 +15,8 @@ public class AuthService(
     IJoinRequestService joinRequestService,
     IConfiguration configuration) : IAuthService
 {
+    private const int LoginOtpLifetimeMinutes = 20;
+    private static readonly TimeSpan PendingApprovalOtpLifetime = TimeSpan.FromHours(6);
     // public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
     // {
     //     var existingUser = _unitOfWork.Repository<User>().Find(u => u.Username.ToLower() == registerDto.Username.ToLower()).FirstOrDefault();
@@ -78,7 +80,7 @@ public class AuthService(
             OtpCode = otp,
             Email = email,
             UserId = user?.Id,
-            ExpiryTime = DateTime.UtcNow.AddMinutes(5)
+            ExpiryTime = DateTime.UtcNow.AddMinutes(LoginOtpLifetimeMinutes)
         };
 
         await _unitOfWork.Repository<UserOtp>().AddAsync(userOtp);
@@ -114,6 +116,13 @@ public class AuthService(
 
         if (user == null)
         {
+            if (otpRecord.ExpiryTime < DateTime.UtcNow.Add(PendingApprovalOtpLifetime))
+            {
+                otpRecord.ExpiryTime = DateTime.UtcNow.Add(PendingApprovalOtpLifetime);
+                _unitOfWork.Repository<UserOtp>().Update(otpRecord);
+                await _unitOfWork.CompleteAsync();
+            }
+
             await _joinRequestService.EnsurePendingRequestAsync(email);
             return new AuthResponseDto
             {
