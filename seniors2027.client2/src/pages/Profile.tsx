@@ -51,6 +51,7 @@ export default function Profile() {
   const [galleryLoading, setGalleryLoading] = useState(false)
   const [galleryMessage, setGalleryMessage] = useState<string | null>(null)
   const [isGalleryBookOpen, setIsGalleryBookOpen] = useState(false)
+  const [expandedGalleryPhoto, setExpandedGalleryPhoto] = useState<GalleryPhoto | null>(null)
   const [galleryPageNumber, setGalleryPageNumber] = useState(1)
   const [isGalleryStackHovered, setIsGalleryStackHovered] = useState(false)
 
@@ -202,6 +203,51 @@ export default function Profile() {
     }
   }, [photoEditorSourceUrl])
 
+  useEffect(() => {
+    if (!expandedGalleryPhoto) return
+
+    const synced = galleryPhotos.find((photo) => photo.id === expandedGalleryPhoto.id) ?? null
+    if (!synced) {
+      setExpandedGalleryPhoto(null)
+      return
+    }
+
+    if (synced !== expandedGalleryPhoto) {
+      setExpandedGalleryPhoto(synced)
+    }
+  }, [expandedGalleryPhoto, galleryPhotos])
+
+  useEffect(() => {
+    if (!expandedGalleryPhoto) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const currentIndex = galleryPhotos.findIndex((photo) => photo.id === expandedGalleryPhoto.id)
+      if (currentIndex < 0) return
+
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setExpandedGalleryPhoto(null)
+        return
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        const prevIndex = (currentIndex - 1 + galleryPhotos.length) % galleryPhotos.length
+        setExpandedGalleryPhoto(galleryPhotos[prevIndex])
+        return
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        const nextIndex = (currentIndex + 1) % galleryPhotos.length
+        setExpandedGalleryPhoto(galleryPhotos[nextIndex])
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [expandedGalleryPhoto, galleryPhotos])
+
   const displayName = profileUser?.username ?? 'Senior'
   const displayPhoto = profileUser?.photoUrl || '/favicon.svg'
   const galleryPageSize = 4
@@ -212,6 +258,25 @@ export default function Profile() {
     safeGalleryPageNumber * galleryPageSize
   )
   const galleryPreviewLayers = galleryPhotos.slice(0, 4)
+  const expandedGalleryPhotoIndex = expandedGalleryPhoto
+    ? galleryPhotos.findIndex((photo) => photo.id === expandedGalleryPhoto.id)
+    : -1
+  const closeGalleryBook = () => {
+    setIsGalleryBookOpen(false)
+    setExpandedGalleryPhoto(null)
+  }
+  const closeExpandedGalleryPhoto = () => {
+    setExpandedGalleryPhoto(null)
+  }
+
+  const navigateExpandedGalleryPhoto = (direction: 'prev' | 'next') => {
+    if (!expandedGalleryPhoto || galleryPhotos.length === 0) return
+    if (expandedGalleryPhotoIndex < 0) return
+
+    const step = direction === 'next' ? 1 : -1
+    const nextIndex = (expandedGalleryPhotoIndex + step + galleryPhotos.length) % galleryPhotos.length
+    setExpandedGalleryPhoto(galleryPhotos[nextIndex])
+  }
 
   const normalizeUsername = (value: string) => value.trim()
 
@@ -767,12 +832,14 @@ export default function Profile() {
                 tabIndex={0}
                 onClick={() => {
                   setGalleryPageNumber(1)
+                  setExpandedGalleryPhoto(null)
                   setIsGalleryBookOpen(true)
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
                     setGalleryPageNumber(1)
+                    setExpandedGalleryPhoto(null)
                     setIsGalleryBookOpen(true)
                   }
                 }}
@@ -974,7 +1041,7 @@ export default function Profile() {
         <div
           role="dialog"
           aria-modal="true"
-          onClick={() => setIsGalleryBookOpen(false)}
+          onClick={closeGalleryBook}
           style={{
             position: 'fixed',
             inset: 0,
@@ -1000,7 +1067,7 @@ export default function Profile() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, textTransform: 'uppercase' }}>Gallery Book</h3>
-              <button type="button" className="neo-btn" onClick={() => setIsGalleryBookOpen(false)}>Close</button>
+              <button type="button" className="neo-btn" onClick={closeGalleryBook}>Close</button>
             </div>
 
             <motion.div
@@ -1017,11 +1084,25 @@ export default function Profile() {
             >
               {galleryPageItems.map((photo, idx) => (
                 <div key={photo.id} style={{ border: '3px solid black', background: 'white', padding: '8px', display: 'grid', gap: '8px' }}>
-                  <img
-                    src={photo.photoUrl}
-                    alt={`Moment ${photo.id}`}
-                    style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', border: '2px solid black' }}
-                  />
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setExpandedGalleryPhoto(photo)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setExpandedGalleryPhoto(photo)
+                      }
+                    }}
+                    aria-label={`Open moment ${photo.id}`}
+                    style={{ cursor: 'zoom-in' }}
+                  >
+                    <img
+                      src={photo.photoUrl}
+                      alt={`Moment ${photo.id}`}
+                      style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', border: '2px solid black' }}
+                    />
+                  </div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 900, textAlign: 'center' }}>
                     MOMENT_#{(safeGalleryPageNumber - 1) * galleryPageSize + idx + 1}
                   </div>
@@ -1062,6 +1143,97 @@ export default function Profile() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {expandedGalleryPhoto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={closeExpandedGalleryPhoto}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.82)',
+            zIndex: 85,
+            display: 'grid',
+            placeItems: 'center',
+            padding: '18px'
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              maxWidth: 'min(94vw, 1200px)',
+              maxHeight: '92vh',
+              display: 'grid',
+              gap: '10px',
+              justifyItems: 'center',
+              position: 'relative'
+            }}
+          >
+            <button
+              type="button"
+              className="neo-btn"
+              onClick={(event) => {
+                event.stopPropagation()
+                navigateExpandedGalleryPhoto('prev')
+              }}
+              aria-label="Previous photo"
+              style={{
+                position: 'absolute',
+                left: '6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                minWidth: '58px',
+                padding: '10px 12px',
+                zIndex: 2
+              }}
+            >
+              ‹
+            </button>
+            <img
+              src={expandedGalleryPhoto.photoUrl}
+              alt={`Expanded moment ${expandedGalleryPhoto.id}`}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '84vh',
+                objectFit: 'contain',
+                border: '4px solid black',
+                boxShadow: '10px 10px 0 black',
+                background: 'white'
+              }}
+            />
+            <button
+              type="button"
+              className="neo-btn"
+              onClick={(event) => {
+                event.stopPropagation()
+                navigateExpandedGalleryPhoto('next')
+              }}
+              aria-label="Next photo"
+              style={{
+                position: 'absolute',
+                right: '6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                minWidth: '58px',
+                padding: '10px 12px',
+                zIndex: 2
+              }}
+            >
+              ›
+            </button>
+            <div style={{ fontWeight: 900, color: 'white' }}>
+              {expandedGalleryPhotoIndex + 1} / {galleryPhotos.length}
+            </div>
+            <button type="button" className="neo-btn" onClick={closeExpandedGalleryPhoto}>
+              Close Photo
+            </button>
+          </motion.div>
         </div>
       )}
 
