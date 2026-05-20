@@ -105,6 +105,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
+app.UseMiddleware<AccountLockMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

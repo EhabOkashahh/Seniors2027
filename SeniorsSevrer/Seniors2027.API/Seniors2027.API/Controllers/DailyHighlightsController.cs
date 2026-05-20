@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
+using Seniors2027.DAL.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -79,8 +80,9 @@ public class DailyHighlightsController : ControllerBase
             ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst("nameid")?.Value;
         if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+        var requesterIsAdmin = User.IsInRole(nameof(UserRole.Admin));
 
-        var deleted = await _dailyHighlightService.DeleteHighlightAsync(id, userId);
+        var deleted = await _dailyHighlightService.DeleteHighlightAsync(id, userId, requesterIsAdmin);
         if (deleted == null) return NotFound();
 
         var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");

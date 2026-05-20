@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
+using Seniors2027.DAL.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -65,10 +66,11 @@ public class NotesController : ControllerBase
             ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst("nameid")?.Value;
         if (!int.TryParse(requesterIdClaim, out var requesterUserId)) return Unauthorized();
+        var requesterIsAdmin = User.IsInRole(nameof(UserRole.Admin));
 
         try
         {
-            var deleted = await _noteService.DeleteNoteAsync(id, requesterUserId);
+            var deleted = await _noteService.DeleteNoteAsync(id, requesterUserId, requesterIsAdmin);
             if (!deleted) return NotFound();
             return NoContent();
         }

@@ -5,6 +5,7 @@ import { Image as ImageIcon, Pin, BookOpen, Pencil } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import {
+  deleteGalleryPhotoRequest,
   deleteNoteRequest,
   getUserGalleryPhotosRequest,
   getLatestReceivedNotesRequest,
@@ -63,11 +64,13 @@ export default function Profile() {
   const [newNoteInput, setNewNoteInput] = useState('')
   const [sendingNote, setSendingNote] = useState(false)
   const [deletingNoteIds, setDeletingNoteIds] = useState<number[]>([])
+  const [deletingGalleryPhotoIds, setDeletingGalleryPhotoIds] = useState<number[]>([])
   const [noteMessage, setNoteMessage] = useState<string | null>(null)
   const photoEditorImageRef = useRef<HTMLImageElement>(null)
   const photoDragStartRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null)
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
+  const isAdmin = me?.role === 'Admin'
   const cropPreviewSize = isMobile ? 220 : 280
   const photoEditorBaseScale = photoEditorImageSize
     ? Math.max(cropPreviewSize / photoEditorImageSize.width, cropPreviewSize / photoEditorImageSize.height)
@@ -328,6 +331,24 @@ export default function Profile() {
       }
       setBookLoading(false)
     }
+  }
+
+  const handleDeleteGalleryPhoto = async (photoId: number) => {
+    if (!isOwnProfile && !isAdmin) return
+    if (deletingGalleryPhotoIds.includes(photoId)) return
+
+    setDeletingGalleryPhotoIds((prev) => [...prev, photoId])
+    setGalleryMessage(null)
+    const result = await deleteGalleryPhotoRequest(photoId)
+    setDeletingGalleryPhotoIds((prev) => prev.filter((id) => id !== photoId))
+
+    if (!result.ok) {
+      setGalleryMessage(result.error ?? 'Could not delete gallery photo.')
+      return
+    }
+
+    setGalleryPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+    setGalleryMessage('Gallery photo deleted.')
   }
 
   const handleProfilePhotoSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -620,7 +641,7 @@ export default function Profile() {
                       <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.7 }}>{formatNoteDate(note.createdAt)}</div>
                     </div>
                     <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.4 }}>{note.content}</p>
-                    {me && note.sender.id === me.id && (
+                    {me && (note.sender.id === me.id || me.role === 'Admin') && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button
                           type="button"
@@ -809,7 +830,7 @@ export default function Profile() {
                       <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.45 }}>{note.content}</p>
                       <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                         <div style={{ fontSize: '0.8rem', opacity: 0.72, fontWeight: 700 }}>{formatNoteDate(note.createdAt)}</div>
-                        {me && note.sender.id === me.id && (
+                        {me && (note.sender.id === me.id || me.role === 'Admin') && (
                           <button
                             type="button"
                             className="neo-btn"
@@ -913,6 +934,17 @@ export default function Profile() {
                   <div style={{ fontSize: '0.75rem', fontWeight: 900, textAlign: 'center' }}>
                     MOMENT_#{(safeGalleryPageNumber - 1) * galleryPageSize + idx + 1}
                   </div>
+                  {(isOwnProfile || isAdmin) && (
+                    <button
+                      type="button"
+                      className="neo-btn"
+                      onClick={() => void handleDeleteGalleryPhoto(photo.id)}
+                      disabled={deletingGalleryPhotoIds.includes(photo.id)}
+                      style={{ minWidth: 'auto', padding: '7px 10px', background: '#ff8f8f' }}
+                    >
+                      {deletingGalleryPhotoIds.includes(photo.id) ? 'Deleting...' : 'Delete'}
+                    </button>
+                  )}
                 </div>
               ))}
             </motion.div>

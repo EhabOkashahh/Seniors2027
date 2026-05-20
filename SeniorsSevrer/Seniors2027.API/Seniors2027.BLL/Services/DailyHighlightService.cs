@@ -91,7 +91,7 @@ public class DailyHighlightService : IDailyHighlightService
             .ToListAsync();
     }
 
-    public async Task<DailyHighlightDto?> DeleteHighlightAsync(int highlightId, int requesterUserId)
+    public async Task<DailyHighlightDto?> DeleteHighlightAsync(int highlightId, int requesterUserId, bool requesterIsAdmin = false)
     {
         var highlight = await _context.DailyHighlights
             .Include(h => h.User)
@@ -99,7 +99,7 @@ public class DailyHighlightService : IDailyHighlightService
             .FirstOrDefaultAsync(h => h.Id == highlightId);
 
         if (highlight == null) return null;
-        if (highlight.UserId != requesterUserId) return null;
+        if (!requesterIsAdmin && highlight.UserId != requesterUserId) return null;
 
         var deletedDto = new DailyHighlightDto
         {

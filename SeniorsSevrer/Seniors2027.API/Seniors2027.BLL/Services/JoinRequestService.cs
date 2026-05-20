@@ -104,7 +104,9 @@ public class JoinRequestService(IUnitOfWork unitOfWork) : IJoinRequestService
                     Gender = Gender.Unknown,
                     PhotoUrl = null,
                     Description = null,
-                    Role = UserRole.Member
+                    Role = UserRole.Member,
+                    IsLocked = false,
+                    LockedAtUtc = null
                 };
 
                 await _unitOfWork.Repository<User>().AddAsync(existingUser);

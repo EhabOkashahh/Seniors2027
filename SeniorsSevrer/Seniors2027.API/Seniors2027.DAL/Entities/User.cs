@@ -20,6 +20,9 @@ public class User
     public string Email { get; set; } = string.Empty;
     [Required]
     public UserRole Role { get; set; } = UserRole.Member;
+    [Required]
+    public bool IsLocked { get; set; } = false;
+    public DateTime? LockedAtUtc { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<Note> SentNotes { get; set; } = new List<Note>();
     public ICollection<Note> ReceivedNotes { get; set; } = new List<Note>();

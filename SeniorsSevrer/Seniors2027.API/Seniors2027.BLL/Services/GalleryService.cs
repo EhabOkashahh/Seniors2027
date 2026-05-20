@@ -54,4 +54,28 @@ public class GalleryService : IGalleryService
             })
             .ToListAsync();
     }
+
+    public async Task<GalleryPhotoDto?> DeletePhotoAsync(int photoId, int requesterUserId, bool requesterIsAdmin = false)
+    {
+        var photo = await _context.GalleryPhotos.FirstOrDefaultAsync(p => p.Id == photoId);
+        if (photo == null) return null;
+
+        if (!requesterIsAdmin && photo.UserId != requesterUserId)
+        {
+            throw new InvalidOperationException("You can only delete your own gallery photos.");
+        }
+
+        var deletedPhoto = new GalleryPhotoDto
+        {
+            Id = photo.Id,
+            UserId = photo.UserId,
+            PhotoUrl = photo.PhotoUrl,
+            CreatedAt = photo.CreatedAt
+        };
+
+        _context.GalleryPhotos.Remove(photo);
+        await _context.SaveChangesAsync();
+
+        return deletedPhoto;
+    }
 }

@@ -2720,7 +2720,8 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\ehaby\\.nuget\\packages\\": {}
+    "C:\\Users\\ehaby\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
@@ -2731,13 +2732,19 @@
       "packagesPath": "C:\\Users\\ehaby\\.nuget\\packages\\",
       "outputPath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.BLL\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\NuGet.NoSig.config"
+        "C:\\Users\\ehaby\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net9.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {

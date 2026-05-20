@@ -178,6 +178,17 @@ export type JoinRequestItem = {
   approvedUserId?: number | null
 }
 
+export type AdminUser = {
+  id: number
+  username: string
+  email: string
+  photoUrl?: string | null
+  gender: string
+  role: AppUserRole
+  isLocked: boolean
+  createdAt: string
+}
+
 export type NoteSender = {
   id: number
   username: string
@@ -572,9 +583,43 @@ export async function deleteDailyHighlightRequest(id: number): Promise<ApiResult
 async function safeError(response: Response): Promise<string> {
   try {
     const text = await response.text()
-    return text || `Request failed (${response.status})`
+    if (!text) return `Request failed (${response.status})`
+
+    try {
+      const payload = JSON.parse(text) as { message?: unknown; error?: unknown }
+      if (typeof payload.message === 'string' && payload.message.trim()) return payload.message
+      if (typeof payload.error === 'string' && payload.error.trim()) return payload.error
+    } catch {
+      // Plain text response body.
+    }
+
+    return text
   } catch {
     return `Request failed (${response.status})`
+  }
+}
+
+export async function deleteGalleryPhotoRequest(photoId: number): Promise<ApiResult<GalleryPhoto>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/gallery/${photoId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as GalleryPhoto
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
   }
 }
 
@@ -711,6 +756,92 @@ export async function reviewJoinRequestRequest(
 
     const data = (await response.json()) as JoinRequestItem
     return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getAdminUsersRequest(
+  pageNumber: number = 1,
+  pageSize: number = 20,
+  search: string = ''
+): Promise<ApiResult<AdminUser[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const params = new URLSearchParams({
+      pageNumber: String(pageNumber),
+      pageSize: String(pageSize)
+    })
+
+    if (search.trim()) params.set('search', search.trim())
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/users?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as AdminUser[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function setAdminUserLockRequest(
+  userId: number,
+  isLocked: boolean
+): Promise<ApiResult<AdminUser>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/lock`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ isLocked })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as AdminUser
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function deleteAdminUserRequest(userId: number): Promise<ApiResult<null>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    return { ok: true, data: null }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
   }

@@ -118,11 +118,14 @@ public class NoteService : INoteService
         };
     }
 
-    public async Task<bool> DeleteNoteAsync(int noteId, int requesterUserId)
+    public async Task<bool> DeleteNoteAsync(int noteId, int requesterUserId, bool requesterIsAdmin = false)
     {
         var note = await _context.Notes.FirstOrDefaultAsync(n => n.Id == noteId);
         if (note == null) return false;
-        if (note.SenderId != requesterUserId) throw new InvalidOperationException("You can only delete notes you sent.");
+        if (!requesterIsAdmin && note.SenderId != requesterUserId)
+        {
+            throw new InvalidOperationException("You can only delete notes you sent.");
+        }
 
         _context.Notes.Remove(note);
         await _context.SaveChangesAsync();

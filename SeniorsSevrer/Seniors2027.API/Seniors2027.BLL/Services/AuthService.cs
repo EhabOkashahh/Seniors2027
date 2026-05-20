@@ -66,6 +66,11 @@ public class AuthService(
             .Find(u => u.Email.ToLower() == email)
             .FirstOrDefault();
 
+        if (user is { IsLocked: true })
+        {
+            throw new Exception("This account is locked. Contact an admin.");
+        }
+
         var otp = GenerateOtp();
         await _emailService.SendOtpEmailAsync(email, otp);
 
@@ -109,6 +114,11 @@ public class AuthService(
         var user = _unitOfWork.Repository<User>()
             .Find(u => u.Email.ToLower() == email)
             .FirstOrDefault();
+
+        if (user is { IsLocked: true })
+        {
+            throw new Exception("This account is locked. Contact an admin.");
+        }
 
         if (user == null)
         {

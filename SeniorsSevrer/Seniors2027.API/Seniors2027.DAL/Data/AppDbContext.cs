@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Email).IsRequired().HasMaxLength(320);
             entity.HasIndex(e => e.Email).IsUnique();
             entity.Property(e => e.Role).HasConversion<int>();
+            entity.Property(e => e.IsLocked).HasDefaultValue(false);
         });
 
         modelBuilder.Entity<Note>(entity =>

@@ -26,6 +26,7 @@ export default function PortalHome() {
   const [isArchivePreviewHovered, setIsArchivePreviewHovered] = useState(false)
   const [highlightsMessage, setHighlightsMessage] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [genderByUserId, setGenderByUserId] = useState<Record<number, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -53,7 +54,10 @@ export default function PortalHome() {
   useEffect(() => {
     const run = async () => {
       const me = await getMeRequest()
-      if (me.ok && me.data) setCurrentUserId(me.data.id)
+      if (me.ok && me.data) {
+        setCurrentUserId(me.data.id)
+        setIsAdmin(me.data.role === 'Admin')
+      }
     }
     void run()
   }, [])
@@ -133,7 +137,7 @@ export default function PortalHome() {
 
   const handleDeleteCurrentHighlight = async () => {
     if (!current || currentUserId === null) return
-    if (current.userId !== currentUserId) return
+    if (!isAdmin && current.userId !== currentUserId) return
 
     setDeletingHighlight(true)
     setHighlightsMessage(null)
@@ -610,7 +614,7 @@ export default function PortalHome() {
               </button>
             </div>
 
-            {current && currentUserId !== null && current.userId === currentUserId && (
+            {current && currentUserId !== null && (current.userId === currentUserId || isAdmin) && (
               <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
