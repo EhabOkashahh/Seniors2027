@@ -1,31 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\ehaby\\OneDrive\\Desktop\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj": {}
+    "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj": {}
   },
   "projects": {
-    "C:\\Users\\ehaby\\OneDrive\\Desktop\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj": {
+    "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\ehaby\\OneDrive\\Desktop\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj",
+        "projectUniqueName": "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj",
         "projectName": "Seniors2027.DAL",
-        "projectPath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj",
+        "projectPath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj",
         "packagesPath": "C:\\Users\\ehaby\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\obj\\",
+        "outputPath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\ehaby\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\NuGet.NoSig.config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {

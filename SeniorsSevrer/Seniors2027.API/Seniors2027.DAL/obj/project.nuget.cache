@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "LRm4cFJne64=",
+  "dgSpecHash": "64GOoiIoHGs=",
   "success": true,
-  "projectFilePath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj",
+  "projectFilePath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.DAL\\Seniors2027.DAL.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\ehaby\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\ehaby\\.nuget\\packages\\azure.identity\\1.11.4\\azure.identity.1.11.4.nupkg.sha512",

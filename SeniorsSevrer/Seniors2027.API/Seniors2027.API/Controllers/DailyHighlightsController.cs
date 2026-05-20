@@ -41,15 +41,34 @@ public class DailyHighlightsController : ControllerBase
             ?? User.FindFirst("nameid")?.Value;
         if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
 
+        StoredPhotoInfo storedPhoto;
         try
         {
-            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+            storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
+                photo,
+                Request,
+                ImageUploadPurpose.DailyHighlight,
+                HttpContext.RequestAborted);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+
+        try
+        {
             var created = await _dailyHighlightService.AddHighlightAsync(userId, storedPhoto.PhotoUrl);
             return Ok(created);
         }
         catch (InvalidOperationException ex)
         {
+            TryDeleteFile(storedPhoto.FilePath);
             return BadRequest(ex.Message);
+        }
+        catch
+        {
+            TryDeleteFile(storedPhoto.FilePath);
+            throw;
         }
     }
 
@@ -90,5 +109,20 @@ public class DailyHighlightsController : ControllerBase
 
         filePath = candidate;
         return true;
+    }
+
+    private static void TryDeleteFile(string filePath)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(filePath) && System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+        }
+        catch
+        {
+            // Keep API response focused on the original request outcome.
+        }
     }
 }

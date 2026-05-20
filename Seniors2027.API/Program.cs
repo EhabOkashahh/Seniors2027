@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
+using Seniors2027.API.Middleware;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.BLL.Services;
 using Seniors2027.API.Services;
@@ -85,6 +86,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+app.UseMiddleware<ErrorMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

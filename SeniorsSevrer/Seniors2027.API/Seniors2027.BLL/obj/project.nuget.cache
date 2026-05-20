@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "J10ZNv+HBE4=",
+  "dgSpecHash": "0dAvgQza/1k=",
   "success": true,
-  "projectFilePath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.BLL\\Seniors2027.BLL.csproj",
+  "projectFilePath": "C:\\Users\\ehaby\\OneDrive\\Desktop\\project\\SeniorsSevrer\\Seniors2027.API\\Seniors2027.BLL\\Seniors2027.BLL.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\ehaby\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\ehaby\\.nuget\\packages\\azure.identity\\1.11.4\\azure.identity.1.11.4.nupkg.sha512",

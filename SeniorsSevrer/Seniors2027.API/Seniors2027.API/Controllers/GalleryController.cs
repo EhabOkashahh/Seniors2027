@@ -41,7 +41,10 @@ public class GalleryController : ControllerBase
 
         try
         {
-            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
+                photo,
+                Request,
+                cancellationToken: HttpContext.RequestAborted);
             var created = await _galleryService.AddPhotoAsync(userId, storedPhoto.PhotoUrl);
             return Ok(created);
         }

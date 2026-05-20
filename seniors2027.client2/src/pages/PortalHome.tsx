@@ -13,6 +13,7 @@ import {
   type DailyHighlight,
   uploadDailyHighlightRequest
 } from '../lib/authApi'
+import { optimizeDailyHighlightFileForUpload } from '../lib/imageUploadOptimizer'
 
 export default function PortalHome() {
   const [highlights, setHighlights] = useState<DailyHighlight[]>([])
@@ -108,18 +109,26 @@ export default function PortalHome() {
   const handleUploadHighlight = async (file: File) => {
     setUploadingHighlight(true)
     setHighlightsMessage(null)
-    const result = await uploadDailyHighlightRequest(file)
-    setUploadingHighlight(false)
 
-    if (!result.ok || !result.data) {
-      setHighlightsMessage(result.error ?? 'Could not upload highlight.')
-      return
+    try {
+      const optimizedFile = await optimizeDailyHighlightFileForUpload(file)
+      const result = await uploadDailyHighlightRequest(optimizedFile)
+      const createdHighlight = result.data
+
+      if (!result.ok || !createdHighlight) {
+        setHighlightsMessage(result.error ?? 'Could not upload highlight.')
+        return
+      }
+
+      setHighlights((prev) => [createdHighlight, ...prev])
+      setActiveIndex(0)
+      setFlipDirection('next')
+      setHighlightsMessage('Daily highlight added. It will expire automatically after 24h.')
+    } catch {
+      setHighlightsMessage('Could not prepare highlight image. Please try another photo.')
+    } finally {
+      setUploadingHighlight(false)
     }
-
-    setHighlights((prev) => [result.data!, ...prev])
-    setActiveIndex(0)
-    setFlipDirection('next')
-    setHighlightsMessage('Daily highlight added. It will expire automatically after 24h.')
   }
 
   const handleDeleteCurrentHighlight = async () => {

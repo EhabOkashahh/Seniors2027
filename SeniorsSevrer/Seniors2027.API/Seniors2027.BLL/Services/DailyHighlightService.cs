@@ -33,13 +33,10 @@ public class DailyHighlightService : IDailyHighlightService
             CreatedAt = now
         };
 
-        await _context.GalleryPhotos.AddAsync(galleryPhoto);
-        await _context.SaveChangesAsync();
-
         var highlight = new DailyHighlight
         {
             UserId = userId,
-            GalleryPhotoId = galleryPhoto.Id,
+            GalleryPhoto = galleryPhoto,
             CreatedAt = now,
             ExpiresAt = now.AddHours(24)
         };

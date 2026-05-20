@@ -106,7 +106,10 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     {
         try
         {
-            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
+                photo,
+                Request,
+                cancellationToken: HttpContext.RequestAborted);
             return Ok(new
             {
                 photoUrl = storedPhoto.PhotoUrl,
@@ -136,7 +139,10 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
         StoredPhotoInfo storedPhoto;
         try
         {
-            storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+            storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
+                photo,
+                Request,
+                cancellationToken: HttpContext.RequestAborted);
         }
         catch (InvalidOperationException ex)
         {
