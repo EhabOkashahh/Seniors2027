@@ -1,0 +1,213 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Seniors2027.API.Extensions;
+using Seniors2027.API.Services;
+using Seniors2027.BLL.DTOs;
+using Seniors2027.BLL.Interfaces;
+using Seniors2027.DAL.Entities;
+using Seniors2027.DAL.Interfaces;
+
+namespace Seniors2027.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, IWebHostEnvironment _environment, IImageUploadProcessor _imageUploadProcessor) : ControllerBase
+{
+    [Authorize]
+    [HttpGet("me")]
+    public ActionResult GetMe()
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+
+        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        if (user == null) return NotFound();
+
+        return Ok(new
+        {
+            id = user.Id,
+            username = string.IsNullOrWhiteSpace(user.Username) ? "Senior" : user.Username,
+            photoUrl = string.IsNullOrWhiteSpace(user.PhotoUrl) ? null : user.PhotoUrl,
+            description = string.IsNullOrWhiteSpace(user.Description) ? null : user.Description,
+            role = user.Role
+        });
+    }
+
+    [Authorize]
+    [HttpPut("me/username")]
+    public async Task<ActionResult> UpdateMyUsername(UpdateUsernameDto dto)
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+
+        try
+        {
+            var updated = await _authService.UpdateUsernameAsync(userId, dto.Username);
+            if (!updated) return NotFound();
+
+            return Ok(new { message = "Username updated successfully." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [Authorize]
+    [HttpPut("me/description")]
+    public async Task<ActionResult> UpdateMyDescription(UpdateDescriptionDto dto)
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+
+        var updated = await _authService.UpdateDescriptionAsync(userId, dto.Description);
+        if (!updated) return NotFound();
+
+        return Ok(new { message = "Description updated successfully." });
+    }
+
+    [Authorize]
+    [HttpPut("me/gender")]
+    public async Task<ActionResult> UpdateMyGender(UpdateGenderDto dto)
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+
+        var updated = await _authService.UpdateGenderAsync(userId, dto.Gender);
+        if (!updated) return NotFound();
+
+        return Ok(new { message = "Gender updated successfully." });
+    }
+
+    [HttpGet("recognize/{email}")]
+    public ActionResult Recognize(string email)
+    {
+        var user = _unitOfWork.Repository<User>().Find(u => u.Email.ToLower() == email.ToLower()).FirstOrDefault();
+        if (user == null) 
+        {
+            return NotFound("Senior not found");
+        }
+
+        return Ok(new { username = user.Username, photoUrl = user.PhotoUrl, email = user.Email });
+    }
+
+    // [HttpPost("register")]
+    // public async Task<ActionResult<AuthResponseDto>> Register(RegisterDto registerDto) 
+    // {
+    //     try
+    //     {
+    //         var result = await _authService.RegisterAsync(registerDto);
+    //         return Ok(result);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return BadRequest(ex.Message);
+    //     }
+    // }
+
+    [HttpPost("upload-photo")]
+    public async Task<ActionResult> UploadPhoto([FromForm] IFormFile photo)
+    {
+        try
+        {
+            var storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+            return Ok(new
+            {
+                photoUrl = storedPhoto.PhotoUrl,
+                savedFileName = storedPhoto.FileName,
+                savedPath = storedPhoto.FilePath
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [Authorize]
+    [HttpPut("me/photo")]
+    public async Task<ActionResult> UpdateMyPhoto([FromForm] IFormFile photo)
+    {
+        if (photo == null || photo.Length == 0) return BadRequest("Photo is required.");
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+
+        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        if (user == null) return NotFound();
+
+        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+        Directory.CreateDirectory(photosDirectory);
+
+        StoredPhotoInfo storedPhoto;
+        try
+        {
+            storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(photo, Request, HttpContext.RequestAborted);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+
+        var oldPhotoPath = string.Empty;
+        var hadLocalOldPhoto = TryGetLocalSeniorsPhotoPath(user.PhotoUrl, photosDirectory, out oldPhotoPath) && System.IO.File.Exists(oldPhotoPath);
+
+        user.PhotoUrl = storedPhoto.PhotoUrl;
+        _unitOfWork.Repository<User>().Update(user);
+        await _unitOfWork.CompleteAsync();
+
+        if (hadLocalOldPhoto)
+        {
+            System.IO.File.Delete(oldPhotoPath);
+        }
+
+        return Ok(new
+        {
+            photoUrl = storedPhoto.PhotoUrl,
+            savedFileName = storedPhoto.FileName,
+            savedPath = storedPhoto.FilePath
+        });
+    }
+
+    [HttpPost("login")]
+    public async Task<ActionResult<LoginStartResponseDto>> Login(LoginDto loginDto)
+    {
+        try
+        {
+            var result = await _authService.LoginAsync(loginDto);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("verify-otp")]
+    public async Task<ActionResult<AuthResponseDto>> VerifyOtp(VerifyOtpDto verifyOtpDto)
+    {
+        try
+        {
+            var result = await _authService.VerifyOtpAsync(verifyOtpDto);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return Unauthorized(ex.Message);
+        }
+    }
+
+    private static bool TryGetLocalSeniorsPhotoPath(string? photoUrl, string photosDirectory, out string filePath)
+    {
+        filePath = string.Empty;
+        if (string.IsNullOrWhiteSpace(photoUrl)) return false;
+        if (!photoUrl.Contains("/SeniorsPhotos/", StringComparison.OrdinalIgnoreCase)) return false;
+
+        if (!Uri.TryCreate(photoUrl, UriKind.Absolute, out var uri)) return false;
+
+        var fileName = Path.GetFileName(uri.LocalPath);
+        if (string.IsNullOrWhiteSpace(fileName)) return false;
+
+        var candidate = Path.GetFullPath(Path.Combine(photosDirectory, fileName));
+        var root = Path.GetFullPath(photosDirectory);
+        if (!candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return false;
+
+        filePath = candidate;
+        return true;
+    }
+
+}
