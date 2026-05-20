@@ -887,10 +887,6 @@ export default function Profile() {
                             <img
                               src={photo.photoUrl}
                               alt={`Moment ${photo.id}`}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                setExpandedGalleryPhoto(photo)
-                              }}
                               style={{
                                 display: 'block',
                                 width: '260px',
@@ -899,8 +895,7 @@ export default function Profile() {
                                 objectFit: 'cover',
                                 border: '3px solid black',
                                 boxShadow: '4px 4px 0 black',
-                                background: '#dfe8ff',
-                                cursor: 'zoom-in'
+                                background: '#dfe8ff'
                               }}
                             />
                           </motion.div>
