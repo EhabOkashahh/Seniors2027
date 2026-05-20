@@ -1,6 +1,6 @@
 import { getAuthToken, type AppUserRole } from './session'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5292'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://sneiors2027.runasp.net/'
 const EMAIL_EXISTS_ENDPOINT = import.meta.env.VITE_AUTH_EMAIL_EXISTS_ENDPOINT ?? '/api/auth/recognize/{email}'
 
 export type ApiResult<T> = {

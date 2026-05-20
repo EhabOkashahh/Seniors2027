@@ -236,7 +236,7 @@ export default function Profile() {
       return
     }
 
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5292'
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://sneiors2027.runasp.net/'
     setDescriptionSaving(true)
     setDescriptionMessage(null)
 
