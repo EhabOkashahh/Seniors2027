@@ -55,9 +55,12 @@ type MonthlyDumpEntry =
   | { id: string; kind: 'note'; createdAt: string; note: NoteItem }
   | { id: string; kind: 'highlight'; createdAt: string; highlight: DailyHighlight }
 
+type MonthlyDumpNoteEntry = Extract<MonthlyDumpEntry, { kind: 'note' }>
+type MonthlyDumpPage = MonthlyDumpEntry[]
+
 type MonthlyDumpSpread = {
-  left: MonthlyDumpEntry | null
-  right: MonthlyDumpEntry | null
+  left: MonthlyDumpPage
+  right: MonthlyDumpPage
 }
 
 export default function PortalHome() {
@@ -97,7 +100,7 @@ export default function PortalHome() {
   const monthlyDumpUnlockDateLabel = formatDateLong(getCurrentMonthLastDayIso(today))
   const monthlyDumpMonthLabel = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
   const monthlyDumpSpreads = useMemo(() => buildMonthlyDumpSpreads(monthlyDumpEntries), [monthlyDumpEntries])
-  const monthlyDumpCurrentSpread = monthlyDumpSpreads[monthlyDumpBookPageIndex] ?? { left: null, right: null }
+  const monthlyDumpCurrentSpread = monthlyDumpSpreads[monthlyDumpBookPageIndex] ?? { left: [], right: [] }
   const monthlyDumpTotalSpreads = monthlyDumpSpreads.length
 
   const fetchHighlights = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -459,8 +462,8 @@ export default function PortalHome() {
     setMonthlyDumpBookPageIndex((prev) => (prev - 1 + monthlyDumpTotalSpreads) % monthlyDumpTotalSpreads)
   }
 
-  const renderMonthlyDumpBookPage = (entry: MonthlyDumpEntry | null, pageSide: 'left' | 'right') => {
-    if (!entry) {
+  const renderMonthlyDumpBookPage = (pageEntries: MonthlyDumpPage, pageSide: 'left' | 'right') => {
+    if (pageEntries.length === 0) {
       return (
         <div
           style={{
@@ -489,75 +492,100 @@ export default function PortalHome() {
           gap: '10px'
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '8px',
-            flexWrap: 'wrap'
-          }}
-        >
+        {pageEntries.map((entry, index) => (
           <div
+            key={`${entry.id}-${index}`}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
               border: '2px solid black',
-              background: entry.kind === 'note' ? '#ffe267' : '#ffd5a8',
-              padding: '3px 7px',
-              fontWeight: 900,
-              fontSize: '0.68rem',
-              textTransform: 'uppercase'
+              boxShadow: '3px 3px 0 black',
+              background: entry.kind === 'note' ? '#fff7cf' : '#fff',
+              padding: '8px',
+              display: 'grid',
+              gap: '7px'
             }}
           >
-            {entry.kind === 'note' ? <Bell size={12} /> : <BookImage size={12} />}
-            {entry.kind === 'note' ? 'Note' : 'Highlight'}
-          </div>
-          <div style={{ fontWeight: 800, fontSize: '0.68rem', opacity: 0.74 }}>
-            {formatDateTime(entry.createdAt)}
-          </div>
-        </div>
-
-        {entry.kind === 'note' ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <GenderCapAvatar
-                src={entry.note.sender.photoUrl || '/favicon.svg'}
-                alt={entry.note.sender.username}
-                gender={null}
-                fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
-                containerStyle={{ width: '30px', height: '30px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
-                imageStyle={{ borderRadius: '50%' }}
-                capScale={0.72}
-              />
-              <div style={{ fontWeight: 900, fontSize: '0.82rem' }}>{entry.note.sender.username}</div>
-            </div>
-            <div style={{ fontWeight: 700, fontSize: '0.82rem', lineHeight: 1.36, whiteSpace: 'pre-wrap' }}>
-              {entry.note.content}
-            </div>
-          </>
-        ) : (
-          <>
-            <img
-              src={entry.highlight.photoUrl}
-              alt={entry.highlight.user.username}
+            <div
               style={{
-                width: '100%',
-                height: '260px',
-                objectFit: 'cover',
-                border: '2px solid black',
-                boxShadow: '4px 4px 0 black',
-                background: '#e6f0ff',
-                transform: pageSide === 'left' ? 'rotate(-0.8deg)' : 'rotate(0.8deg)'
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '8px',
+                flexWrap: 'wrap'
               }}
-            />
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.78rem' }}>
-              <UserRound size={13} />
-              {entry.highlight.user.username}
+            >
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  border: '2px solid black',
+                  background: entry.kind === 'note' ? '#ffe267' : '#ffd5a8',
+                  padding: '3px 7px',
+                  fontWeight: 900,
+                  fontSize: '0.68rem',
+                  textTransform: 'uppercase'
+                }}
+              >
+                {entry.kind === 'note' ? <Bell size={12} /> : <BookImage size={12} />}
+                {entry.kind === 'note' ? 'Note' : 'Highlight'}
+              </div>
+              <div style={{ fontWeight: 800, fontSize: '0.68rem', opacity: 0.74 }}>
+                {formatDateTime(entry.createdAt)}
+              </div>
             </div>
-          </>
-        )}
+
+            {entry.kind === 'note' ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <GenderCapAvatar
+                    src={entry.note.sender.photoUrl || '/favicon.svg'}
+                    alt={entry.note.sender.username}
+                    gender={null}
+                    fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
+                    containerStyle={{ width: '30px', height: '30px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
+                    imageStyle={{ borderRadius: '50%' }}
+                    capScale={0.72}
+                  />
+                  <div style={{ fontWeight: 900, fontSize: '0.82rem' }}>{entry.note.sender.username}</div>
+                </div>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    lineHeight: 1.34,
+                    whiteSpace: 'pre-wrap',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitBoxOrient: 'vertical',
+                    WebkitLineClamp: pageEntries.length > 1 ? 6 : 10
+                  }}
+                >
+                  {entry.note.content}
+                </div>
+              </>
+            ) : (
+              <>
+                <img
+                  src={entry.highlight.photoUrl}
+                  alt={entry.highlight.user.username}
+                  style={{
+                    width: '100%',
+                    height: '260px',
+                    objectFit: 'cover',
+                    border: '2px solid black',
+                    boxShadow: '4px 4px 0 black',
+                    background: '#e6f0ff',
+                    transform: pageSide === 'left' ? 'rotate(-0.8deg)' : 'rotate(0.8deg)'
+                  }}
+                />
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.78rem' }}>
+                  <UserRound size={13} />
+                  {entry.highlight.user.username}
+                </div>
+              </>
+            )}
+          </div>
+        ))}
       </div>
     )
   }
@@ -1655,17 +1683,79 @@ function getCurrentMonthLastDayIso(referenceDate?: Date): string {
 }
 
 function buildMonthlyDumpSpreads(entries: MonthlyDumpEntry[]): MonthlyDumpSpread[] {
-  if (entries.length === 0) return [{ left: null, right: null }]
+  if (entries.length === 0) return [{ left: [], right: [] }]
+
+  const pages: MonthlyDumpPage[] = []
+  let entryIndex = 0
+
+  while (entryIndex < entries.length) {
+    const currentEntry = entries[entryIndex]
+
+    if (currentEntry.kind === 'highlight') {
+      pages.push([currentEntry])
+      entryIndex += 1
+      continue
+    }
+
+    const noteChunk: MonthlyDumpNoteEntry[] = []
+    while (entryIndex < entries.length && entries[entryIndex].kind === 'note') {
+      noteChunk.push(entries[entryIndex] as MonthlyDumpNoteEntry)
+      entryIndex += 1
+    }
+
+    pages.push(...packNoteEntriesIntoPages(noteChunk))
+  }
 
   const spreads: MonthlyDumpSpread[] = []
-  for (let index = 0; index < entries.length; index += 2) {
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 2) {
     spreads.push({
-      left: entries[index] ?? null,
-      right: entries[index + 1] ?? null
+      left: pages[pageIndex] ?? [],
+      right: pages[pageIndex + 1] ?? []
     })
   }
 
   return spreads
+}
+
+function packNoteEntriesIntoPages(notes: MonthlyDumpNoteEntry[]): MonthlyDumpPage[] {
+  if (notes.length === 0) return []
+
+  const pages: MonthlyDumpPage[] = []
+  let currentPage: MonthlyDumpNoteEntry[] = []
+  let currentWeight = 0
+
+  for (const noteEntry of notes) {
+    const nextWeight = estimateMonthlyNoteWeight(noteEntry)
+    const canFitInCurrentPage =
+      currentPage.length > 0 &&
+      currentPage.length < 3 &&
+      currentWeight + nextWeight <= 1
+
+    if (canFitInCurrentPage) {
+      currentPage.push(noteEntry)
+      currentWeight += nextWeight
+      continue
+    }
+
+    if (currentPage.length > 0) {
+      pages.push(currentPage)
+    }
+
+    currentPage = [noteEntry]
+    currentWeight = nextWeight
+  }
+
+  if (currentPage.length > 0) {
+    pages.push(currentPage)
+  }
+
+  return pages
+}
+
+function estimateMonthlyNoteWeight(noteEntry: MonthlyDumpNoteEntry): number {
+  const textLength = noteEntry.note.content.trim().length
+  const normalized = Math.min(1, textLength / 600)
+  return 0.34 + normalized * 0.58
 }
 
 function wait(durationMs: number): Promise<void> {
