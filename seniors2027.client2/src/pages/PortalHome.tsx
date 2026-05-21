@@ -544,7 +544,7 @@ export default function PortalHome() {
               alt={entry.highlight.user.username}
               style={{
                 width: '100%',
-                height: '168px',
+                height: '260px',
                 objectFit: 'cover',
                 border: '2px solid black',
                 boxShadow: '4px 4px 0 black',
@@ -1352,12 +1352,15 @@ export default function PortalHome() {
             transition={{ duration: 0.34, ease: [0.2, 0.8, 0.2, 1] }}
             style={{
               width: 'min(920px, 97vw)',
+              height: 'min(90vh, 980px)',
+              maxHeight: '90vh',
               background: '#f1d5a9',
               border: '4px solid black',
               boxShadow: '14px 14px 0 black',
               padding: '14px',
               cursor: 'default',
               display: 'grid',
+              gridTemplateRows: 'auto minmax(0, 1fr) auto auto',
               gap: '12px'
             }}
             onClick={(event) => event.stopPropagation()}
@@ -1383,7 +1386,10 @@ export default function PortalHome() {
                 background: 'linear-gradient(180deg, #d0b183 0%, #c9a878 100%)',
                 padding: '10px',
                 boxShadow: 'inset 0 0 0 3px rgba(0, 0, 0, 0.14)',
-                position: 'relative'
+                position: 'relative',
+                height: '100%',
+                minHeight: 0,
+                overflow: 'hidden'
               }}
             >
               {monthlyDumpLoading && (
@@ -1416,12 +1422,14 @@ export default function PortalHome() {
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr',
                   gap: '8px',
+                  height: '100%',
+                  minHeight: 0,
                   perspective: '1500px',
                   transformStyle: 'preserve-3d'
                 }}
               >
-                <div>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.left, 'left')}</div>
-                <div>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.right, 'right')}</div>
+                <div style={{ height: '100%', minHeight: 0 }}>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.left, 'left')}</div>
+                <div style={{ height: '100%', minHeight: 0 }}>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.right, 'right')}</div>
               </motion.div>
             </div>
 
