@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bell, BookImage, Calendar, ChevronLeft, ChevronRight, Lock, Trash2, Upload } from 'lucide-react'
+import {
+  Bell,
+  BookImage,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Lock,
+  MapPin,
+  Megaphone,
+  Sparkles,
+  Trash2,
+  Upload,
+  UserRound
+} from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import Logo from '../assets/Logo.png'
@@ -442,30 +456,128 @@ export default function PortalHome() {
                 <Bell size={18} />
                 <span style={{ fontWeight: 900 }}>ANNOUNCEMENTS</span>
               </div>
-              <div className="window-content" style={{ padding: '14px', textAlign: 'left', gap: '10px' }}>
+              <div
+                className="window-content"
+                style={{
+                  padding: '14px',
+                  textAlign: 'left',
+                  gap: '10px',
+                  background:
+                    'linear-gradient(180deg, rgba(255, 211, 226, 0.45) 0%, rgba(255, 255, 255, 0.92) 35%, rgba(255, 255, 255, 1) 100%)'
+                }}
+              >
+                <div
+                  style={{
+                    border: '2px solid black',
+                    boxShadow: '4px 4px 0 black',
+                    background: 'white',
+                    padding: '8px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      border: '2px solid black',
+                      background: '#ffe1ef',
+                      padding: '4px 8px',
+                      fontWeight: 900,
+                      fontSize: '0.76rem',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    <Megaphone size={13} />
+                    Fresh from Admin
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: '0.76rem', opacity: 0.75 }}>{announcements.length} active posts</div>
+                </div>
                 {loadingAnnouncements ? (
                   <p style={{ margin: 0, fontWeight: 800, opacity: 0.75 }}>Loading announcements...</p>
                 ) : announcements.length === 0 ? (
-                  <p style={{ margin: 0, fontWeight: 800, opacity: 0.75 }}>No announcements yet.</p>
+                  <div
+                    style={{
+                      border: '2px dashed black',
+                      background: '#fff7fb',
+                      padding: '18px',
+                      display: 'grid',
+                      placeItems: 'center',
+                      gap: '8px',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <Sparkles size={18} />
+                    <p style={{ margin: 0, fontWeight: 800, opacity: 0.78 }}>No announcements yet.</p>
+                  </div>
                 ) : (
-                  announcements.map((announcement) => (
-                    <div
+                  announcements.map((announcement, index) => (
+                    <motion.div
                       key={announcement.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, delay: index * 0.035 }}
+                      whileHover={{ y: -2 }}
                       style={{
-                        border: '2px solid black',
-                        background: 'white',
-                        padding: '10px',
+                        border: '3px solid black',
+                        boxShadow: '6px 6px 0 black',
+                        background: 'linear-gradient(180deg, #ffffff 0%, #fff2f8 100%)',
+                        padding: '10px 11px',
                         display: 'grid',
-                        gap: '6px'
+                        gap: '7px',
+                        transform: index % 2 === 0 ? 'rotate(-0.15deg)' : 'rotate(0.15deg)'
                       }}
                     >
-                      <div style={{ fontWeight: 900, fontSize: '0.92rem', textTransform: 'uppercase' }}>{announcement.title}</div>
-                      <div style={{ fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.35 }}>{announcement.body}</div>
-                      <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.7 }}>
-                        By {announcement.createdByUsername} • {formatDateLong(announcement.createdAt)}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            border: '2px solid black',
+                            background: '#ffef77',
+                            padding: '3px 7px',
+                            fontWeight: 900,
+                            fontSize: '0.7rem',
+                            textTransform: 'uppercase'
+                          }}
+                        >
+                          <Sparkles size={12} />
+                          Spotlight
+                        </div>
+                        <div style={{ fontWeight: 800, fontSize: '0.72rem', opacity: 0.72 }}>
+                          {formatDateLong(announcement.createdAt)}
+                        </div>
                       </div>
-                    </div>
+                      <div
+                        style={{
+                          border: '2px solid black',
+                          background: '#ffd5e6',
+                          boxShadow: '3px 3px 0 black',
+                          padding: '6px 8px',
+                          fontWeight: 900,
+                          fontSize: '0.91rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.01em',
+                          lineHeight: 1.15
+                        }}
+                      >
+                        {announcement.title}
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: '0.84rem', whiteSpace: 'pre-wrap', lineHeight: 1.38 }}>{announcement.body}</div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.74rem', opacity: 0.82 }}>
+                        <UserRound size={13} />
+                        {announcement.createdByUsername}
+                      </div>
+                    </motion.div>
                   ))
+                )}
+                {portalContentMessage && (
+                  <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.82 }}>{portalContentMessage}</div>
                 )}
               </div>
             </motion.div>
@@ -478,31 +590,131 @@ export default function PortalHome() {
                 <Calendar size={18} />
                 <span style={{ fontWeight: 900 }}>UPCOMING_EVENTS</span>
               </div>
-              <div className="window-content" style={{ padding: '14px', textAlign: 'left', gap: '10px' }}>
+              <div
+                className="window-content"
+                style={{
+                  padding: '14px',
+                  textAlign: 'left',
+                  gap: '10px',
+                  background:
+                    'linear-gradient(180deg, rgba(255, 233, 182, 0.55) 0%, rgba(255, 255, 255, 0.94) 40%, rgba(255, 255, 255, 1) 100%)'
+                }}
+              >
+                <div
+                  style={{
+                    border: '2px solid black',
+                    boxShadow: '4px 4px 0 black',
+                    background: 'white',
+                    padding: '8px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      border: '2px solid black',
+                      background: '#ffe2a4',
+                      padding: '4px 8px',
+                      fontWeight: 900,
+                      fontSize: '0.76rem',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    <Clock3 size={13} />
+                    Countdown Board
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: '0.76rem', opacity: 0.75 }}>{events.length} scheduled</div>
+                </div>
                 {loadingEvents ? (
                   <p style={{ margin: 0, fontWeight: 800, opacity: 0.75 }}>Loading events...</p>
                 ) : events.length === 0 ? (
-                  <p style={{ margin: 0, fontWeight: 800, opacity: 0.75 }}>No upcoming events.</p>
+                  <div
+                    style={{
+                      border: '2px dashed black',
+                      background: '#fff8ef',
+                      padding: '18px',
+                      display: 'grid',
+                      placeItems: 'center',
+                      gap: '8px',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <Calendar size={18} />
+                    <p style={{ margin: 0, fontWeight: 800, opacity: 0.78 }}>No upcoming events.</p>
+                  </div>
                 ) : (
-                  events.map((eventItem) => (
-                    <div
+                  events.map((eventItem, index) => (
+                    <motion.div
                       key={eventItem.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, delay: index * 0.04 }}
+                      whileHover={{ y: -2 }}
                       style={{
-                        border: '2px solid black',
-                        background: 'white',
+                        border: '3px solid black',
+                        boxShadow: '6px 6px 0 black',
+                        background: 'linear-gradient(180deg, #ffffff 0%, #fff7eb 100%)',
                         padding: '10px',
                         display: 'grid',
-                        gap: '6px'
+                        gridTemplateColumns: '78px 1fr',
+                        gap: '10px',
+                        alignItems: 'start'
                       }}
                     >
-                      <div style={{ fontWeight: 900, fontSize: '0.92rem', textTransform: 'uppercase' }}>{eventItem.title}</div>
-                      <div style={{ fontWeight: 800, fontSize: '0.82rem' }}>Date: {formatEventDateLong(eventItem.eventDate)}</div>
-                      {eventItem.location && <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>Location: {eventItem.location}</div>}
-                      {eventItem.details && <div style={{ fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'pre-wrap' }}>{eventItem.details}</div>}
-                      <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.7 }}>
-                        Added by {eventItem.createdByUsername}
+                      <div
+                        style={{
+                          border: '2px solid black',
+                          boxShadow: '3px 3px 0 black',
+                          background: '#ffd56d',
+                          padding: '7px 5px',
+                          textAlign: 'center',
+                          display: 'grid',
+                          gap: '1px'
+                        }}
+                      >
+                        <div style={{ fontWeight: 900, fontSize: '0.64rem', letterSpacing: '0.05em' }}>
+                          {formatEventMonthToken(eventItem.eventDate)}
+                        </div>
+                        <div style={{ fontWeight: 900, fontSize: '1.15rem', lineHeight: 1 }}>
+                          {formatEventDayToken(eventItem.eventDate)}
+                        </div>
                       </div>
-                    </div>
+                      <div style={{ display: 'grid', gap: '6px' }}>
+                        <div
+                          style={{
+                            borderBottom: '2px dashed black',
+                            paddingBottom: '4px',
+                            fontWeight: 900,
+                            fontSize: '0.9rem',
+                            textTransform: 'uppercase',
+                            lineHeight: 1.15
+                          }}
+                        >
+                          {eventItem.title}
+                        </div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 800, fontSize: '0.78rem', opacity: 0.82 }}>
+                          <Calendar size={13} />
+                          {formatEventDateLong(eventItem.eventDate)}
+                        </div>
+                        {eventItem.location && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, fontSize: '0.8rem' }}>
+                            <MapPin size={13} />
+                            {eventItem.location}
+                          </div>
+                        )}
+                        {eventItem.details && <div style={{ fontWeight: 700, fontSize: '0.8rem', whiteSpace: 'pre-wrap', lineHeight: 1.35 }}>{eventItem.details}</div>}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 800, fontSize: '0.74rem', opacity: 0.78 }}>
+                          <UserRound size={13} />
+                          {eventItem.createdByUsername}
+                        </div>
+                      </div>
+                    </motion.div>
                   ))
                 )}
                 {portalContentMessage && (
@@ -510,7 +722,6 @@ export default function PortalHome() {
                 )}
               </div>
             </motion.div>
-
             <motion.div
               variants={{ hidden: { opacity: 0, scale: 0.8 }, visible: { opacity: 1, scale: 1 } }}
               className="window portal-home-widget"
@@ -840,4 +1051,18 @@ function formatEventDateLong(value: string | undefined): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function formatEventMonthToken(value: string | undefined): string {
+  if (!value) return '---'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '---'
+  return date.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()
+}
+
+function formatEventDayToken(value: string | undefined): string {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+  return String(date.getDate()).padStart(2, '0')
 }
