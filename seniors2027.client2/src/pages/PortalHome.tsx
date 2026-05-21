@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bell,
@@ -43,6 +43,11 @@ type MonthlyDumpEntry =
   | { id: string; kind: 'note'; createdAt: string; note: NoteItem }
   | { id: string; kind: 'highlight'; createdAt: string; highlight: DailyHighlight }
 
+type MonthlyDumpSpread = {
+  left: MonthlyDumpEntry | null
+  right: MonthlyDumpEntry | null
+}
+
 export default function PortalHome() {
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
   const [events, setEvents] = useState<PortalEventItem[]>([])
@@ -66,14 +71,22 @@ export default function PortalHome() {
   const [monthlyDumpLoading, setMonthlyDumpLoading] = useState(false)
   const [monthlyDumpMessage, setMonthlyDumpMessage] = useState<string | null>(null)
   const [monthlyDumpEntries, setMonthlyDumpEntries] = useState<MonthlyDumpEntry[]>([])
+  const [monthlyDumpBookPageIndex, setMonthlyDumpBookPageIndex] = useState(0)
+  const [monthlyDumpFlipDirection, setMonthlyDumpFlipDirection] = useState<'next' | 'prev'>('next')
+  const [isMonthlyBookIntroRunning, setIsMonthlyBookIntroRunning] = useState(false)
+  const [showLogoFireworks, setShowLogoFireworks] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const highlightsRef = useRef<DailyHighlight[]>([])
   const activeIndexRef = useRef(0)
+  const monthlyDumpAudioContextRef = useRef<AudioContext | null>(null)
   const today = new Date()
   const forceMonthlyDumpForTesting = true
   const isMonthlyDumpUnlocked = forceMonthlyDumpForTesting || isLastDayOfMonth(today)
   const monthlyDumpUnlockDateLabel = formatDateLong(getCurrentMonthLastDayIso(today))
   const monthlyDumpMonthLabel = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  const monthlyDumpSpreads = useMemo(() => buildMonthlyDumpSpreads(monthlyDumpEntries), [monthlyDumpEntries])
+  const monthlyDumpCurrentSpread = monthlyDumpSpreads[monthlyDumpBookPageIndex] ?? { left: null, right: null }
+  const monthlyDumpTotalSpreads = monthlyDumpSpreads.length
 
   const fetchHighlights = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -237,9 +250,8 @@ export default function PortalHome() {
   }, [fetchPortalContent])
 
   useEffect(() => {
-    if (!isMonthlyDumpUnlocked || !monthlyDumpOpen || currentUserId === null) return
-    void fetchMonthlyDump()
-  }, [isMonthlyDumpUnlocked, monthlyDumpOpen, currentUserId, fetchMonthlyDump])
+    setMonthlyDumpBookPageIndex(0)
+  }, [monthlyDumpEntries])
 
   useEffect(() => {
     const unsubscribe = subscribeDailyHighlightsRealtime(() => {
@@ -402,6 +414,145 @@ export default function PortalHome() {
     setHighlightsMessage('Photo deleted from daily highlights and your gallery.')
   }
 
+  const handleOpenMonthlyDumpBook = async () => {
+    if (!isMonthlyDumpUnlocked || isMonthlyBookIntroRunning) return
+
+    setIsMonthlyBookIntroRunning(true)
+    setShowLogoFireworks(true)
+
+    try
+    {
+      await Promise.all([fetchMonthlyDump(), wait(1100)])
+      setMonthlyDumpOpen(true)
+    }
+    finally
+    {
+      setIsMonthlyBookIntroRunning(false)
+      window.setTimeout(() => setShowLogoFireworks(false), 220)
+    }
+  }
+
+  const handleCloseMonthlyDumpBook = () => {
+    setMonthlyDumpOpen(false)
+  }
+
+  const goNextMonthlyDumpSpread = () => {
+    if (monthlyDumpTotalSpreads <= 1) return
+    playMonthlyPageFlipSound(monthlyDumpAudioContextRef)
+    setMonthlyDumpFlipDirection('next')
+    setMonthlyDumpBookPageIndex((prev) => (prev + 1) % monthlyDumpTotalSpreads)
+  }
+
+  const goPrevMonthlyDumpSpread = () => {
+    if (monthlyDumpTotalSpreads <= 1) return
+    playMonthlyPageFlipSound(monthlyDumpAudioContextRef)
+    setMonthlyDumpFlipDirection('prev')
+    setMonthlyDumpBookPageIndex((prev) => (prev - 1 + monthlyDumpTotalSpreads) % monthlyDumpTotalSpreads)
+  }
+
+  const renderMonthlyDumpBookPage = (entry: MonthlyDumpEntry | null, pageSide: 'left' | 'right') => {
+    if (!entry) {
+      return (
+        <div
+          style={{
+            height: '100%',
+            border: '2px solid #111',
+            background:
+              'repeating-linear-gradient(180deg, rgba(255,255,255,0.92) 0px, rgba(255,255,255,0.92) 29px, rgba(0,0,0,0.08) 30px)',
+            boxShadow: 'inset 0 0 0 2px rgba(0, 0, 0, 0.08)',
+            padding: '14px'
+          }}
+        />
+      )
+    }
+
+    return (
+      <div
+        style={{
+          height: '100%',
+          border: '2px solid #111',
+          background:
+            'repeating-linear-gradient(180deg, rgba(255,255,255,0.96) 0px, rgba(255,255,255,0.96) 29px, rgba(0,0,0,0.08) 30px)',
+          boxShadow: 'inset 0 0 0 2px rgba(0, 0, 0, 0.08)',
+          padding: '12px',
+          display: 'grid',
+          alignContent: 'start',
+          gap: '10px'
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              border: '2px solid black',
+              background: entry.kind === 'note' ? '#ffe267' : '#ffd5a8',
+              padding: '3px 7px',
+              fontWeight: 900,
+              fontSize: '0.68rem',
+              textTransform: 'uppercase'
+            }}
+          >
+            {entry.kind === 'note' ? <Bell size={12} /> : <BookImage size={12} />}
+            {entry.kind === 'note' ? 'Note' : 'Highlight'}
+          </div>
+          <div style={{ fontWeight: 800, fontSize: '0.68rem', opacity: 0.74 }}>
+            {formatDateTime(entry.createdAt)}
+          </div>
+        </div>
+
+        {entry.kind === 'note' ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <GenderCapAvatar
+                src={entry.note.sender.photoUrl || '/favicon.svg'}
+                alt={entry.note.sender.username}
+                gender={null}
+                fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
+                containerStyle={{ width: '30px', height: '30px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
+                imageStyle={{ borderRadius: '50%' }}
+                capScale={0.72}
+              />
+              <div style={{ fontWeight: 900, fontSize: '0.82rem' }}>{entry.note.sender.username}</div>
+            </div>
+            <div style={{ fontWeight: 700, fontSize: '0.82rem', lineHeight: 1.36, whiteSpace: 'pre-wrap' }}>
+              {entry.note.content}
+            </div>
+          </>
+        ) : (
+          <>
+            <img
+              src={entry.highlight.photoUrl}
+              alt={entry.highlight.user.username}
+              style={{
+                width: '100%',
+                height: '168px',
+                objectFit: 'cover',
+                border: '2px solid black',
+                boxShadow: '4px 4px 0 black',
+                background: '#e6f0ff',
+                transform: pageSide === 'left' ? 'rotate(-0.8deg)' : 'rotate(0.8deg)'
+              }}
+            />
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.78rem' }}>
+              <UserRound size={13} />
+              {entry.highlight.user.username}
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <PortalLayout>
       <motion.div
@@ -436,14 +587,62 @@ export default function PortalHome() {
                   overflow: 'visible'
                 }}
               >
-                <img
-                  src={Logo}
-                  alt="Seniors 2027"
-                  style={{
-                    width: 'clamp(110px, 12vw, 150px)',
-                    filter: 'drop-shadow(7px 7px 0 black)'
-                  }}
-                />
+                <motion.div
+                  animate={
+                    isMonthlyBookIntroRunning
+                      ? {
+                          x: [0, -8, 8, -7, 7, -4, 4, 0],
+                          rotate: [0, -5, 5, -4, 4, -2, 2, 0],
+                          scale: [1, 1.04, 0.99, 1.03, 1]
+                        }
+                      : { x: 0, rotate: 0, scale: 1 }
+                  }
+                  transition={{ duration: 0.9 }}
+                  style={{ position: 'relative', zIndex: 4 }}
+                >
+                  <img
+                    src={Logo}
+                    alt="Seniors 2027"
+                    style={{
+                      width: 'clamp(110px, 12vw, 150px)',
+                      filter: 'drop-shadow(7px 7px 0 black)'
+                    }}
+                  />
+                  {showLogoFireworks && (
+                    <div style={{ position: 'absolute', inset: '-12px', pointerEvents: 'none' }}>
+                      {[
+                        { x: -105, y: -12, c: '#ffcb2f' },
+                        { x: -82, y: -70, c: '#ff7f7f' },
+                        { x: -20, y: -92, c: '#8ae6ff' },
+                        { x: 36, y: -80, c: '#ffd6ef' },
+                        { x: 92, y: -44, c: '#d0ff7a' },
+                        { x: 106, y: 10, c: '#ffcb2f' },
+                        { x: 78, y: 66, c: '#ffd6ef' },
+                        { x: 12, y: 90, c: '#8ae6ff' },
+                        { x: -46, y: 78, c: '#d0ff7a' },
+                        { x: -92, y: 42, c: '#ff7f7f' }
+                      ].map((particle, index) => (
+                        <motion.span
+                          key={`logo-firework-${index}`}
+                          initial={{ opacity: 0, x: 0, y: 0, scale: 0.2 }}
+                          animate={{ opacity: [0, 1, 0], x: particle.x, y: particle.y, scale: [0.2, 1, 0.7] }}
+                          transition={{ duration: 0.85, delay: index * 0.03, ease: 'easeOut' }}
+                          style={{
+                            position: 'absolute',
+                            left: '50%',
+                            top: '50%',
+                            width: '10px',
+                            height: '10px',
+                            border: '2px solid black',
+                            borderRadius: '999px',
+                            background: particle.c,
+                            boxShadow: '2px 2px 0 black'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
                 <img
                   src={NoteAsset}
                   alt=""
@@ -566,7 +765,7 @@ export default function PortalHome() {
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         flexWrap: 'wrap',
-                        gap: '8px'
+                        gap: '10px'
                       }}
                     >
                       <div style={{ display: 'grid', gap: '4px' }}>
@@ -581,165 +780,62 @@ export default function PortalHome() {
                         <button
                           type="button"
                           className="neo-btn"
-                          onClick={() => setMonthlyDumpOpen((prev) => !prev)}
-                          style={{ minWidth: 'auto', padding: '8px 12px', background: monthlyDumpOpen ? '#ffeaad' : '#d6ffdf' }}
+                          onClick={() => void handleOpenMonthlyDumpBook()}
+                          disabled={isMonthlyBookIntroRunning || monthlyDumpLoading}
+                          style={{
+                            minWidth: 'auto',
+                            padding: '8px 12px',
+                            background: isMonthlyBookIntroRunning ? '#ffd29f' : '#d6ffdf'
+                          }}
                         >
-                          {monthlyDumpOpen ? 'Close Book' : 'Open Book'}
+                          {isMonthlyBookIntroRunning ? 'Fireworks...' : monthlyDumpOpen ? 'Book Open' : 'Open Book'}
                         </button>
+                        <button
+                          type="button"
+                          className="neo-btn"
+                          onClick={() => void fetchMonthlyDump()}
+                          disabled={monthlyDumpLoading || currentUserId === null}
+                          style={{ minWidth: 'auto', padding: '8px 12px' }}
+                        >
+                          {monthlyDumpLoading ? 'Loading...' : 'Refresh Data'}
+                        </button>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        border: '2px solid black',
+                        boxShadow: '4px 4px 0 black',
+                        background: '#fff5d9',
+                        padding: '10px',
+                        display: 'grid',
+                        gap: '8px'
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, fontSize: '0.78rem', textTransform: 'uppercase' }}>
+                        Open From Center Stage
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: '0.8rem', lineHeight: 1.25, opacity: 0.82 }}>
+                        Tap open to trigger logo shake + fireworks, then the book rises in the center with page flip controls.
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.75rem' }}>
+                          Entries loaded: {monthlyDumpEntries.length}
+                        </div>
                         {monthlyDumpOpen && (
                           <button
                             type="button"
                             className="neo-btn"
-                            onClick={() => void fetchMonthlyDump()}
-                            disabled={monthlyDumpLoading}
-                            style={{ minWidth: 'auto', padding: '8px 12px' }}
+                            onClick={handleCloseMonthlyDumpBook}
+                            style={{ minWidth: 'auto', padding: '7px 10px', background: '#ffd9c8' }}
                           >
-                            {monthlyDumpLoading ? 'Loading...' : 'Refresh'}
+                            Close Book
                           </button>
                         )}
                       </div>
                     </div>
-
-                    {monthlyDumpOpen && (
-                      <div
-                        style={{
-                          border: '3px solid black',
-                          boxShadow: '8px 8px 0 black',
-                          background: '#f6ead6',
-                          padding: '10px',
-                          display: 'grid',
-                          gap: '10px'
-                        }}
-                      >
-                        <div
-                          style={{
-                            border: '2px solid black',
-                            background: '#e0c59a',
-                            color: '#1f1508',
-                            padding: '6px 10px',
-                            fontWeight: 900,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                            fontSize: '0.76rem',
-                            textAlign: 'center'
-                          }}
-                        >
-                          Chapter: Notes & Highlights
-                        </div>
-
-                        {monthlyDumpLoading ? (
-                          <div style={{ fontWeight: 900, textAlign: 'center', padding: '14px 8px' }}>
-                            Loading pages...
-                          </div>
-                        ) : monthlyDumpEntries.length === 0 ? (
-                          <div
-                            style={{
-                              border: '2px dashed black',
-                              background: '#fff8e6',
-                              padding: '16px',
-                              textAlign: 'center',
-                              display: 'grid',
-                              gap: '6px',
-                              justifyItems: 'center'
-                            }}
-                          >
-                            <Sparkles size={17} />
-                            <div style={{ fontWeight: 800 }}>
-                              {monthlyDumpMessage ?? `No notes or highlights were added in ${monthlyDumpMonthLabel}.`}
-                            </div>
-                          </div>
-                        ) : (
-                          <div
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                              gap: '10px'
-                            }}
-                          >
-                            {monthlyDumpEntries.map((entry, index) => (
-                              <motion.div
-                                key={entry.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.22, delay: index * 0.02 }}
-                                style={{
-                                  border: '2px solid black',
-                                  boxShadow: '4px 4px 0 black',
-                                  background: entry.kind === 'note' ? '#fff7c8' : '#fff',
-                                  padding: '8px',
-                                  display: 'grid',
-                                  gap: '7px',
-                                  transform: index % 2 === 0 ? 'rotate(-0.25deg)' : 'rotate(0.25deg)'
-                                }}
-                              >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
-                                  <div
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '5px',
-                                      border: '2px solid black',
-                                      background: entry.kind === 'note' ? '#ffe267' : '#ffd5a8',
-                                      padding: '3px 7px',
-                                      fontWeight: 900,
-                                      fontSize: '0.69rem',
-                                      textTransform: 'uppercase'
-                                    }}
-                                  >
-                                    {entry.kind === 'note' ? <Bell size={12} /> : <BookImage size={12} />}
-                                    {entry.kind === 'note' ? 'Note' : 'Highlight'}
-                                  </div>
-                                  <div style={{ fontWeight: 800, fontSize: '0.7rem', opacity: 0.75 }}>
-                                    {formatDateTime(entry.createdAt)}
-                                  </div>
-                                </div>
-
-                                {entry.kind === 'note' ? (
-                                  <>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <GenderCapAvatar
-                                        src={entry.note.sender.photoUrl || '/favicon.svg'}
-                                        alt={entry.note.sender.username}
-                                        gender={null}
-                                        fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
-                                        containerStyle={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
-                                        imageStyle={{ borderRadius: '50%' }}
-                                        capScale={0.7}
-                                      />
-                                      <div style={{ fontWeight: 900, fontSize: '0.8rem' }}>{entry.note.sender.username}</div>
-                                    </div>
-                                    <div style={{ fontWeight: 700, fontSize: '0.81rem', lineHeight: 1.34, whiteSpace: 'pre-wrap' }}>
-                                      {entry.note.content}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <img
-                                      src={entry.highlight.photoUrl}
-                                      alt={entry.highlight.user.username}
-                                      style={{
-                                        width: '100%',
-                                        height: '150px',
-                                        objectFit: 'cover',
-                                        border: '2px solid black',
-                                        background: '#e6f0ff'
-                                      }}
-                                    />
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.78rem' }}>
-                                      <UserRound size={13} />
-                                      {entry.highlight.user.username}
-                                    </div>
-                                  </>
-                                )}
-                              </motion.div>
-                            ))}
-                          </div>
-                        )}
-                        {monthlyDumpMessage && monthlyDumpEntries.length > 0 && (
-                          <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.8 }}>
-                            {monthlyDumpMessage}
-                          </div>
-                        )}
+                    {monthlyDumpMessage && (
+                      <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.82 }}>
+                        {monthlyDumpMessage}
                       </div>
                     )}
                   </>
@@ -1238,6 +1334,132 @@ export default function PortalHome() {
         </div>
       </motion.div>
 
+      {monthlyDumpOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1250,
+            background: 'radial-gradient(circle at center, rgba(255, 234, 173, 0.92) 0%, rgba(76, 58, 33, 0.95) 85%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={handleCloseMonthlyDumpBook}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.84, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.34, ease: [0.2, 0.8, 0.2, 1] }}
+            style={{
+              width: 'min(920px, 97vw)',
+              background: '#f1d5a9',
+              border: '4px solid black',
+              boxShadow: '14px 14px 0 black',
+              padding: '14px',
+              cursor: 'default',
+              display: 'grid',
+              gap: '12px'
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'grid', gap: '3px' }}>
+                <div style={{ fontWeight: 900, letterSpacing: '0.04em' }}>MONTHLY MEMORY BOOK</div>
+                <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.8 }}>{monthlyDumpMonthLabel}</div>
+              </div>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={handleCloseMonthlyDumpBook}
+                style={{ minWidth: 'auto', padding: '8px 10px', background: '#ffdcc9' }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                border: '3px solid black',
+                background: 'linear-gradient(180deg, #d0b183 0%, #c9a878 100%)',
+                padding: '10px',
+                boxShadow: 'inset 0 0 0 3px rgba(0, 0, 0, 0.14)',
+                position: 'relative'
+              }}
+            >
+              {monthlyDumpLoading && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '10px',
+                    border: '2px solid black',
+                    background: '#fff7d2',
+                    padding: '3px 8px',
+                    fontWeight: 900,
+                    fontSize: '0.7rem',
+                    zIndex: 3
+                  }}
+                >
+                  Loading...
+                </div>
+              )}
+              <motion.div
+                key={`monthly-spread-${monthlyDumpBookPageIndex}-${monthlyDumpFlipDirection}`}
+                initial={{
+                  rotateY: monthlyDumpFlipDirection === 'next' ? 84 : -84,
+                  opacity: 0.35,
+                  scale: 0.97
+                }}
+                animate={{ rotateY: 0, opacity: 1, scale: 1 }}
+                transition={{ duration: 0.46, ease: [0.24, 0.84, 0.2, 1] }}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '8px',
+                  perspective: '1500px',
+                  transformStyle: 'preserve-3d'
+                }}
+              >
+                <div>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.left, 'left')}</div>
+                <div>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.right, 'right')}</div>
+              </motion.div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={goPrevMonthlyDumpSpread}
+                disabled={monthlyDumpTotalSpreads <= 1}
+                style={{ minWidth: 'auto', padding: '8px 10px' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div style={{ fontWeight: 900, fontSize: '0.82rem' }}>
+                Spread {monthlyDumpBookPageIndex + 1} / {monthlyDumpTotalSpreads}
+              </div>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={goNextMonthlyDumpSpread}
+                disabled={monthlyDumpTotalSpreads <= 1}
+                style={{ minWidth: 'auto', padding: '8px 10px' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {monthlyDumpMessage && (
+              <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.84 }}>
+                {monthlyDumpMessage}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
       {isArchiveOpen && highlights.length > 0 && (
         <div
           style={{
@@ -1424,4 +1646,72 @@ function getCurrentMonthLastDayIso(referenceDate?: Date): string {
   const now = referenceDate ?? new Date()
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   return lastDay.toISOString()
+}
+
+function buildMonthlyDumpSpreads(entries: MonthlyDumpEntry[]): MonthlyDumpSpread[] {
+  if (entries.length === 0) return [{ left: null, right: null }]
+
+  const spreads: MonthlyDumpSpread[] = []
+  for (let index = 0; index < entries.length; index += 2) {
+    spreads.push({
+      left: entries[index] ?? null,
+      right: entries[index + 1] ?? null
+    })
+  }
+
+  return spreads
+}
+
+function wait(durationMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, durationMs)
+  })
+}
+
+function playMonthlyPageFlipSound(audioContextRef: { current: AudioContext | null }): void {
+  if (typeof window === 'undefined' || typeof window.AudioContext === 'undefined') return
+
+  const audioContext = audioContextRef.current ?? new window.AudioContext()
+  audioContextRef.current = audioContext
+
+  if (audioContext.state === 'suspended') {
+    void audioContext.resume()
+  }
+
+  const durationSeconds = 0.22
+  const frameCount = Math.floor(audioContext.sampleRate * durationSeconds)
+  const noiseBuffer = audioContext.createBuffer(1, frameCount, audioContext.sampleRate)
+  const output = noiseBuffer.getChannelData(0)
+
+  for (let index = 0; index < frameCount; index += 1) {
+    const t = index / audioContext.sampleRate
+    const decay = Math.exp(-t * 14)
+    const scratch = Math.sin(2 * Math.PI * 36 * t)
+    output[index] = (Math.random() * 2 - 1) * decay * (0.72 + scratch * 0.28)
+  }
+
+  const source = audioContext.createBufferSource()
+  source.buffer = noiseBuffer
+
+  const highPass = audioContext.createBiquadFilter()
+  highPass.type = 'highpass'
+  highPass.frequency.value = 360
+
+  const lowPass = audioContext.createBiquadFilter()
+  lowPass.type = 'lowpass'
+  lowPass.frequency.value = 4300
+
+  const gain = audioContext.createGain()
+  const now = audioContext.currentTime
+  gain.gain.setValueAtTime(0.0001, now)
+  gain.gain.exponentialRampToValueAtTime(0.22, now + 0.02)
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds)
+
+  source.connect(highPass)
+  highPass.connect(lowPass)
+  lowPass.connect(gain)
+  gain.connect(audioContext.destination)
+
+  source.start(now)
+  source.stop(now + durationSeconds)
 }
