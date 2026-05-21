@@ -78,13 +78,14 @@ function App() {
           }
         />
         <Route
-          path="/admin/join-requests"
+          path="/admin"
           element={
             <AdminRoute>
               <AdminJoinRequests />
             </AdminRoute>
           }
         />
+        <Route path="/admin/join-requests" element={<Navigate to="/admin" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

@@ -33,7 +33,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
     { name: 'Dashboard', path: '/portal', icon: <Home size={20} /> },
     { name: 'Seniors', path: '/directory', icon: <Users size={20} /> },
     { name: 'My Profile', path: myProfilePath, icon: <UserIcon size={20} /> },
-    ...(myRole === 'Admin' ? [{ name: 'Admin', path: '/admin/join-requests', icon: <Shield size={20} /> }] : [])
+    ...(myRole === 'Admin' ? [{ name: 'Admin', path: '/admin', icon: <Shield size={20} /> }] : [])
   ]
 
   const handleNavigate = (path: string) => {
