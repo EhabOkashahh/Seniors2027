@@ -95,8 +95,7 @@ export default function PortalHome() {
   const activeIndexRef = useRef(0)
   const monthlyDumpAudioContextRef = useRef<AudioContext | null>(null)
   const today = new Date()
-  const forceMonthlyDumpForTesting = true
-  const isMonthlyDumpUnlocked = forceMonthlyDumpForTesting || isLastDayOfMonth(today)
+  const isMonthlyDumpUnlocked = isLastDayOfMonth(today)
   const monthlyDumpUnlockDateLabel = formatDateLong(getCurrentMonthLastDayIso(today))
   const monthlyDumpMonthLabel = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
   const monthlyDumpSpreads = useMemo(() => buildMonthlyDumpSpreads(monthlyDumpEntries), [monthlyDumpEntries])
