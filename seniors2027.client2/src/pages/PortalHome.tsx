@@ -73,8 +73,7 @@ export default function PortalHome() {
   const forceMonthlyDumpForTesting = true
   const isMonthlyDumpUnlocked = forceMonthlyDumpForTesting || isLastDayOfMonth(today)
   const monthlyDumpUnlockDateLabel = formatDateLong(getCurrentMonthLastDayIso(today))
-  const previousMonthReference = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-  const monthlyDumpMonthLabel = previousMonthReference.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  const monthlyDumpMonthLabel = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 
   const fetchHighlights = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -183,16 +182,16 @@ export default function PortalHome() {
     }
 
     const now = new Date()
-    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const previousMonthEndExclusive = new Date(now.getFullYear(), now.getMonth(), 1)
-    const isInPreviousMonth = (value: string): boolean => {
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const currentMonthEndExclusive = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const isInCurrentMonth = (value: string): boolean => {
       const date = new Date(value)
       if (Number.isNaN(date.getTime())) return false
-      return date >= previousMonthStart && date < previousMonthEndExclusive
+      return date >= currentMonthStart && date < currentMonthEndExclusive
     }
 
     const noteEntries: MonthlyDumpEntry[] = allNotes
-      .filter((item) => isInPreviousMonth(item.createdAt))
+      .filter((item) => isInCurrentMonth(item.createdAt))
       .map((item) => ({
         id: `note-${item.id}`,
         kind: 'note',
@@ -201,7 +200,7 @@ export default function PortalHome() {
       }))
 
     const highlightEntries: MonthlyDumpEntry[] = highlightsResult.data
-      .filter((item) => isInPreviousMonth(item.createdAt))
+      .filter((item) => isInCurrentMonth(item.createdAt))
       .map((item) => ({
         id: `highlight-${item.id}`,
         kind: 'highlight',
