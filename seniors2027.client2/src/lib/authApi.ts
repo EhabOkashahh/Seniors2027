@@ -665,6 +665,29 @@ export async function deleteGalleryPhotoRequest(photoId: number): Promise<ApiRes
   }
 }
 
+export async function getHighlightsArchiveRequest(maxCount: number = 300): Promise<ApiResult<DailyHighlight[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/archive?maxCount=${maxCount}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as DailyHighlight[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
 export async function updateMyUsernameRequest(
   username: string,
   tokenOverride?: string

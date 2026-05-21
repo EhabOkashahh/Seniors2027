@@ -24,10 +24,13 @@ import {
   getPortalAnnouncementsRequest,
   getPortalEventsRequest,
   getMeRequest,
+  getReceivedNotesPageRequest,
   getUserByIdRequest,
   getActiveDailyHighlightsRequest,
+  getHighlightsArchiveRequest,
   type AnnouncementItem,
   type DailyHighlight,
+  type NoteItem,
   type PortalEventItem,
   uploadDailyHighlightRequest
 } from '../lib/authApi'
@@ -35,6 +38,10 @@ import { subscribeDailyHighlightsRealtime } from '../lib/dailyHighlightsRealtime
 
 const HIGHLIGHTS_SYNC_INTERVAL_MS = 5000
 const PORTAL_CONTENT_SYNC_INTERVAL_MS = 15000
+
+type MonthlyDumpEntry =
+  | { id: string; kind: 'note'; createdAt: string; note: NoteItem }
+  | { id: string; kind: 'highlight'; createdAt: string; highlight: DailyHighlight }
 
 export default function PortalHome() {
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
@@ -55,9 +62,18 @@ export default function PortalHome() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [genderByUserId, setGenderByUserId] = useState<Record<number, string>>({})
+  const [monthlyDumpOpen, setMonthlyDumpOpen] = useState(false)
+  const [monthlyDumpLoading, setMonthlyDumpLoading] = useState(false)
+  const [monthlyDumpMessage, setMonthlyDumpMessage] = useState<string | null>(null)
+  const [monthlyDumpEntries, setMonthlyDumpEntries] = useState<MonthlyDumpEntry[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const highlightsRef = useRef<DailyHighlight[]>([])
   const activeIndexRef = useRef(0)
+  const today = new Date()
+  const isMonthlyDumpUnlocked = isLastDayOfMonth(today)
+  const monthlyDumpUnlockDateLabel = formatDateLong(getCurrentMonthLastDayIso(today))
+  const previousMonthReference = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const monthlyDumpMonthLabel = previousMonthReference.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 
   const fetchHighlights = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -130,6 +146,80 @@ export default function PortalHome() {
     }
   }, [])
 
+  const fetchMonthlyDump = useCallback(async () => {
+    if (currentUserId === null) return
+
+    setMonthlyDumpLoading(true)
+    setMonthlyDumpMessage(null)
+
+    const allNotes: NoteItem[] = []
+    let pageNumber = 1
+    const pageSize = 20
+
+    while (pageNumber <= 150) {
+      const pageResult = await getReceivedNotesPageRequest(currentUserId, pageNumber, pageSize)
+      if (!pageResult.ok || !pageResult.data) {
+        setMonthlyDumpEntries([])
+        setMonthlyDumpMessage(pageResult.error ?? 'Could not load monthly notes.')
+        setMonthlyDumpLoading(false)
+        return
+      }
+
+      allNotes.push(...pageResult.data.items)
+      if (pageNumber >= pageResult.data.totalPages || pageResult.data.items.length === 0) {
+        break
+      }
+
+      pageNumber += 1
+    }
+
+    const highlightsResult = await getHighlightsArchiveRequest(1000)
+    if (!highlightsResult.ok || !highlightsResult.data) {
+      setMonthlyDumpEntries([])
+      setMonthlyDumpMessage(highlightsResult.error ?? 'Could not load highlights archive.')
+      setMonthlyDumpLoading(false)
+      return
+    }
+
+    const now = new Date()
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const previousMonthEndExclusive = new Date(now.getFullYear(), now.getMonth(), 1)
+    const isInPreviousMonth = (value: string): boolean => {
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return false
+      return date >= previousMonthStart && date < previousMonthEndExclusive
+    }
+
+    const noteEntries: MonthlyDumpEntry[] = allNotes
+      .filter((item) => isInPreviousMonth(item.createdAt))
+      .map((item) => ({
+        id: `note-${item.id}`,
+        kind: 'note',
+        createdAt: item.createdAt,
+        note: item
+      }))
+
+    const highlightEntries: MonthlyDumpEntry[] = highlightsResult.data
+      .filter((item) => isInPreviousMonth(item.createdAt))
+      .map((item) => ({
+        id: `highlight-${item.id}`,
+        kind: 'highlight',
+        createdAt: item.createdAt,
+        highlight: item
+      }))
+
+    const merged = [...noteEntries, ...highlightEntries].sort(
+      (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+    )
+
+    setMonthlyDumpEntries(merged)
+    if (merged.length === 0) {
+      setMonthlyDumpMessage(`No notes or highlights were added in ${monthlyDumpMonthLabel}.`)
+    }
+
+    setMonthlyDumpLoading(false)
+  }, [currentUserId, monthlyDumpMonthLabel])
+
   useEffect(() => {
     highlightsRef.current = highlights
   }, [highlights])
@@ -145,6 +235,11 @@ export default function PortalHome() {
   useEffect(() => {
     void fetchPortalContent()
   }, [fetchPortalContent])
+
+  useEffect(() => {
+    if (!isMonthlyDumpUnlocked || !monthlyDumpOpen || currentUserId === null) return
+    void fetchMonthlyDump()
+  }, [isMonthlyDumpUnlocked, monthlyDumpOpen, currentUserId, fetchMonthlyDump])
 
   useEffect(() => {
     const unsubscribe = subscribeDailyHighlightsRealtime(() => {
@@ -408,34 +503,247 @@ export default function PortalHome() {
 
             <div className="window portal-home-widget">
               <div className="window-header" style={{ background: 'var(--retro-blue)' }}>
-                <Lock size={18} />
+                {isMonthlyDumpUnlocked ? <BookImage size={18} /> : <Lock size={18} />}
                 <span style={{ fontWeight: 900 }}>MONTHLY_DUMP</span>
               </div>
               <div
                 className="window-content"
-                aria-disabled="true"
                 style={{
                   position: 'relative',
                   padding: '18px',
-                  textAlign: 'center',
-                  opacity: 0.9,
-                  pointerEvents: 'none',
-                  filter: 'grayscale(0.1)',
+                  textAlign: 'left',
                   minHeight: '140px',
                   display: 'grid',
-                  placeContent: 'center',
-                  justifyItems: 'center',
-                  gap: '6px'
+                  gap: '10px',
+                  background: isMonthlyDumpUnlocked
+                    ? 'linear-gradient(180deg, rgba(255, 216, 143, 0.42) 0%, rgba(255, 255, 255, 0.96) 35%, rgba(255, 255, 255, 1) 100%)'
+                    : 'linear-gradient(180deg, rgba(208, 227, 255, 0.45) 0%, rgba(255, 255, 255, 0.95) 45%, rgba(255, 255, 255, 1) 100%)'
                 }}
               >
-                <div style={{ position: 'relative', zIndex: 3, display: 'grid', gap: '4px', justifyItems: 'center' }}>
-                  <p style={{ margin: 0, fontWeight: 900, fontSize: '0.86rem', textTransform: 'uppercase', opacity: 0.75, lineHeight: 1.05 }}>
-                    "Memory lane is under construction."
-                  </p>
-                  <p style={{ margin: 0, fontWeight: 700, opacity: 0.62, lineHeight: 1.05 }}>
-                    "Come back next month for the full dump."
-                  </p>
-                </div>
+                {!isMonthlyDumpUnlocked ? (
+                  <div
+                    style={{
+                      border: '3px solid black',
+                      boxShadow: '6px 6px 0 black',
+                      background: '#eef4ff',
+                      padding: '14px',
+                      display: 'grid',
+                      gap: '8px',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        border: '2px solid black',
+                        background: '#d3e4ff',
+                        padding: '4px 8px',
+                        fontWeight: 900,
+                        fontSize: '0.74rem',
+                        textTransform: 'uppercase',
+                        width: 'fit-content',
+                        justifySelf: 'center'
+                      }}
+                    >
+                      <Lock size={13} />
+                      Sealed Ledger
+                    </div>
+                    <p style={{ margin: 0, fontWeight: 900, fontSize: '0.86rem', textTransform: 'uppercase', opacity: 0.84, lineHeight: 1.15 }}>
+                      Monthly dump unlocks only on the last day of the month.
+                    </p>
+                    <p style={{ margin: 0, fontWeight: 700, opacity: 0.72, lineHeight: 1.2 }}>
+                      Next unlock date: {monthlyDumpUnlockDateLabel}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '8px'
+                      }}
+                    >
+                      <div style={{ display: 'grid', gap: '4px' }}>
+                        <div style={{ fontWeight: 900, fontSize: '0.84rem', textTransform: 'uppercase' }}>
+                          Monthly Memory Book
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.76 }}>
+                          {monthlyDumpMonthLabel}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="neo-btn"
+                          onClick={() => setMonthlyDumpOpen((prev) => !prev)}
+                          style={{ minWidth: 'auto', padding: '8px 12px', background: monthlyDumpOpen ? '#ffeaad' : '#d6ffdf' }}
+                        >
+                          {monthlyDumpOpen ? 'Close Book' : 'Open Book'}
+                        </button>
+                        {monthlyDumpOpen && (
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={() => void fetchMonthlyDump()}
+                            disabled={monthlyDumpLoading}
+                            style={{ minWidth: 'auto', padding: '8px 12px' }}
+                          >
+                            {monthlyDumpLoading ? 'Loading...' : 'Refresh'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {monthlyDumpOpen && (
+                      <div
+                        style={{
+                          border: '3px solid black',
+                          boxShadow: '8px 8px 0 black',
+                          background: '#f6ead6',
+                          padding: '10px',
+                          display: 'grid',
+                          gap: '10px'
+                        }}
+                      >
+                        <div
+                          style={{
+                            border: '2px solid black',
+                            background: '#e0c59a',
+                            color: '#1f1508',
+                            padding: '6px 10px',
+                            fontWeight: 900,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                            fontSize: '0.76rem',
+                            textAlign: 'center'
+                          }}
+                        >
+                          Chapter: Notes & Highlights
+                        </div>
+
+                        {monthlyDumpLoading ? (
+                          <div style={{ fontWeight: 900, textAlign: 'center', padding: '14px 8px' }}>
+                            Loading pages...
+                          </div>
+                        ) : monthlyDumpEntries.length === 0 ? (
+                          <div
+                            style={{
+                              border: '2px dashed black',
+                              background: '#fff8e6',
+                              padding: '16px',
+                              textAlign: 'center',
+                              display: 'grid',
+                              gap: '6px',
+                              justifyItems: 'center'
+                            }}
+                          >
+                            <Sparkles size={17} />
+                            <div style={{ fontWeight: 800 }}>
+                              {monthlyDumpMessage ?? `No notes or highlights were added in ${monthlyDumpMonthLabel}.`}
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                              gap: '10px'
+                            }}
+                          >
+                            {monthlyDumpEntries.map((entry, index) => (
+                              <motion.div
+                                key={entry.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.22, delay: index * 0.02 }}
+                                style={{
+                                  border: '2px solid black',
+                                  boxShadow: '4px 4px 0 black',
+                                  background: entry.kind === 'note' ? '#fff7c8' : '#fff',
+                                  padding: '8px',
+                                  display: 'grid',
+                                  gap: '7px',
+                                  transform: index % 2 === 0 ? 'rotate(-0.25deg)' : 'rotate(0.25deg)'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                                  <div
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      border: '2px solid black',
+                                      background: entry.kind === 'note' ? '#ffe267' : '#ffd5a8',
+                                      padding: '3px 7px',
+                                      fontWeight: 900,
+                                      fontSize: '0.69rem',
+                                      textTransform: 'uppercase'
+                                    }}
+                                  >
+                                    {entry.kind === 'note' ? <Bell size={12} /> : <BookImage size={12} />}
+                                    {entry.kind === 'note' ? 'Note' : 'Highlight'}
+                                  </div>
+                                  <div style={{ fontWeight: 800, fontSize: '0.7rem', opacity: 0.75 }}>
+                                    {formatDateTime(entry.createdAt)}
+                                  </div>
+                                </div>
+
+                                {entry.kind === 'note' ? (
+                                  <>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <GenderCapAvatar
+                                        src={entry.note.sender.photoUrl || '/favicon.svg'}
+                                        alt={entry.note.sender.username}
+                                        gender={null}
+                                        fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
+                                        containerStyle={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
+                                        imageStyle={{ borderRadius: '50%' }}
+                                        capScale={0.7}
+                                      />
+                                      <div style={{ fontWeight: 900, fontSize: '0.8rem' }}>{entry.note.sender.username}</div>
+                                    </div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.81rem', lineHeight: 1.34, whiteSpace: 'pre-wrap' }}>
+                                      {entry.note.content}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <img
+                                      src={entry.highlight.photoUrl}
+                                      alt={entry.highlight.user.username}
+                                      style={{
+                                        width: '100%',
+                                        height: '150px',
+                                        objectFit: 'cover',
+                                        border: '2px solid black',
+                                        background: '#e6f0ff'
+                                      }}
+                                    />
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.78rem' }}>
+                                      <UserRound size={13} />
+                                      {entry.highlight.user.username}
+                                    </div>
+                                  </>
+                                )}
+                              </motion.div>
+                            ))}
+                          </div>
+                        )}
+                        {monthlyDumpMessage && monthlyDumpEntries.length > 0 && (
+                          <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.8 }}>
+                            {monthlyDumpMessage}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1093,4 +1401,27 @@ function formatEventDayToken(value: string | undefined): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '--'
   return String(date.getDate()).padStart(2, '0')
+}
+
+function formatDateTime(value: string | undefined): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function isLastDayOfMonth(date: Date): boolean {
+  return date.getDate() === new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+}
+
+function getCurrentMonthLastDayIso(referenceDate?: Date): string {
+  const now = referenceDate ?? new Date()
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return lastDay.toISOString()
 }

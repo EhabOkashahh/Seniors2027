@@ -63,14 +63,38 @@ public class DailyHighlightService : IDailyHighlightService
 
     public async Task<IReadOnlyList<DailyHighlightDto>> GetActiveHighlightsAsync(int maxCount)
     {
-        await CleanupExpiredHighlightsAsync();
-
         var safeMax = maxCount < 1 ? 30 : Math.Min(maxCount, 200);
         var now = DateTime.UtcNow;
 
         return await _context.DailyHighlights
             .AsNoTracking()
             .Where(h => h.ExpiresAt > now)
+            .OrderByDescending(h => h.CreatedAt)
+            .Take(safeMax)
+            .Select(h => new DailyHighlightDto
+            {
+                Id = h.Id,
+                UserId = h.UserId,
+                GalleryPhotoId = h.GalleryPhotoId,
+                PhotoUrl = h.GalleryPhoto.PhotoUrl,
+                CreatedAt = h.CreatedAt,
+                ExpiresAt = h.ExpiresAt,
+                User = new DailyHighlightUserDto
+                {
+                    Id = h.User.Id,
+                    Username = h.User.Username,
+                    PhotoUrl = h.User.PhotoUrl
+                }
+            })
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<DailyHighlightDto>> GetHighlightsArchiveAsync(int maxCount)
+    {
+        var safeMax = maxCount < 1 ? 120 : Math.Min(maxCount, 1000);
+
+        return await _context.DailyHighlights
+            .AsNoTracking()
             .OrderByDescending(h => h.CreatedAt)
             .Take(safeMax)
             .Select(h => new DailyHighlightDto

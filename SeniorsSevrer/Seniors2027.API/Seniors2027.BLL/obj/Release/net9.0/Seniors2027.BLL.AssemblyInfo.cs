@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Seniors2027.BLL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+16e85350422fb1edd124f572c65b8bc88c28be60")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4707367d6096862e1b461403b7ae0d7947dedbde")]
 [assembly: System.Reflection.AssemblyProductAttribute("Seniors2027.BLL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Seniors2027.BLL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

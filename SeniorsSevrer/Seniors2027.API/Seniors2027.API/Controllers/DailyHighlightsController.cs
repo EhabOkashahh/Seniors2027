@@ -38,6 +38,13 @@ public class DailyHighlightsController : ControllerBase
         return Ok(highlights);
     }
 
+    [HttpGet("archive")]
+    public async Task<ActionResult<IReadOnlyList<DailyHighlightDto>>> GetArchive([FromQuery] int maxCount = 300)
+    {
+        var highlights = await _dailyHighlightService.GetHighlightsArchiveAsync(maxCount);
+        return Ok(highlights);
+    }
+
     [HttpPost("upload")]
     public async Task<ActionResult<DailyHighlightDto>> UploadDailyHighlight([FromForm] IFormFile photo)
     {
