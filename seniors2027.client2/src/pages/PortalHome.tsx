@@ -70,7 +70,8 @@ export default function PortalHome() {
   const highlightsRef = useRef<DailyHighlight[]>([])
   const activeIndexRef = useRef(0)
   const today = new Date()
-  const isMonthlyDumpUnlocked = isLastDayOfMonth(today)
+  const forceMonthlyDumpForTesting = true
+  const isMonthlyDumpUnlocked = forceMonthlyDumpForTesting || isLastDayOfMonth(today)
   const monthlyDumpUnlockDateLabel = formatDateLong(getCurrentMonthLastDayIso(today))
   const previousMonthReference = new Date(today.getFullYear(), today.getMonth() - 1, 1)
   const monthlyDumpMonthLabel = previousMonthReference.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
