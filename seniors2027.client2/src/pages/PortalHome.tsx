@@ -38,6 +38,18 @@ import { subscribeDailyHighlightsRealtime } from '../lib/dailyHighlightsRealtime
 
 const HIGHLIGHTS_SYNC_INTERVAL_MS = 5000
 const PORTAL_CONTENT_SYNC_INTERVAL_MS = 15000
+const LOGO_FIREWORK_PARTICLES = [
+  { x: -105, y: -12, c: '#ffcb2f' },
+  { x: -82, y: -70, c: '#ff7f7f' },
+  { x: -20, y: -92, c: '#8ae6ff' },
+  { x: 36, y: -80, c: '#ffd6ef' },
+  { x: 92, y: -44, c: '#d0ff7a' },
+  { x: 106, y: 10, c: '#ffcb2f' },
+  { x: 78, y: 66, c: '#ffd6ef' },
+  { x: 12, y: 90, c: '#8ae6ff' },
+  { x: -46, y: 78, c: '#d0ff7a' },
+  { x: -92, y: 42, c: '#ff7f7f' }
+]
 
 type MonthlyDumpEntry =
   | { id: string; kind: 'note'; createdAt: string; note: NoteItem }
@@ -75,10 +87,14 @@ export default function PortalHome() {
   const [monthlyDumpFlipDirection, setMonthlyDumpFlipDirection] = useState<'next' | 'prev'>('next')
   const [isMonthlyBookIntroRunning, setIsMonthlyBookIntroRunning] = useState(false)
   const [showLogoFireworks, setShowLogoFireworks] = useState(false)
+  const [showCenterLogoIntro, setShowCenterLogoIntro] = useState(false)
+  const [centerLogoIntroPhase, setCenterLogoIntroPhase] = useState<'grow' | 'return'>('grow')
+  const [centerLogoReturnTarget, setCenterLogoReturnTarget] = useState({ x: 0, y: 0, scale: 0.42 })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const highlightsRef = useRef<DailyHighlight[]>([])
   const activeIndexRef = useRef(0)
   const monthlyDumpAudioContextRef = useRef<AudioContext | null>(null)
+  const heroLogoAnchorRef = useRef<HTMLDivElement>(null)
   const today = new Date()
   const forceMonthlyDumpForTesting = true
   const isMonthlyDumpUnlocked = forceMonthlyDumpForTesting || isLastDayOfMonth(today)
@@ -417,18 +433,30 @@ export default function PortalHome() {
   const handleOpenMonthlyDumpBook = async () => {
     if (!isMonthlyDumpUnlocked || isMonthlyBookIntroRunning) return
 
+    if (heroLogoAnchorRef.current) {
+      const anchorRect = heroLogoAnchorRef.current.getBoundingClientRect()
+      const targetX = anchorRect.left + anchorRect.width / 2 - window.innerWidth / 2
+      const targetY = anchorRect.top + anchorRect.height / 2 - window.innerHeight / 2
+      const targetScale = Math.max(0.34, Math.min(0.62, anchorRect.width / 300))
+      setCenterLogoReturnTarget({ x: targetX, y: targetY, scale: targetScale })
+    }
+
+    setCenterLogoIntroPhase('grow')
+    setShowCenterLogoIntro(true)
     setIsMonthlyBookIntroRunning(true)
     setShowLogoFireworks(true)
 
-    try
-    {
-      await Promise.all([fetchMonthlyDump(), wait(1100)])
+    try {
+      const loadPromise = fetchMonthlyDump()
+      await wait(820)
+      setCenterLogoIntroPhase('return')
+      await Promise.all([loadPromise, wait(620)])
       setMonthlyDumpOpen(true)
-    }
-    finally
-    {
+      await wait(220)
+    } finally {
+      setShowCenterLogoIntro(false)
       setIsMonthlyBookIntroRunning(false)
-      window.setTimeout(() => setShowLogoFireworks(false), 220)
+      setShowLogoFireworks(false)
     }
   }
 
@@ -587,18 +615,14 @@ export default function PortalHome() {
                   overflow: 'visible'
                 }}
               >
-                <motion.div
-                  animate={
-                    isMonthlyBookIntroRunning
-                      ? {
-                          x: [0, -8, 8, -7, 7, -4, 4, 0],
-                          rotate: [0, -5, 5, -4, 4, -2, 2, 0],
-                          scale: [1, 1.04, 0.99, 1.03, 1]
-                        }
-                      : { x: 0, rotate: 0, scale: 1 }
-                  }
-                  transition={{ duration: 0.9 }}
-                  style={{ position: 'relative', zIndex: 4 }}
+                <div
+                  ref={heroLogoAnchorRef}
+                  style={{
+                    position: 'relative',
+                    zIndex: 4,
+                    opacity: showCenterLogoIntro ? 0 : 1,
+                    transition: 'opacity 120ms linear'
+                  }}
                 >
                   <img
                     src={Logo}
@@ -608,41 +632,7 @@ export default function PortalHome() {
                       filter: 'drop-shadow(7px 7px 0 black)'
                     }}
                   />
-                  {showLogoFireworks && (
-                    <div style={{ position: 'absolute', inset: '-12px', pointerEvents: 'none' }}>
-                      {[
-                        { x: -105, y: -12, c: '#ffcb2f' },
-                        { x: -82, y: -70, c: '#ff7f7f' },
-                        { x: -20, y: -92, c: '#8ae6ff' },
-                        { x: 36, y: -80, c: '#ffd6ef' },
-                        { x: 92, y: -44, c: '#d0ff7a' },
-                        { x: 106, y: 10, c: '#ffcb2f' },
-                        { x: 78, y: 66, c: '#ffd6ef' },
-                        { x: 12, y: 90, c: '#8ae6ff' },
-                        { x: -46, y: 78, c: '#d0ff7a' },
-                        { x: -92, y: 42, c: '#ff7f7f' }
-                      ].map((particle, index) => (
-                        <motion.span
-                          key={`logo-firework-${index}`}
-                          initial={{ opacity: 0, x: 0, y: 0, scale: 0.2 }}
-                          animate={{ opacity: [0, 1, 0], x: particle.x, y: particle.y, scale: [0.2, 1, 0.7] }}
-                          transition={{ duration: 0.85, delay: index * 0.03, ease: 'easeOut' }}
-                          style={{
-                            position: 'absolute',
-                            left: '50%',
-                            top: '50%',
-                            width: '10px',
-                            height: '10px',
-                            border: '2px solid black',
-                            borderRadius: '999px',
-                            background: particle.c,
-                            boxShadow: '2px 2px 0 black'
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
+                </div>
                 <img
                   src={NoteAsset}
                   alt=""
@@ -781,11 +771,11 @@ export default function PortalHome() {
                           type="button"
                           className="neo-btn"
                           onClick={() => void handleOpenMonthlyDumpBook()}
-                          disabled={isMonthlyBookIntroRunning || monthlyDumpLoading}
+                          disabled={isMonthlyBookIntroRunning || monthlyDumpLoading || monthlyDumpOpen}
                           style={{
                             minWidth: 'auto',
                             padding: '8px 12px',
-                            background: isMonthlyBookIntroRunning ? '#ffd29f' : '#d6ffdf'
+                            background: monthlyDumpOpen ? '#ffeaad' : isMonthlyBookIntroRunning ? '#ffd29f' : '#d6ffdf'
                           }}
                         >
                           {isMonthlyBookIntroRunning ? 'Fireworks...' : monthlyDumpOpen ? 'Book Open' : 'Open Book'}
@@ -1333,6 +1323,78 @@ export default function PortalHome() {
           </motion.div>
         </div>
       </motion.div>
+
+      {showCenterLogoIntro && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1320,
+            pointerEvents: 'none',
+            display: 'grid',
+            placeItems: 'center'
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.8, rotate: 0, x: 0, y: 0, opacity: 0 }}
+            animate={
+              centerLogoIntroPhase === 'grow'
+                ? {
+                    scale: [0.8, 1.7, 1.56, 1.62],
+                    rotate: [0, -8, 8, -6, 6, -2, 2, 0],
+                    x: [0, -12, 12, -10, 10, -5, 5, 0],
+                    y: [0, -4, 3, -2, 0],
+                    opacity: 1
+                  }
+                : {
+                    scale: centerLogoReturnTarget.scale,
+                    rotate: 0,
+                    x: centerLogoReturnTarget.x,
+                    y: centerLogoReturnTarget.y,
+                    opacity: 0.95
+                  }
+            }
+            transition={
+              centerLogoIntroPhase === 'grow'
+                ? { duration: 0.82, ease: 'easeInOut' }
+                : { duration: 0.52, ease: [0.2, 0.9, 0.2, 1] }
+            }
+            style={{ position: 'relative', transformOrigin: 'center center' }}
+          >
+            <img
+              src={Logo}
+              alt="Seniors 2027"
+              style={{
+                width: 'clamp(170px, 22vw, 290px)',
+                filter: 'drop-shadow(10px 10px 0 black)'
+              }}
+            />
+            {showLogoFireworks && (
+              <div style={{ position: 'absolute', inset: '-16px', pointerEvents: 'none' }}>
+                {LOGO_FIREWORK_PARTICLES.map((particle, index) => (
+                  <motion.span
+                    key={`logo-firework-center-${index}`}
+                    initial={{ opacity: 0, x: 0, y: 0, scale: 0.2 }}
+                    animate={{ opacity: [0, 1, 0], x: particle.x, y: particle.y, scale: [0.2, 1.08, 0.72] }}
+                    transition={{ duration: 0.9, delay: index * 0.03, ease: 'easeOut' }}
+                    style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: '50%',
+                      width: '11px',
+                      height: '11px',
+                      border: '2px solid black',
+                      borderRadius: '999px',
+                      background: particle.c,
+                      boxShadow: '2px 2px 0 black'
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
 
       {monthlyDumpOpen && (
         <div
