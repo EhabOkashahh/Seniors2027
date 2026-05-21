@@ -5,6 +5,7 @@ public class AnnouncementDto
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
     public int CreatedByUserId { get; set; }
     public string CreatedByUsername { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
@@ -23,6 +24,7 @@ public class PortalEventDto
     public DateTime EventDate { get; set; }
     public string? Location { get; set; }
     public string? Details { get; set; }
+    public string? PhotoUrl { get; set; }
     public int CreatedByUserId { get; set; }
     public string CreatedByUsername { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }

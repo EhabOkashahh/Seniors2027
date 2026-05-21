@@ -553,6 +553,20 @@ export default function PortalHome() {
                           {formatDateLong(announcement.createdAt)}
                         </div>
                       </div>
+                      {announcement.photoUrl && (
+                        <img
+                          src={announcement.photoUrl}
+                          alt={announcement.title}
+                          style={{
+                            width: '100%',
+                            maxHeight: '190px',
+                            objectFit: 'cover',
+                            border: '2px solid black',
+                            boxShadow: '3px 3px 0 black',
+                            background: '#ffe9f2'
+                          }}
+                        />
+                      )}
                       <div
                         style={{
                           border: '2px solid black',
@@ -686,6 +700,20 @@ export default function PortalHome() {
                         </div>
                       </div>
                       <div style={{ display: 'grid', gap: '6px' }}>
+                        {eventItem.photoUrl && (
+                          <img
+                            src={eventItem.photoUrl}
+                            alt={eventItem.title}
+                            style={{
+                              width: '100%',
+                              maxHeight: '140px',
+                              objectFit: 'cover',
+                              border: '2px solid black',
+                              boxShadow: '3px 3px 0 black',
+                              background: '#ffeacf'
+                            }}
+                          />
+                        )}
                         <div
                           style={{
                             borderBottom: '2px dashed black',

@@ -237,6 +237,7 @@ export type AnnouncementItem = {
   id: number
   title: string
   body: string
+  photoUrl?: string | null
   createdAt: string
   createdByUserId: number
   createdByUsername: string
@@ -248,6 +249,7 @@ export type PortalEventItem = {
   eventDate: string
   location?: string | null
   details?: string | null
+  photoUrl?: string | null
   createdAt: string
   createdByUserId: number
   createdByUsername: string
@@ -951,19 +953,26 @@ export async function getAdminAnnouncementsRequest(maxCount: number = 50): Promi
 
 export async function createAdminAnnouncementRequest(
   title: string,
-  body: string
+  body: string,
+  photoFile?: File | null
 ): Promise<ApiResult<AnnouncementItem>> {
   try {
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
+    const formData = new FormData()
+    formData.append('title', title.trim())
+    formData.append('body', body.trim())
+    if (photoFile) {
+      formData.append('photo', photoFile)
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/admin/announcements`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ title: title.trim(), body: body.trim() })
+      body: formData
     })
 
     if (!response.ok) {
@@ -1035,23 +1044,35 @@ export async function createAdminEventRequest(payload: {
   eventDate: string
   location?: string
   details?: string
-}): Promise<ApiResult<PortalEventItem>> {
+}, photoFile?: File | null): Promise<ApiResult<PortalEventItem>> {
   try {
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
+    const formData = new FormData()
+    formData.append('title', payload.title.trim())
+    formData.append('eventDate', payload.eventDate)
+
+    const location = payload.location?.trim()
+    if (location) {
+      formData.append('location', location)
+    }
+
+    const details = payload.details?.trim()
+    if (details) {
+      formData.append('details', details)
+    }
+
+    if (photoFile) {
+      formData.append('photo', photoFile)
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/admin/events`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({
-        title: payload.title.trim(),
-        eventDate: payload.eventDate,
-        location: payload.location?.trim() || null,
-        details: payload.details?.trim() || null
-      })
+      body: formData
     })
 
     if (!response.ok) {

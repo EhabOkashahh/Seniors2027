@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   CalendarDays,
@@ -70,11 +70,15 @@ export default function AdminJoinRequests() {
   const [eventActionId, setEventActionId] = useState<number | null>(null)
   const [announcementTitleInput, setAnnouncementTitleInput] = useState('')
   const [announcementBodyInput, setAnnouncementBodyInput] = useState('')
+  const [announcementPhotoFile, setAnnouncementPhotoFile] = useState<File | null>(null)
   const [eventTitleInput, setEventTitleInput] = useState('')
   const [eventDateInput, setEventDateInput] = useState('')
   const [eventLocationInput, setEventLocationInput] = useState('')
   const [eventDetailsInput, setEventDetailsInput] = useState('')
+  const [eventPhotoFile, setEventPhotoFile] = useState<File | null>(null)
   const [announcementsMessage, setAnnouncementsMessage] = useState<string | null>(null)
+  const announcementPhotoInputRef = useRef<HTMLInputElement>(null)
+  const eventPhotoInputRef = useRef<HTMLInputElement>(null)
 
   const pendingCount = useMemo(() => items.filter((item) => item.status === 'Pending').length, [items])
 
@@ -261,7 +265,7 @@ export default function AdminJoinRequests() {
     }
 
     setAnnouncementsMessage(null)
-    const result = await createAdminAnnouncementRequest(title, body)
+    const result = await createAdminAnnouncementRequest(title, body, announcementPhotoFile)
     if (!result.ok || !result.data) {
       setAnnouncementsMessage(result.error ?? 'Could not create announcement.')
       return
@@ -270,6 +274,10 @@ export default function AdminJoinRequests() {
     setAnnouncements((prev) => [result.data!, ...prev])
     setAnnouncementTitleInput('')
     setAnnouncementBodyInput('')
+    setAnnouncementPhotoFile(null)
+    if (announcementPhotoInputRef.current) {
+      announcementPhotoInputRef.current.value = ''
+    }
     setAnnouncementsMessage('Announcement published.')
   }
 
@@ -290,7 +298,7 @@ export default function AdminJoinRequests() {
       eventDate,
       location,
       details
-    })
+    }, eventPhotoFile)
     if (!result.ok || !result.data) {
       setAnnouncementsMessage(result.error ?? 'Could not create event.')
       return
@@ -301,6 +309,10 @@ export default function AdminJoinRequests() {
     setEventDateInput('')
     setEventLocationInput('')
     setEventDetailsInput('')
+    setEventPhotoFile(null)
+    if (eventPhotoInputRef.current) {
+      eventPhotoInputRef.current.value = ''
+    }
     setAnnouncementsMessage('Event published.')
   }
 
@@ -733,6 +745,16 @@ export default function AdminJoinRequests() {
                       rows={5}
                       style={{ width: '100%', padding: '10px 12px', background: 'white', resize: 'vertical' }}
                     />
+                    <input
+                      ref={announcementPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setAnnouncementPhotoFile(e.target.files?.[0] ?? null)}
+                      style={{ width: '100%', padding: '8px 10px', background: 'white' }}
+                    />
+                    <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.74 }}>
+                      {announcementPhotoFile ? `Selected photo: ${announcementPhotoFile.name}` : 'Optional photo (jpg, png, webp)'}
+                    </div>
                     <button
                       type="button"
                       className="neo-btn"
@@ -777,6 +799,16 @@ export default function AdminJoinRequests() {
                       rows={4}
                       style={{ width: '100%', padding: '10px 12px', background: 'white', resize: 'vertical' }}
                     />
+                    <input
+                      ref={eventPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setEventPhotoFile(e.target.files?.[0] ?? null)}
+                      style={{ width: '100%', padding: '8px 10px', background: 'white' }}
+                    />
+                    <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.74 }}>
+                      {eventPhotoFile ? `Selected photo: ${eventPhotoFile.name}` : 'Optional photo (jpg, png, webp)'}
+                    </div>
                     <button
                       type="button"
                       className="neo-btn"
@@ -802,6 +834,13 @@ export default function AdminJoinRequests() {
                     ) : (
                       announcements.map((announcement) => (
                         <div key={announcement.id} style={{ border: '2px solid black', padding: '10px', background: 'white', display: 'grid', gap: '8px' }}>
+                          {announcement.photoUrl && (
+                            <img
+                              src={announcement.photoUrl}
+                              alt={announcement.title}
+                              style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', border: '2px solid black' }}
+                            />
+                          )}
                           <div style={{ fontWeight: 900 }}>{announcement.title}</div>
                           <div style={{ fontWeight: 700, whiteSpace: 'pre-wrap' }}>{announcement.body}</div>
                           <div style={{ fontSize: '0.78rem', fontWeight: 700, opacity: 0.75 }}>
@@ -835,6 +874,13 @@ export default function AdminJoinRequests() {
                     ) : (
                       events.map((eventItem) => (
                         <div key={eventItem.id} style={{ border: '2px solid black', padding: '10px', background: 'white', display: 'grid', gap: '8px' }}>
+                          {eventItem.photoUrl && (
+                            <img
+                              src={eventItem.photoUrl}
+                              alt={eventItem.title}
+                              style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', border: '2px solid black' }}
+                            />
+                          )}
                           <div style={{ fontWeight: 900 }}>{eventItem.title}</div>
                           <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>
                             Date: {formatEventDate(eventItem.eventDate)}

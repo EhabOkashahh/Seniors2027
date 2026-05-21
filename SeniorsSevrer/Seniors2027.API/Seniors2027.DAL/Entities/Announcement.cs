@@ -16,6 +16,9 @@ public class Announcement
     [MaxLength(4000)]
     public string Body { get; set; } = string.Empty;
 
+    [MaxLength(2048)]
+    public string? PhotoUrl { get; set; }
+
     [Required]
     public int CreatedByUserId { get; set; }
 

@@ -108,6 +108,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Body).IsRequired().HasMaxLength(4000);
+            entity.Property(e => e.PhotoUrl).HasMaxLength(2048);
             entity.HasOne(e => e.CreatedByUser)
                 .WithMany(u => u.Announcements)
                 .HasForeignKey(e => e.CreatedByUserId)
@@ -121,6 +122,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Location).HasMaxLength(300);
             entity.Property(e => e.Details).HasMaxLength(4000);
+            entity.Property(e => e.PhotoUrl).HasMaxLength(2048);
             entity.HasOne(e => e.CreatedByUser)
                 .WithMany(u => u.Events)
                 .HasForeignKey(e => e.CreatedByUserId)

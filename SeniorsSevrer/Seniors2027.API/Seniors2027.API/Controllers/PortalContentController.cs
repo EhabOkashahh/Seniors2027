@@ -27,6 +27,7 @@ public class PortalContentController(AppDbContext context) : ControllerBase
                 Id = a.Id,
                 Title = a.Title,
                 Body = a.Body,
+                PhotoUrl = a.PhotoUrl,
                 CreatedAt = a.CreatedAt,
                 CreatedByUserId = a.CreatedByUserId,
                 CreatedByUsername = a.CreatedByUser.Username
@@ -64,6 +65,7 @@ public class PortalContentController(AppDbContext context) : ControllerBase
                 EventDate = e.EventDate,
                 Location = e.Location,
                 Details = e.Details,
+                PhotoUrl = e.PhotoUrl,
                 CreatedAt = e.CreatedAt,
                 CreatedByUserId = e.CreatedByUserId,
                 CreatedByUsername = e.CreatedByUser.Username

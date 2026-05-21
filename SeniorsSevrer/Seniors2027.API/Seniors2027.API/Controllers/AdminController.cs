@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Seniors2027.API.Extensions;
+using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Data;
@@ -15,11 +16,13 @@ namespace Seniors2027.API.Controllers;
 public class AdminController(
     IJoinRequestService joinRequestService,
     AppDbContext context,
-    IWebHostEnvironment environment) : ControllerBase
+    IWebHostEnvironment environment,
+    IImageUploadProcessor imageUploadProcessor) : ControllerBase
 {
     private readonly IJoinRequestService _joinRequestService = joinRequestService;
     private readonly AppDbContext _context = context;
     private readonly IWebHostEnvironment _environment = environment;
+    private readonly IImageUploadProcessor _imageUploadProcessor = imageUploadProcessor;
 
     [HttpGet("join-requests")]
     public async Task<ActionResult<IReadOnlyList<JoinRequestDto>>> GetJoinRequests([FromQuery] JoinRequestStatus? status = JoinRequestStatus.Pending)
@@ -155,6 +158,10 @@ public class AdminController(
             var userAnnouncements = await _context.Announcements
                 .Where(a => a.CreatedByUserId == userId)
                 .ToListAsync();
+            foreach (var announcement in userAnnouncements)
+            {
+                TryAddLocalPhotoPath(announcement.PhotoUrl, photosDirectory, localPhotoPaths);
+            }
             if (userAnnouncements.Count > 0)
             {
                 _context.Announcements.RemoveRange(userAnnouncements);
@@ -163,6 +170,10 @@ public class AdminController(
             var userEvents = await _context.Events
                 .Where(e => e.CreatedByUserId == userId)
                 .ToListAsync();
+            foreach (var portalEvent in userEvents)
+            {
+                TryAddLocalPhotoPath(portalEvent.PhotoUrl, photosDirectory, localPhotoPaths);
+            }
             if (userEvents.Count > 0)
             {
                 _context.Events.RemoveRange(userEvents);
@@ -209,6 +220,7 @@ public class AdminController(
                 Id = a.Id,
                 Title = a.Title,
                 Body = a.Body,
+                PhotoUrl = a.PhotoUrl,
                 CreatedAt = a.CreatedAt,
                 CreatedByUserId = a.CreatedByUserId,
                 CreatedByUsername = a.CreatedByUser.Username
@@ -219,7 +231,7 @@ public class AdminController(
     }
 
     [HttpPost("announcements")]
-    public async Task<ActionResult<AnnouncementDto>> CreateAnnouncement(CreateAnnouncementDto dto)
+    public async Task<ActionResult<AnnouncementDto>> CreateAnnouncement([FromForm] CreateAnnouncementDto dto, [FromForm] IFormFile? photo)
     {
         if (!User.TryGetUserId(out var creatorUserId)) return Unauthorized();
 
@@ -227,17 +239,46 @@ public class AdminController(
         var body = dto.Body?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(title)) return BadRequest("Announcement title is required.");
         if (string.IsNullOrWhiteSpace(body)) return BadRequest("Announcement body is required.");
+        StoredPhotoInfo? storedPhoto = null;
+
+        if (photo != null)
+        {
+            try
+            {
+                storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
+                    photo,
+                    Request,
+                    cancellationToken: HttpContext.RequestAborted);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
         var announcement = new Announcement
         {
             Title = title,
             Body = body,
+            PhotoUrl = storedPhoto?.PhotoUrl,
             CreatedByUserId = creatorUserId,
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Announcements.Add(announcement);
-        await _context.SaveChangesAsync();
+        try
+        {
+            _context.Announcements.Add(announcement);
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            if (storedPhoto != null)
+            {
+                TryDeleteFile(storedPhoto.FilePath);
+            }
+
+            throw;
+        }
 
         var created = await _context.Announcements
             .AsNoTracking()
@@ -247,6 +288,7 @@ public class AdminController(
                 Id = a.Id,
                 Title = a.Title,
                 Body = a.Body,
+                PhotoUrl = a.PhotoUrl,
                 CreatedAt = a.CreatedAt,
                 CreatedByUserId = a.CreatedByUserId,
                 CreatedByUsername = a.CreatedByUser.Username
@@ -261,9 +303,17 @@ public class AdminController(
     {
         var announcement = await _context.Announcements.FirstOrDefaultAsync(a => a.Id == announcementId);
         if (announcement == null) return NotFound();
+        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+        var hasLocalPhoto = TryGetLocalSeniorsPhotoPath(announcement.PhotoUrl, photosDirectory, out var localPhotoPath);
 
         _context.Announcements.Remove(announcement);
         await _context.SaveChangesAsync();
+
+        if (hasLocalPhoto)
+        {
+            TryDeleteFile(localPhotoPath);
+        }
+
         return NoContent();
     }
 
@@ -295,6 +345,7 @@ public class AdminController(
                 EventDate = e.EventDate,
                 Location = e.Location,
                 Details = e.Details,
+                PhotoUrl = e.PhotoUrl,
                 CreatedAt = e.CreatedAt,
                 CreatedByUserId = e.CreatedByUserId,
                 CreatedByUsername = e.CreatedByUser.Username
@@ -305,7 +356,7 @@ public class AdminController(
     }
 
     [HttpPost("events")]
-    public async Task<ActionResult<PortalEventDto>> CreateEvent(CreatePortalEventDto dto)
+    public async Task<ActionResult<PortalEventDto>> CreateEvent([FromForm] CreatePortalEventDto dto, [FromForm] IFormFile? photo)
     {
         if (!User.TryGetUserId(out var creatorUserId)) return Unauthorized();
 
@@ -315,6 +366,22 @@ public class AdminController(
 
         if (string.IsNullOrWhiteSpace(title)) return BadRequest("Event title is required.");
         if (dto.EventDate == default) return BadRequest("Event date is required.");
+        StoredPhotoInfo? storedPhoto = null;
+
+        if (photo != null)
+        {
+            try
+            {
+                storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
+                    photo,
+                    Request,
+                    cancellationToken: HttpContext.RequestAborted);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
         var portalEvent = new PortalEvent
         {
@@ -322,12 +389,25 @@ public class AdminController(
             EventDate = dto.EventDate,
             Location = location,
             Details = details,
+            PhotoUrl = storedPhoto?.PhotoUrl,
             CreatedByUserId = creatorUserId,
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Events.Add(portalEvent);
-        await _context.SaveChangesAsync();
+        try
+        {
+            _context.Events.Add(portalEvent);
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            if (storedPhoto != null)
+            {
+                TryDeleteFile(storedPhoto.FilePath);
+            }
+
+            throw;
+        }
 
         var created = await _context.Events
             .AsNoTracking()
@@ -339,6 +419,7 @@ public class AdminController(
                 EventDate = e.EventDate,
                 Location = e.Location,
                 Details = e.Details,
+                PhotoUrl = e.PhotoUrl,
                 CreatedAt = e.CreatedAt,
                 CreatedByUserId = e.CreatedByUserId,
                 CreatedByUsername = e.CreatedByUser.Username
@@ -353,9 +434,17 @@ public class AdminController(
     {
         var portalEvent = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
         if (portalEvent == null) return NotFound();
+        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+        var hasLocalPhoto = TryGetLocalSeniorsPhotoPath(portalEvent.PhotoUrl, photosDirectory, out var localPhotoPath);
 
         _context.Events.Remove(portalEvent);
         await _context.SaveChangesAsync();
+
+        if (hasLocalPhoto)
+        {
+            TryDeleteFile(localPhotoPath);
+        }
+
         return NoContent();
     }
 
