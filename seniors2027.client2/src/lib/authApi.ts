@@ -233,6 +233,26 @@ export type DailyHighlight = {
   user: DailyHighlightUser
 }
 
+export type AnnouncementItem = {
+  id: number
+  title: string
+  body: string
+  createdAt: string
+  createdByUserId: number
+  createdByUsername: string
+}
+
+export type PortalEventItem = {
+  id: number
+  title: string
+  eventDate: string
+  location?: string | null
+  details?: string | null
+  createdAt: string
+  createdByUserId: number
+  createdByUsername: string
+}
+
 export async function getUsersRequest(
   pageNumber: number = 1,
   pageSize: number = 10,
@@ -901,6 +921,221 @@ export async function deleteAdminUserRequest(userId: number): Promise<ApiResult<
     }
 
     return { ok: true, data: null }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getAdminAnnouncementsRequest(maxCount: number = 50): Promise<ApiResult<AnnouncementItem[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/announcements?maxCount=${maxCount}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as AnnouncementItem[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function createAdminAnnouncementRequest(
+  title: string,
+  body: string
+): Promise<ApiResult<AnnouncementItem>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/announcements`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ title: title.trim(), body: body.trim() })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as AnnouncementItem
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function deleteAdminAnnouncementRequest(announcementId: number): Promise<ApiResult<null>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/announcements/${announcementId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    return { ok: true, data: null }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getAdminEventsRequest(
+  maxCount: number = 50,
+  includePast: boolean = true
+): Promise<ApiResult<PortalEventItem[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/events?maxCount=${maxCount}&includePast=${includePast}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as PortalEventItem[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function createAdminEventRequest(payload: {
+  title: string
+  eventDate: string
+  location?: string
+  details?: string
+}): Promise<ApiResult<PortalEventItem>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        title: payload.title.trim(),
+        eventDate: payload.eventDate,
+        location: payload.location?.trim() || null,
+        details: payload.details?.trim() || null
+      })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as PortalEventItem
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function deleteAdminEventRequest(eventId: number): Promise<ApiResult<null>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    return { ok: true, data: null }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getPortalAnnouncementsRequest(maxCount: number = 6): Promise<ApiResult<AnnouncementItem[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/portal-content/announcements?maxCount=${maxCount}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as AnnouncementItem[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getPortalEventsRequest(
+  maxCount: number = 6,
+  includePast: boolean = false
+): Promise<ApiResult<PortalEventItem[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/portal-content/events?maxCount=${maxCount}&includePast=${includePast}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as PortalEventItem[]
+    return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
   }

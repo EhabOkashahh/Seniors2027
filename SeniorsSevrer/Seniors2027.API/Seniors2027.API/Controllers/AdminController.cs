@@ -152,6 +152,22 @@ public class AdminController(
                 _context.Notes.RemoveRange(userNotes);
             }
 
+            var userAnnouncements = await _context.Announcements
+                .Where(a => a.CreatedByUserId == userId)
+                .ToListAsync();
+            if (userAnnouncements.Count > 0)
+            {
+                _context.Announcements.RemoveRange(userAnnouncements);
+            }
+
+            var userEvents = await _context.Events
+                .Where(e => e.CreatedByUserId == userId)
+                .ToListAsync();
+            if (userEvents.Count > 0)
+            {
+                _context.Events.RemoveRange(userEvents);
+            }
+
             var joinRequests = await _context.JoinRequests
                 .Where(j => j.ApprovedUserId == userId || j.ReviewedByUserId == userId)
                 .ToListAsync();
@@ -176,6 +192,170 @@ public class AdminController(
             TryDeleteFile(localPhotoPath);
         }
 
+        return NoContent();
+    }
+
+    [HttpGet("announcements")]
+    public async Task<ActionResult<IReadOnlyList<AnnouncementDto>>> GetAnnouncements([FromQuery] int maxCount = 50)
+    {
+        var safeMaxCount = maxCount < 1 ? 10 : Math.Min(maxCount, 200);
+
+        var items = await _context.Announcements
+            .AsNoTracking()
+            .OrderByDescending(a => a.CreatedAt)
+            .Take(safeMaxCount)
+            .Select(a => new AnnouncementDto
+            {
+                Id = a.Id,
+                Title = a.Title,
+                Body = a.Body,
+                CreatedAt = a.CreatedAt,
+                CreatedByUserId = a.CreatedByUserId,
+                CreatedByUsername = a.CreatedByUser.Username
+            })
+            .ToListAsync();
+
+        return Ok(items);
+    }
+
+    [HttpPost("announcements")]
+    public async Task<ActionResult<AnnouncementDto>> CreateAnnouncement(CreateAnnouncementDto dto)
+    {
+        if (!User.TryGetUserId(out var creatorUserId)) return Unauthorized();
+
+        var title = dto.Title?.Trim() ?? string.Empty;
+        var body = dto.Body?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(title)) return BadRequest("Announcement title is required.");
+        if (string.IsNullOrWhiteSpace(body)) return BadRequest("Announcement body is required.");
+
+        var announcement = new Announcement
+        {
+            Title = title,
+            Body = body,
+            CreatedByUserId = creatorUserId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Announcements.Add(announcement);
+        await _context.SaveChangesAsync();
+
+        var created = await _context.Announcements
+            .AsNoTracking()
+            .Where(a => a.Id == announcement.Id)
+            .Select(a => new AnnouncementDto
+            {
+                Id = a.Id,
+                Title = a.Title,
+                Body = a.Body,
+                CreatedAt = a.CreatedAt,
+                CreatedByUserId = a.CreatedByUserId,
+                CreatedByUsername = a.CreatedByUser.Username
+            })
+            .FirstAsync();
+
+        return Ok(created);
+    }
+
+    [HttpDelete("announcements/{announcementId:int}")]
+    public async Task<ActionResult> DeleteAnnouncement(int announcementId)
+    {
+        var announcement = await _context.Announcements.FirstOrDefaultAsync(a => a.Id == announcementId);
+        if (announcement == null) return NotFound();
+
+        _context.Announcements.Remove(announcement);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpGet("events")]
+    public async Task<ActionResult<IReadOnlyList<PortalEventDto>>> GetEvents(
+        [FromQuery] int maxCount = 50,
+        [FromQuery] bool includePast = true)
+    {
+        var safeMaxCount = maxCount < 1 ? 10 : Math.Min(maxCount, 200);
+        var today = DateTime.UtcNow.Date;
+
+        var query = _context.Events
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!includePast)
+        {
+            query = query.Where(e => e.EventDate.Date >= today);
+        }
+
+        var items = await query
+            .OrderBy(e => e.EventDate)
+            .ThenByDescending(e => e.CreatedAt)
+            .Take(safeMaxCount)
+            .Select(e => new PortalEventDto
+            {
+                Id = e.Id,
+                Title = e.Title,
+                EventDate = e.EventDate,
+                Location = e.Location,
+                Details = e.Details,
+                CreatedAt = e.CreatedAt,
+                CreatedByUserId = e.CreatedByUserId,
+                CreatedByUsername = e.CreatedByUser.Username
+            })
+            .ToListAsync();
+
+        return Ok(items);
+    }
+
+    [HttpPost("events")]
+    public async Task<ActionResult<PortalEventDto>> CreateEvent(CreatePortalEventDto dto)
+    {
+        if (!User.TryGetUserId(out var creatorUserId)) return Unauthorized();
+
+        var title = dto.Title?.Trim() ?? string.Empty;
+        var location = string.IsNullOrWhiteSpace(dto.Location) ? null : dto.Location.Trim();
+        var details = string.IsNullOrWhiteSpace(dto.Details) ? null : dto.Details.Trim();
+
+        if (string.IsNullOrWhiteSpace(title)) return BadRequest("Event title is required.");
+        if (dto.EventDate == default) return BadRequest("Event date is required.");
+
+        var portalEvent = new PortalEvent
+        {
+            Title = title,
+            EventDate = dto.EventDate,
+            Location = location,
+            Details = details,
+            CreatedByUserId = creatorUserId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Events.Add(portalEvent);
+        await _context.SaveChangesAsync();
+
+        var created = await _context.Events
+            .AsNoTracking()
+            .Where(e => e.Id == portalEvent.Id)
+            .Select(e => new PortalEventDto
+            {
+                Id = e.Id,
+                Title = e.Title,
+                EventDate = e.EventDate,
+                Location = e.Location,
+                Details = e.Details,
+                CreatedAt = e.CreatedAt,
+                CreatedByUserId = e.CreatedByUserId,
+                CreatedByUsername = e.CreatedByUser.Username
+            })
+            .FirstAsync();
+
+        return Ok(created);
+    }
+
+    [HttpDelete("events/{eventId:int}")]
+    public async Task<ActionResult> DeleteEvent(int eventId)
+    {
+        var portalEvent = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
+        if (portalEvent == null) return NotFound();
+
+        _context.Events.Remove(portalEvent);
+        await _context.SaveChangesAsync();
         return NoContent();
     }
 

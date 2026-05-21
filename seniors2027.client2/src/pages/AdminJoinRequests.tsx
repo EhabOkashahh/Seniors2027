@@ -18,40 +18,30 @@ import { useNavigate } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import {
+  createAdminAnnouncementRequest,
+  createAdminEventRequest,
+  deleteAdminAnnouncementRequest,
+  deleteAdminEventRequest,
   deleteAdminUserRequest,
+  getAdminAnnouncementsRequest,
+  getAdminEventsRequest,
   getAdminUsersRequest,
   getJoinRequestsRequest,
   getMeRequest,
   reviewJoinRequestRequest,
   setAdminUserLockRequest,
   type AdminUser,
+  type AnnouncementItem,
   type JoinRequestDecision,
-  type JoinRequestItem
+  type JoinRequestItem,
+  type PortalEventItem
 } from '../lib/authApi'
 
 const USERS_PAGE_SIZE = 20
 const USERS_FETCH_SIZE = USERS_PAGE_SIZE + 1
 const REQUESTS_SYNC_INTERVAL_MS = 5000
-const ADMIN_ANNOUNCEMENTS_STORAGE_KEY = 'seniors2027.admin.announcements'
-const ADMIN_EVENTS_STORAGE_KEY = 'seniors2027.admin.events'
 
 type AdminSection = 'requests' | 'users' | 'announcements'
-
-type AdminAnnouncement = {
-  id: number
-  title: string
-  body: string
-  createdAt: string
-}
-
-type AdminEvent = {
-  id: number
-  title: string
-  eventDate: string
-  location: string
-  details: string
-  createdAt: string
-}
 
 export default function AdminJoinRequests() {
   const navigate = useNavigate()
@@ -72,10 +62,12 @@ export default function AdminJoinRequests() {
   const [usersHasNextPage, setUsersHasNextPage] = useState(false)
   const [userActionId, setUserActionId] = useState<number | null>(null)
 
-  const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>(() =>
-    readStoredArray<AdminAnnouncement>(ADMIN_ANNOUNCEMENTS_STORAGE_KEY)
-  )
-  const [events, setEvents] = useState<AdminEvent[]>(() => readStoredArray<AdminEvent>(ADMIN_EVENTS_STORAGE_KEY))
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
+  const [events, setEvents] = useState<PortalEventItem[]>([])
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false)
+  const [eventsLoading, setEventsLoading] = useState(false)
+  const [announcementActionId, setAnnouncementActionId] = useState<number | null>(null)
+  const [eventActionId, setEventActionId] = useState<number | null>(null)
   const [announcementTitleInput, setAnnouncementTitleInput] = useState('')
   const [announcementBodyInput, setAnnouncementBodyInput] = useState('')
   const [eventTitleInput, setEventTitleInput] = useState('')
@@ -126,13 +118,33 @@ export default function AdminJoinRequests() {
     setUsersLoading(false)
   }, [])
 
-  useEffect(() => {
-    writeStoredArray(ADMIN_ANNOUNCEMENTS_STORAGE_KEY, announcements)
-  }, [announcements])
+  const loadAnnouncementsAndEvents = useCallback(async () => {
+    setAnnouncementsLoading(true)
+    setEventsLoading(true)
+    setAnnouncementsMessage(null)
 
-  useEffect(() => {
-    writeStoredArray(ADMIN_EVENTS_STORAGE_KEY, events)
-  }, [events])
+    const [announcementsResult, eventsResult] = await Promise.all([
+      getAdminAnnouncementsRequest(100),
+      getAdminEventsRequest(100, true)
+    ])
+
+    if (!announcementsResult.ok || !announcementsResult.data) {
+      setAnnouncements([])
+      setAnnouncementsMessage(announcementsResult.error ?? 'Could not load announcements.')
+    } else {
+      setAnnouncements(announcementsResult.data)
+    }
+
+    if (!eventsResult.ok || !eventsResult.data) {
+      setEvents([])
+      setAnnouncementsMessage((prev) => prev ?? eventsResult.error ?? 'Could not load events.')
+    } else {
+      setEvents(eventsResult.data)
+    }
+
+    setAnnouncementsLoading(false)
+    setEventsLoading(false)
+  }, [])
 
   useEffect(() => {
     const run = async () => {
@@ -186,6 +198,11 @@ export default function AdminJoinRequests() {
     void loadUsers(usersPageNumber, debouncedUsersSearch)
   }, [usersPageNumber, debouncedUsersSearch, loadUsers, activeSection])
 
+  useEffect(() => {
+    if (activeSection !== 'announcements') return
+    void loadAnnouncementsAndEvents()
+  }, [activeSection, loadAnnouncementsAndEvents])
+
   const reviewRequest = async (requestId: number, decision: JoinRequestDecision) => {
     setActionRequestId(requestId)
     setRequestsMessage(null)
@@ -234,7 +251,7 @@ export default function AdminJoinRequests() {
     setUsersMessage(`${user.username} was deleted.`)
   }
 
-  const handlePublishAnnouncement = () => {
+  const handlePublishAnnouncement = async () => {
     const title = announcementTitleInput.trim()
     const body = announcementBodyInput.trim()
 
@@ -243,20 +260,20 @@ export default function AdminJoinRequests() {
       return
     }
 
-    const nextItem: AdminAnnouncement = {
-      id: Date.now(),
-      title,
-      body,
-      createdAt: new Date().toISOString()
+    setAnnouncementsMessage(null)
+    const result = await createAdminAnnouncementRequest(title, body)
+    if (!result.ok || !result.data) {
+      setAnnouncementsMessage(result.error ?? 'Could not create announcement.')
+      return
     }
 
-    setAnnouncements((prev) => [nextItem, ...prev])
+    setAnnouncements((prev) => [result.data!, ...prev])
     setAnnouncementTitleInput('')
     setAnnouncementBodyInput('')
-    setAnnouncementsMessage('Announcement published locally.')
+    setAnnouncementsMessage('Announcement published.')
   }
 
-  const handlePublishEvent = () => {
+  const handlePublishEvent = async () => {
     const title = eventTitleInput.trim()
     const eventDate = eventDateInput.trim()
     const location = eventLocationInput.trim()
@@ -267,29 +284,52 @@ export default function AdminJoinRequests() {
       return
     }
 
-    const nextItem: AdminEvent = {
-      id: Date.now(),
+    setAnnouncementsMessage(null)
+    const result = await createAdminEventRequest({
       title,
       eventDate,
       location,
-      details,
-      createdAt: new Date().toISOString()
+      details
+    })
+    if (!result.ok || !result.data) {
+      setAnnouncementsMessage(result.error ?? 'Could not create event.')
+      return
     }
 
-    setEvents((prev) => [nextItem, ...prev])
+    setEvents((prev) => [result.data!, ...prev])
     setEventTitleInput('')
     setEventDateInput('')
     setEventLocationInput('')
     setEventDetailsInput('')
-    setAnnouncementsMessage('Event published locally.')
+    setAnnouncementsMessage('Event published.')
   }
 
-  const handleDeleteAnnouncement = (announcementId: number) => {
+  const handleDeleteAnnouncement = async (announcementId: number) => {
+    setAnnouncementActionId(announcementId)
+    setAnnouncementsMessage(null)
+    const result = await deleteAdminAnnouncementRequest(announcementId)
+    setAnnouncementActionId(null)
+
+    if (!result.ok) {
+      setAnnouncementsMessage(result.error ?? 'Could not delete announcement.')
+      return
+    }
+
     setAnnouncements((prev) => prev.filter((item) => item.id !== announcementId))
     setAnnouncementsMessage('Announcement deleted.')
   }
 
-  const handleDeleteEvent = (eventId: number) => {
+  const handleDeleteEvent = async (eventId: number) => {
+    setEventActionId(eventId)
+    setAnnouncementsMessage(null)
+    const result = await deleteAdminEventRequest(eventId)
+    setEventActionId(null)
+
+    if (!result.ok) {
+      setAnnouncementsMessage(result.error ?? 'Could not delete event.')
+      return
+    }
+
     setEvents((prev) => prev.filter((item) => item.id !== eventId))
     setAnnouncementsMessage('Event deleted.')
   }
@@ -653,9 +693,21 @@ export default function AdminJoinRequests() {
                   <span style={{ fontWeight: 900 }}>ANNOUNCEMENTS_AND_EVENTS</span>
                 </div>
                 <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '14px' }}>
-                  <p style={{ margin: 0, fontWeight: 700, opacity: 0.78 }}>
-                    Add announcements and events from here. Entries are saved locally for now.
-                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <p style={{ margin: 0, fontWeight: 700, opacity: 0.78 }}>
+                      Add announcements and events here, then they will appear in the portal.
+                    </p>
+                    <button
+                      type="button"
+                      className="neo-btn"
+                      onClick={() => void loadAnnouncementsAndEvents()}
+                      disabled={announcementsLoading || eventsLoading}
+                      style={{ minWidth: 'auto', padding: '8px 12px' }}
+                    >
+                      <RefreshCw size={13} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                      {announcementsLoading || eventsLoading ? 'Refreshing...' : 'Refresh'}
+                    </button>
+                  </div>
                   {announcementsMessage && <div style={{ fontWeight: 800 }}>{announcementsMessage}</div>}
                 </div>
               </div>
@@ -681,8 +733,13 @@ export default function AdminJoinRequests() {
                       rows={5}
                       style={{ width: '100%', padding: '10px 12px', background: 'white', resize: 'vertical' }}
                     />
-                    <button type="button" className="neo-btn" onClick={handlePublishAnnouncement}>
-                      Publish Announcement
+                    <button
+                      type="button"
+                      className="neo-btn"
+                      onClick={() => void handlePublishAnnouncement()}
+                      disabled={announcementsLoading}
+                    >
+                      {announcementsLoading ? 'Publishing...' : 'Publish Announcement'}
                     </button>
                   </div>
                 </div>
@@ -720,8 +777,13 @@ export default function AdminJoinRequests() {
                       rows={4}
                       style={{ width: '100%', padding: '10px 12px', background: 'white', resize: 'vertical' }}
                     />
-                    <button type="button" className="neo-btn" onClick={handlePublishEvent}>
-                      Publish Event
+                    <button
+                      type="button"
+                      className="neo-btn"
+                      onClick={() => void handlePublishEvent()}
+                      disabled={eventsLoading}
+                    >
+                      {eventsLoading ? 'Publishing...' : 'Publish Event'}
                     </button>
                   </div>
                 </div>
@@ -733,7 +795,9 @@ export default function AdminJoinRequests() {
                     <span style={{ fontWeight: 900 }}>ANNOUNCEMENTS_LIST</span>
                   </div>
                   <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
-                    {announcements.length === 0 ? (
+                    {announcementsLoading ? (
+                      <p style={{ margin: 0, fontWeight: 800 }}>Loading announcements...</p>
+                    ) : announcements.length === 0 ? (
                       <p style={{ margin: 0, fontWeight: 800 }}>No announcements yet.</p>
                     ) : (
                       announcements.map((announcement) => (
@@ -746,11 +810,12 @@ export default function AdminJoinRequests() {
                           <button
                             type="button"
                             className="neo-btn"
-                            onClick={() => handleDeleteAnnouncement(announcement.id)}
+                            onClick={() => void handleDeleteAnnouncement(announcement.id)}
+                            disabled={announcementActionId === announcement.id}
                             style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
                           >
                             <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                            Delete
+                            {announcementActionId === announcement.id ? 'Deleting...' : 'Delete'}
                           </button>
                         </div>
                       ))
@@ -763,7 +828,9 @@ export default function AdminJoinRequests() {
                     <span style={{ fontWeight: 900 }}>EVENTS_LIST</span>
                   </div>
                   <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
-                    {events.length === 0 ? (
+                    {eventsLoading ? (
+                      <p style={{ margin: 0, fontWeight: 800 }}>Loading events...</p>
+                    ) : events.length === 0 ? (
                       <p style={{ margin: 0, fontWeight: 800 }}>No events yet.</p>
                     ) : (
                       events.map((eventItem) => (
@@ -780,11 +847,12 @@ export default function AdminJoinRequests() {
                           <button
                             type="button"
                             className="neo-btn"
-                            onClick={() => handleDeleteEvent(eventItem.id)}
+                            onClick={() => void handleDeleteEvent(eventItem.id)}
+                            disabled={eventActionId === eventItem.id}
                             style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
                           >
                             <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                            Delete
+                            {eventActionId === eventItem.id ? 'Deleting...' : 'Delete'}
                           </button>
                         </div>
                       ))
@@ -798,30 +866,6 @@ export default function AdminJoinRequests() {
       </motion.div>
     </PortalLayout>
   )
-}
-
-function readStoredArray<T>(key: string): T[] {
-  if (typeof window === 'undefined') return []
-
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return []
-
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as T[]) : []
-  } catch {
-    return []
-  }
-}
-
-function writeStoredArray(key: string, value: unknown): void {
-  if (typeof window === 'undefined') return
-
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Ignore storage write failures.
-  }
 }
 
 function formatEventDate(value: string): string {

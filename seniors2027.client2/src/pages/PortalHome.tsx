@@ -7,17 +7,28 @@ import Logo from '../assets/Logo.png'
 import NoteAsset from '../assets/Asset1.svg'
 import {
   deleteDailyHighlightRequest,
+  getPortalAnnouncementsRequest,
+  getPortalEventsRequest,
   getMeRequest,
   getUserByIdRequest,
   getActiveDailyHighlightsRequest,
+  type AnnouncementItem,
   type DailyHighlight,
+  type PortalEventItem,
   uploadDailyHighlightRequest
 } from '../lib/authApi'
 import { subscribeDailyHighlightsRealtime } from '../lib/dailyHighlightsRealtime'
 
 const HIGHLIGHTS_SYNC_INTERVAL_MS = 5000
+const PORTAL_CONTENT_SYNC_INTERVAL_MS = 15000
 
 export default function PortalHome() {
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
+  const [events, setEvents] = useState<PortalEventItem[]>([])
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true)
+  const [loadingEvents, setLoadingEvents] = useState(true)
+  const [portalContentMessage, setPortalContentMessage] = useState<string | null>(null)
+
   const [highlights, setHighlights] = useState<DailyHighlight[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
   const [flipDirection, setFlipDirection] = useState<'next' | 'prev'>('next')
@@ -73,6 +84,38 @@ export default function PortalHome() {
     }
   }, [])
 
+  const fetchPortalContent = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setLoadingAnnouncements(true)
+      setLoadingEvents(true)
+      setPortalContentMessage(null)
+    }
+
+    const [announcementsResult, eventsResult] = await Promise.all([
+      getPortalAnnouncementsRequest(6),
+      getPortalEventsRequest(6, false)
+    ])
+
+    if (announcementsResult.ok && announcementsResult.data) {
+      setAnnouncements(announcementsResult.data)
+    } else if (!silent) {
+      setAnnouncements([])
+      setPortalContentMessage(announcementsResult.error ?? 'Could not load announcements.')
+    }
+
+    if (eventsResult.ok && eventsResult.data) {
+      setEvents(eventsResult.data)
+    } else if (!silent) {
+      setEvents([])
+      setPortalContentMessage((prev) => prev ?? eventsResult.error ?? 'Could not load events.')
+    }
+
+    if (!silent) {
+      setLoadingAnnouncements(false)
+      setLoadingEvents(false)
+    }
+  }, [])
+
   useEffect(() => {
     highlightsRef.current = highlights
   }, [highlights])
@@ -84,6 +127,10 @@ export default function PortalHome() {
   useEffect(() => {
     void fetchHighlights()
   }, [fetchHighlights])
+
+  useEffect(() => {
+    void fetchPortalContent()
+  }, [fetchPortalContent])
 
   useEffect(() => {
     const unsubscribe = subscribeDailyHighlightsRealtime(() => {
@@ -115,6 +162,27 @@ export default function PortalHome() {
       window.removeEventListener('focus', onVisibilityOrFocus)
     }
   }, [fetchHighlights])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void fetchPortalContent({ silent: true })
+    }, PORTAL_CONTENT_SYNC_INTERVAL_MS)
+
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState !== 'hidden') {
+        void fetchPortalContent({ silent: true })
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+    }
+  }, [fetchPortalContent])
 
   useEffect(() => {
     const run = async () => {
@@ -374,8 +442,31 @@ export default function PortalHome() {
                 <Bell size={18} />
                 <span style={{ fontWeight: 900 }}>ANNOUNCEMENTS</span>
               </div>
-              <div className="window-content" style={{ padding: '20px', textAlign: 'center', opacity: 0.5 }}>
-                <p style={{ fontWeight: 800 }}>No announcements yet.</p>
+              <div className="window-content" style={{ padding: '14px', textAlign: 'left', gap: '10px' }}>
+                {loadingAnnouncements ? (
+                  <p style={{ margin: 0, fontWeight: 800, opacity: 0.75 }}>Loading announcements...</p>
+                ) : announcements.length === 0 ? (
+                  <p style={{ margin: 0, fontWeight: 800, opacity: 0.75 }}>No announcements yet.</p>
+                ) : (
+                  announcements.map((announcement) => (
+                    <div
+                      key={announcement.id}
+                      style={{
+                        border: '2px solid black',
+                        background: 'white',
+                        padding: '10px',
+                        display: 'grid',
+                        gap: '6px'
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, fontSize: '0.92rem', textTransform: 'uppercase' }}>{announcement.title}</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.35 }}>{announcement.body}</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.7 }}>
+                        By {announcement.createdByUsername} • {formatDateLong(announcement.createdAt)}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </motion.div>
 
@@ -387,8 +478,36 @@ export default function PortalHome() {
                 <Calendar size={18} />
                 <span style={{ fontWeight: 900 }}>UPCOMING_EVENTS</span>
               </div>
-              <div className="window-content" style={{ padding: '20px', textAlign: 'center', opacity: 0.5 }}>
-                <p style={{ fontWeight: 800 }}>No upcoming events.</p>
+              <div className="window-content" style={{ padding: '14px', textAlign: 'left', gap: '10px' }}>
+                {loadingEvents ? (
+                  <p style={{ margin: 0, fontWeight: 800, opacity: 0.75 }}>Loading events...</p>
+                ) : events.length === 0 ? (
+                  <p style={{ margin: 0, fontWeight: 800, opacity: 0.75 }}>No upcoming events.</p>
+                ) : (
+                  events.map((eventItem) => (
+                    <div
+                      key={eventItem.id}
+                      style={{
+                        border: '2px solid black',
+                        background: 'white',
+                        padding: '10px',
+                        display: 'grid',
+                        gap: '6px'
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, fontSize: '0.92rem', textTransform: 'uppercase' }}>{eventItem.title}</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.82rem' }}>Date: {formatEventDateLong(eventItem.eventDate)}</div>
+                      {eventItem.location && <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>Location: {eventItem.location}</div>}
+                      {eventItem.details && <div style={{ fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'pre-wrap' }}>{eventItem.details}</div>}
+                      <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.7 }}>
+                        Added by {eventItem.createdByUsername}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {portalContentMessage && (
+                  <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.82 }}>{portalContentMessage}</div>
+                )}
               </div>
             </motion.div>
 
@@ -707,4 +826,18 @@ function formatDate(value: string | undefined): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function formatDateLong(value: string | undefined): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function formatEventDateLong(value: string | undefined): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }

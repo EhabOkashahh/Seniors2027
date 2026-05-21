@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
     public DbSet<DailyHighlight> DailyHighlights { get; set; }
     public DbSet<UserOtp> UsersOTPs { get; set; }
     public DbSet<JoinRequest> JoinRequests { get; set; }
+    public DbSet<Announcement> Announcements { get; set; }
+    public DbSet<PortalEvent> Events { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -99,6 +101,32 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.ApprovedUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Announcement>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Body).IsRequired().HasMaxLength(4000);
+            entity.HasOne(e => e.CreatedByUser)
+                .WithMany(u => u.Announcements)
+                .HasForeignKey(e => e.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.CreatedAt);
+        });
+
+        modelBuilder.Entity<PortalEvent>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Location).HasMaxLength(300);
+            entity.Property(e => e.Details).HasMaxLength(4000);
+            entity.HasOne(e => e.CreatedByUser)
+                .WithMany(u => u.Events)
+                .HasForeignKey(e => e.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.EventDate);
+            entity.HasIndex(e => e.CreatedAt);
         });
     }
 }
