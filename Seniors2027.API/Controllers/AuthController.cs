@@ -78,13 +78,18 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     [HttpGet("recognize/{email}")]
     public ActionResult Recognize(string email)
     {
-        var user = _unitOfWork.Repository<User>().Find(u => u.Email.ToLower() == email.ToLower()).FirstOrDefault();
-        if (user == null) 
+        var normalizedEmail = email.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
         {
-            return NotFound("Senior not found");
+            return Ok(new { exists = false });
         }
 
-        return Ok(new { username = user.Username, photoUrl = user.PhotoUrl, email = user.Email });
+        var lowerEmail = normalizedEmail.ToLowerInvariant();
+        var exists = _unitOfWork.Repository<User>()
+            .Find(u => u.Email != null && u.Email.ToLower() == lowerEmail)
+            .Any();
+
+        return Ok(new { exists });
     }
 
     // [HttpPost("register")]

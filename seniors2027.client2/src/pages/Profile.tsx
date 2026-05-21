@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { Image as ImageIcon, Pin, BookOpen, Pencil } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
@@ -26,7 +26,7 @@ import {
 
 export default function Profile() {
   const { id } = useParams()
-  const userId = Number(id)
+  const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [isTablet, setIsTablet] = useState(() => window.innerWidth <= 980)
@@ -89,8 +89,12 @@ export default function Profile() {
 
     const run = async () => {
       try {
-        if (!Number.isFinite(userId)) {
-          if (!cancelled) setLoading(false)
+        if (userId === null) {
+          if (!cancelled) {
+            setProfileUser(null)
+            setMe(null)
+            setLoading(false)
+          }
           return
         }
 
@@ -126,7 +130,7 @@ export default function Profile() {
   }, [userId])
 
   const fetchLatestNotes = async () => {
-    if (!Number.isFinite(userId)) return
+    if (userId === null) return
 
     setLatestNotesLoading(true)
     setLatestNotesError(null)
@@ -145,7 +149,7 @@ export default function Profile() {
   }, [userId])
 
   useEffect(() => {
-    if (!isBookOpen || !Number.isFinite(userId)) return
+    if (!isBookOpen || userId === null) return
 
     let cancelled = false
     const run = async () => {
@@ -172,7 +176,7 @@ export default function Profile() {
   }, [isBookOpen, bookPageNumber, userId])
 
   const fetchGallery = async () => {
-    if (!Number.isFinite(userId)) return
+    if (userId === null) return
 
     setGalleryLoading(true)
     const result = await getUserGalleryPhotosRequest(userId)
@@ -418,7 +422,7 @@ export default function Profile() {
   }
 
   const handleSendNote = async () => {
-    if (!Number.isFinite(userId)) return
+    if (userId === null) return
 
     const content = newNoteInput.trim()
     if (!content) {
@@ -446,7 +450,7 @@ export default function Profile() {
   }
 
   const handleDeleteNote = async (noteId: number) => {
-    if (!Number.isFinite(userId)) return
+    if (userId === null) return
     if (deletingNoteIds.includes(noteId)) return
 
     setDeletingNoteIds((prev) => [...prev, noteId])
@@ -533,6 +537,10 @@ export default function Profile() {
     setProfileUser((prev) => (prev ? { ...prev, photoUrl: uploadResult.data?.photoUrl } : prev))
     setPhotoMessage('Photo updated.')
     handleClosePhotoEditor()
+  }
+
+  if (userId === null) {
+    return <Navigate to="/directory" replace />
   }
 
   return (
@@ -1254,5 +1262,16 @@ function formatNoteDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return 'Unknown date'
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function parsePositiveIntRouteParam(value: string | undefined): number | null {
+  if (!value) return null
+  const normalized = value.trim()
+  if (!/^\d+$/.test(normalized)) return null
+
+  const parsed = Number.parseInt(normalized, 10)
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) return null
+
+  return parsed
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle2, LockKeyhole, LockOpen, RefreshCw, Search, Shield, Trash2, UserRoundPlus, Users, XCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -18,6 +18,7 @@ import {
 
 const USERS_PAGE_SIZE = 20
 const USERS_FETCH_SIZE = USERS_PAGE_SIZE + 1
+const REQUESTS_SYNC_INTERVAL_MS = 5000
 
 export default function AdminJoinRequests() {
   const navigate = useNavigate()
@@ -38,20 +39,27 @@ export default function AdminJoinRequests() {
 
   const pendingCount = useMemo(() => items.filter((item) => item.status === 'Pending').length, [items])
 
-  const loadRequests = async () => {
-    setLoading(true)
-    setRequestsMessage(null)
+  const loadRequests = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setLoading(true)
+      setRequestsMessage(null)
+    }
+
     const result = await getJoinRequestsRequest('Pending')
     if (!result.ok || !result.data) {
-      setItems([])
-      setRequestsMessage(result.error ?? 'Could not load join requests.')
-      setLoading(false)
+      if (!silent) {
+        setItems([])
+        setRequestsMessage(result.error ?? 'Could not load join requests.')
+        setLoading(false)
+      }
       return
     }
 
     setItems(result.data)
-    setLoading(false)
-  }
+    if (!silent) {
+      setLoading(false)
+    }
+  }, [])
 
   const loadUsers = async (pageNumber: number, search: string) => {
     setUsersLoading(true)
@@ -81,7 +89,28 @@ export default function AdminJoinRequests() {
 
     void run()
     void loadRequests()
-  }, [])
+  }, [loadRequests])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void loadRequests({ silent: true })
+    }, REQUESTS_SYNC_INTERVAL_MS)
+
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState !== 'hidden') {
+        void loadRequests({ silent: true })
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+    }
+  }, [loadRequests])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
