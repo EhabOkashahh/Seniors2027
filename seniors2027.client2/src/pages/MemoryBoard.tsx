@@ -16,6 +16,7 @@ const MEMORYBOARD_SYNC_INTERVAL_MS = 15000
 const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
 
 export default function MemoryBoard() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [photos, setPhotos] = useState<MemoryBoardPhoto[]>([])
   const [myPendingPhotos, setMyPendingPhotos] = useState<MemoryBoardPhoto[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,6 +31,12 @@ export default function MemoryBoard() {
   const [deleteActionId, setDeleteActionId] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   useGlobalToastMessage(message, setMessage)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 760)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const loadPhotos = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -511,13 +518,13 @@ export default function MemoryBoard() {
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'auto 1fr auto', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
                 className="neo-btn"
                 onClick={goViewerPrevious}
                 disabled={sortedPhotos.length <= 1}
-                style={{ minWidth: 'auto', padding: '8px 10px' }}
+                style={{ minWidth: 'auto', padding: '8px 10px', justifySelf: isMobile ? 'flex-start' : 'stretch' }}
               >
                 <ChevronLeft size={18} />
               </button>
@@ -539,7 +546,7 @@ export default function MemoryBoard() {
                 className="neo-btn"
                 onClick={goViewerNext}
                 disabled={sortedPhotos.length <= 1}
-                style={{ minWidth: 'auto', padding: '8px 10px' }}
+                style={{ minWidth: 'auto', padding: '8px 10px', justifySelf: isMobile ? 'flex-end' : 'stretch' }}
               >
                 <ChevronRight size={18} />
               </button>

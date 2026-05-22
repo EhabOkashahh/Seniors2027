@@ -27,7 +27,8 @@ body {
   background-size: 40px 40px;
   color: var(--text-color);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .container {
@@ -430,8 +431,10 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
 
 .portal-container {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   width: 100vw;
+  max-width: 100%;
   background: var(--retro-bg);
   overflow: hidden;
   position: relative;
@@ -505,11 +508,14 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
   padding: 40px;
   overflow-y: auto;
   position: relative;
+  min-width: 0;
 }
 
 .portal-main-inner {
   position: relative;
   z-index: 1;
+  width: 100%;
+  min-width: 0;
 }
 
 .portal-menu-toggle {
@@ -557,6 +563,13 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
   box-shadow: 2px 2px 0 black;
 }
 
+/* Keep portal buttons responsive without affecting auth page button styles */
+.portal-container .neo-btn {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .portal-menu-toggle {
     display: inline-flex;
@@ -575,7 +588,7 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
     left: 0;
     top: 0;
     bottom: 0;
-    width: min(82vw, 290px);
+    width: min(88vw, 300px);
     transform: translateX(-110%);
     box-shadow: 10px 0 0 black;
   }
@@ -586,5 +599,11 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
 
   .portal-main {
     padding: 74px 14px 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .portal-main {
+    padding: 72px 10px 14px;
   }
 }

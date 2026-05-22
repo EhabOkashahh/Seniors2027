@@ -11,6 +11,7 @@ const FETCH_SIZE = PAGE_SIZE + 2
 export default function Directory() {
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 480)
   const [users, setUsers] = useState<DirectoryUser[]>([])
   const [myUserId, setMyUserId] = useState<number | null>(null)
   const [searchInput, setSearchInput] = useState('')
@@ -20,7 +21,10 @@ export default function Directory() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 760)
+    const onResize = () => {
+      setIsMobile(window.innerWidth <= 760)
+      setIsNarrow(window.innerWidth <= 480)
+    }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
@@ -74,7 +78,7 @@ export default function Directory() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '22px' : '40px' }}>
           {/* Page Header & Search */}
           <div
             style={{
@@ -86,7 +90,7 @@ export default function Directory() {
             }}
           >
             <div>
-              <h1 style={{ fontSize: isMobile ? '2rem' : '3rem', margin: 0 }}>Senior Directory</h1>
+              <h1 style={{ fontSize: isMobile ? 'clamp(1.5rem, 7vw, 2rem)' : '3rem', margin: 0 }}>Senior Directory</h1>
               <p style={{ fontWeight: 800, opacity: 0.7 }}>Browse the faces of the Class of 2027</p>
             </div>
             <div style={{ position: 'relative', width: isMobile ? '100%' : undefined }}>
@@ -109,7 +113,9 @@ export default function Directory() {
           {/* Directory Grid */}
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(160px, 1fr))' : 'repeat(auto-fill, minmax(220px, 1fr))', 
+            gridTemplateColumns: isMobile
+              ? (isNarrow ? 'repeat(auto-fill, minmax(132px, 1fr))' : 'repeat(auto-fill, minmax(160px, 1fr))')
+              : 'repeat(auto-fill, minmax(220px, 1fr))', 
             gap: '25px' 
           }}>
             {loading ? (
@@ -189,7 +195,7 @@ export default function Directory() {
             >
               Previous
             </button>
-            <div style={{ display: 'grid', placeItems: 'center', fontWeight: 900, minWidth: '120px' }}>
+            <div style={{ display: 'grid', placeItems: 'center', fontWeight: 900 }}>
               Page {pageNumber}
             </div>
             <button

@@ -54,6 +54,7 @@ type AdminSection = 'requests' | 'users' | 'announcements' | 'memoryboard'
 
 export default function AdminJoinRequests() {
   const navigate = useNavigate()
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [activeSection, setActiveSection] = useState<AdminSection>('requests')
 
   const [items, setItems] = useState<JoinRequestItem[]>([])
@@ -101,6 +102,12 @@ export default function AdminJoinRequests() {
   const eventPhotoInputRef = useRef<HTMLInputElement>(null)
 
   const pendingCount = useMemo(() => items.filter((item) => item.status === 'Pending').length, [items])
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 760)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const loadRequests = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -699,7 +706,7 @@ export default function AdminJoinRequests() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                  gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(170px, 1fr))' : 'repeat(auto-fill, minmax(220px, 1fr))',
                   gap: '18px'
                 }}
               >
@@ -771,7 +778,7 @@ export default function AdminJoinRequests() {
                             Created {new Date(user.createdAt).toLocaleDateString()}
                           </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '8px' }}>
                             <button
                               type="button"
                               className="neo-btn"
@@ -828,7 +835,7 @@ export default function AdminJoinRequests() {
                 >
                   Previous
                 </button>
-                <div style={{ display: 'grid', placeItems: 'center', fontWeight: 900, minWidth: '120px' }}>
+                <div style={{ display: 'grid', placeItems: 'center', fontWeight: 900 }}>
                   Page {usersPageNumber}
                 </div>
                 <button
@@ -909,8 +916,8 @@ export default function AdminJoinRequests() {
                                   background: 'white',
                                   overflow: 'hidden',
                                   display: 'grid',
-                                  width: '280px',
-                                  flex: '0 0 280px'
+                                  width: isMobile ? 'min(260px, 74vw)' : '280px',
+                                  flex: isMobile ? '0 0 min(260px, 74vw)' : '0 0 280px'
                                 }}
                               >
                                 <img
@@ -924,7 +931,7 @@ export default function AdminJoinRequests() {
                                   <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.8 }}>Taken: {takenAtLabel}</div>
                                   <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.72 }}>Uploaded: {createdAtLabel}</div>
 
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '6px' }}>
                                     <button
                                       type="button"
                                       className="neo-btn"
@@ -965,7 +972,7 @@ export default function AdminJoinRequests() {
                       {memoryBoardApprovedPhotos.length === 0 ? (
                         <p style={{ margin: 0, fontWeight: 800 }}>No approved photos yet.</p>
                       ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: '12px' }}>
                           {memoryBoardApprovedPhotos.map((photo) => {
                             const isBusy = memoryBoardActionId === photo.id
                             const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
@@ -1037,7 +1044,7 @@ export default function AdminJoinRequests() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
                 <div className="window" style={{ maxWidth: '100%' }}>
                   <div className="window-header" style={{ background: '#d7ffd8' }}>
                     <Megaphone size={16} />
@@ -1134,7 +1141,7 @@ export default function AdminJoinRequests() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
                 <div className="window" style={{ maxWidth: '100%' }}>
                   <div className="window-header" style={{ background: '#d7ffd8' }}>
                     <span style={{ fontWeight: 900 }}>ANNOUNCEMENTS_LIST</span>

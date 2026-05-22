@@ -93,12 +93,12 @@ export default function GlobalToastHost() {
     <div
       style={{
         position: 'fixed',
-        top: '18px',
-        right: '18px',
+        top: 'max(10px, env(safe-area-inset-top))',
+        right: 'max(10px, env(safe-area-inset-right))',
         zIndex: 140,
         display: 'grid',
         gap: '10px',
-        width: 'min(360px, calc(100vw - 24px))',
+        width: 'min(360px, calc(100vw - 20px))',
         pointerEvents: 'none'
       }}
       aria-live="polite"

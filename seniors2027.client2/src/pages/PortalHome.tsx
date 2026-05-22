@@ -65,6 +65,7 @@ type MonthlyDumpSpread = {
 }
 
 export default function PortalHome() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
   const [events, setEvents] = useState<PortalEventItem[]>([])
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true)
@@ -105,6 +106,12 @@ export default function PortalHome() {
   const monthlyDumpSpreads = useMemo(() => buildMonthlyDumpSpreads(monthlyDumpEntries), [monthlyDumpEntries])
   const monthlyDumpCurrentSpread = monthlyDumpSpreads[monthlyDumpBookPageIndex] ?? { left: [], right: [] }
   const monthlyDumpTotalSpreads = monthlyDumpSpreads.length
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 760)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const fetchHighlights = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -679,12 +686,13 @@ export default function PortalHome() {
                   style={{
                     width: 'clamp(88px, 11vw, 140px)',
                     position: 'absolute',
-                    left: '20px',
+                    left: isMobile ? '8px' : '20px',
                     top: '38%',
                     filter: 'drop-shadow(4px 4px 0 black)',
                     transform: 'translateY(-50%) rotate(-10deg)',
                     flexShrink: 0,
-                    pointerEvents: 'none'
+                    pointerEvents: 'none',
+                    opacity: isMobile ? 0.6 : 1
                   }}
                 />
                 <div
@@ -1101,7 +1109,7 @@ export default function PortalHome() {
                         background: 'linear-gradient(180deg, #ffffff 0%, #fff7eb 100%)',
                         padding: '10px',
                         display: 'grid',
-                        gridTemplateColumns: '78px 1fr',
+                        gridTemplateColumns: isMobile ? '1fr' : '78px 1fr',
                         gap: '10px',
                         alignItems: 'start'
                       }}
@@ -1295,7 +1303,7 @@ export default function PortalHome() {
                                       alt={item.user.username}
                                       style={{
                                         display: 'block',
-                                        width: '260px',
+                                        width: isMobile ? '220px' : '260px',
                                         maxWidth: '72vw',
                                         aspectRatio: '4 / 3',
                                         objectFit: 'cover',
@@ -1368,17 +1376,17 @@ export default function PortalHome() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.34, ease: [0.2, 0.8, 0.2, 1] }}
             style={{
-              width: 'min(920px, 97vw)',
-              height: 'min(90vh, 980px)',
+              width: isMobile ? 'min(96vw, 620px)' : 'min(920px, 97vw)',
+              height: isMobile ? 'min(94vh, 980px)' : 'min(90vh, 980px)',
               maxHeight: '90vh',
               background: '#f1d5a9',
               border: '4px solid black',
               boxShadow: '14px 14px 0 black',
-              padding: '14px',
+              padding: isMobile ? '10px' : '14px',
               cursor: 'default',
               display: 'grid',
               gridTemplateRows: 'auto minmax(0, 1fr) auto auto',
-              gap: '12px'
+              gap: isMobile ? '8px' : '12px'
             }}
             onClick={(event) => event.stopPropagation()}
           >
@@ -1437,7 +1445,7 @@ export default function PortalHome() {
                 transition={{ duration: 0.46, ease: [0.24, 0.84, 0.2, 1] }}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
+                  gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
                   gap: '8px',
                   height: '100%',
                   minHeight: 0,
@@ -1497,7 +1505,7 @@ export default function PortalHome() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.2 }}
             style={{
-              width: 'min(560px, 94vw)',
+              width: isMobile ? 'min(96vw, 560px)' : 'min(560px, 94vw)',
               background: '#fff',
               border: '4px solid black',
               boxShadow: '10px 10px 0 black',
@@ -1506,7 +1514,7 @@ export default function PortalHome() {
             }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '8px', flexWrap: 'wrap' }}>
               <div style={{ fontWeight: 900, letterSpacing: '0.04em' }}>HIGHLIGHTS ARCHIVE</div>
               <div style={{ fontWeight: 800, fontSize: '0.82rem', opacity: 0.75 }}>Click blue background to close</div>
             </div>
