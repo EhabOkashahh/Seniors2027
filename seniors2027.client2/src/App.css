@@ -541,6 +541,22 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
   display: none;
 }
 
+.social-link-chip {
+  box-shadow: 3px 3px 0 black;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+}
+
+.social-link-chip:hover {
+  transform: translate(-2px, -2px) scale(1.03);
+  box-shadow: 5px 5px 0 black;
+  filter: saturate(1.08);
+}
+
+.social-link-chip:active {
+  transform: translate(1px, 1px) scale(0.98);
+  box-shadow: 2px 2px 0 black;
+}
+
 @media (max-width: 900px) {
   .portal-menu-toggle {
     display: inline-flex;

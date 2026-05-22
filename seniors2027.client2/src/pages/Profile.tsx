@@ -845,6 +845,7 @@ export default function Profile() {
                     return (
                       <a
                         key={link}
+                        className="social-link-chip"
                         href={link}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -856,7 +857,6 @@ export default function Profile() {
                           borderRadius: '50%',
                           border: '2px solid black',
                           background: theme.background,
-                          boxShadow: '3px 3px 0 black',
                           display: 'grid',
                           placeItems: 'center',
                           color: 'black',
