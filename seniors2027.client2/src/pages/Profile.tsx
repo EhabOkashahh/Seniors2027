@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import {
   Image as ImageIcon,
@@ -1423,23 +1423,30 @@ export default function Profile() {
           pointerEvents: 'none'
         }}
       >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            style={{
-              border: '3px solid black',
-              boxShadow: '6px 6px 0 black',
-              background: 'var(--retro-yellow)',
-              padding: '10px 12px',
-              fontWeight: 800,
-              fontSize: '0.9rem',
-              lineHeight: 1.35,
-              pointerEvents: 'auto'
-            }}
-          >
-            {toast.message}
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              layout
+              initial={{ opacity: 0, x: 48, scale: 0.96 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 48, scale: 0.96 }}
+              transition={{ duration: 0.24, ease: [0.2, 0.8, 0.2, 1] }}
+              style={{
+                border: '3px solid black',
+                boxShadow: '6px 6px 0 black',
+                background: 'var(--retro-yellow)',
+                padding: '10px 12px',
+                fontWeight: 800,
+                fontSize: '0.9rem',
+                lineHeight: 1.35,
+                pointerEvents: 'auto'
+              }}
+            >
+              {toast.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {isSocialLinksModalOpen && (
