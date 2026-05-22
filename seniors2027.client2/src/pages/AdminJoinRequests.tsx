@@ -24,6 +24,7 @@ import {
   createAdminEventRequest,
   deleteAdminAnnouncementRequest,
   deleteAdminEventRequest,
+  deleteAdminMemoryBoardPhotoRequest,
   deleteAdminUserRequest,
   getAdminAnnouncementsRequest,
   getAdminEventsRequest,
@@ -85,6 +86,7 @@ export default function AdminJoinRequests() {
   const [announcementsMessage, setAnnouncementsMessage] = useState<string | null>(null)
 
   const [memoryBoardPendingPhotos, setMemoryBoardPendingPhotos] = useState<MemoryBoardPhoto[]>([])
+  const [memoryBoardApprovedPhotos, setMemoryBoardApprovedPhotos] = useState<MemoryBoardPhoto[]>([])
   const [memoryBoardLoading, setMemoryBoardLoading] = useState(false)
   const [memoryBoardActionId, setMemoryBoardActionId] = useState<number | null>(null)
   const [memoryBoardMessage, setMemoryBoardMessage] = useState<string | null>(null)
@@ -162,19 +164,33 @@ export default function AdminJoinRequests() {
     setEventsLoading(false)
   }, [])
 
-  const loadMemoryBoardPendingPhotos = useCallback(async () => {
+  const loadMemoryBoardPhotos = useCallback(async () => {
     setMemoryBoardLoading(true)
     setMemoryBoardMessage(null)
 
-    const result = await getAdminMemoryBoardPhotosRequest('Pending', 400)
-    if (!result.ok || !result.data) {
+    const [pendingResult, approvedResult] = await Promise.all([
+      getAdminMemoryBoardPhotosRequest('Pending', 400),
+      getAdminMemoryBoardPhotosRequest('Approved', 1200)
+    ])
+
+    if (!pendingResult.ok || !pendingResult.data) {
       setMemoryBoardPendingPhotos([])
-      setMemoryBoardMessage(result.error ?? 'Could not load pending memoryboard photos.')
+      setMemoryBoardApprovedPhotos([])
+      setMemoryBoardMessage(pendingResult.error ?? 'Could not load pending memoryboard photos.')
       setMemoryBoardLoading(false)
       return
     }
 
-    setMemoryBoardPendingPhotos(result.data)
+    if (!approvedResult.ok || !approvedResult.data) {
+      setMemoryBoardPendingPhotos(pendingResult.data)
+      setMemoryBoardApprovedPhotos([])
+      setMemoryBoardMessage(approvedResult.error ?? 'Could not load approved memoryboard photos.')
+      setMemoryBoardLoading(false)
+      return
+    }
+
+    setMemoryBoardPendingPhotos(pendingResult.data)
+    setMemoryBoardApprovedPhotos(approvedResult.data)
     setMemoryBoardLoading(false)
   }, [])
 
@@ -237,8 +253,8 @@ export default function AdminJoinRequests() {
 
   useEffect(() => {
     if (activeSection !== 'memoryboard') return
-    void loadMemoryBoardPendingPhotos()
-  }, [activeSection, loadMemoryBoardPendingPhotos])
+    void loadMemoryBoardPhotos()
+  }, [activeSection, loadMemoryBoardPhotos])
 
   const reviewRequest = async (requestId: number, decision: JoinRequestDecision) => {
     setActionRequestId(requestId)
@@ -395,6 +411,26 @@ export default function AdminJoinRequests() {
     setMemoryBoardMessage(decision === 'Approve' ? 'Photo approved.' : 'Photo rejected.')
   }
 
+  const handleDeleteMemoryBoardPhoto = async (photoId: number) => {
+    const confirmed = window.confirm('Delete this photo from Memoryboard?')
+    if (!confirmed) return
+
+    setMemoryBoardActionId(photoId)
+    setMemoryBoardMessage(null)
+
+    const result = await deleteAdminMemoryBoardPhotoRequest(photoId)
+    setMemoryBoardActionId(null)
+
+    if (!result.ok) {
+      setMemoryBoardMessage(result.error ?? 'Could not delete photo.')
+      return
+    }
+
+    setMemoryBoardPendingPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+    setMemoryBoardApprovedPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+    setMemoryBoardMessage('Photo deleted.')
+  }
+
   const isUsersPreviousDisabled = usersPageNumber === 1 || usersLoading
   const isUsersNextDisabled = usersLoading || !usersHasNextPage || adminUsers.length === 0
 
@@ -461,7 +497,7 @@ export default function AdminJoinRequests() {
                   style={activeSection === 'memoryboard' ? { background: '#d9f4ff' } : undefined}
                 >
                   <Images size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  Memoryboard Photos ({memoryBoardPendingPhotos.length})
+                  Memoryboard Photos ({memoryBoardPendingPhotos.length + memoryBoardApprovedPhotos.length})
                 </button>
               </div>
             </div>
@@ -765,12 +801,12 @@ export default function AdminJoinRequests() {
                 <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                     <div style={{ fontWeight: 900, fontSize: '0.95rem' }}>
-                      Pending photos: {memoryBoardPendingPhotos.length}
+                      Pending: {memoryBoardPendingPhotos.length} | Approved: {memoryBoardApprovedPhotos.length}
                     </div>
                     <button
                       type="button"
                       className="neo-btn"
-                      onClick={() => void loadMemoryBoardPendingPhotos()}
+                      onClick={() => void loadMemoryBoardPhotos()}
                       disabled={memoryBoardLoading}
                       style={{ minWidth: 'auto', padding: '10px 14px' }}
                     >
@@ -780,7 +816,7 @@ export default function AdminJoinRequests() {
                   </div>
 
                   <p style={{ margin: 0, fontWeight: 700, opacity: 0.78 }}>
-                    New uploads stay hidden in Memoryboard until approved here.
+                    Review new uploads and delete any Memoryboard photo directly from this section.
                   </p>
                   {memoryBoardMessage && <div style={{ fontWeight: 800 }}>{memoryBoardMessage}</div>}
                 </div>
@@ -789,72 +825,139 @@ export default function AdminJoinRequests() {
               {memoryBoardLoading ? (
                 <div className="window">
                   <div className="window-content" style={{ padding: '18px', textAlign: 'left' }}>
-                    <p style={{ margin: 0, fontWeight: 800 }}>Loading pending photos...</p>
-                  </div>
-                </div>
-              ) : memoryBoardPendingPhotos.length === 0 ? (
-                <div className="window">
-                  <div className="window-content" style={{ padding: '18px', textAlign: 'left' }}>
-                    <p style={{ margin: 0, fontWeight: 800 }}>No pending photos right now.</p>
+                    <p style={{ margin: 0, fontWeight: 800 }}>Loading memoryboard photos...</p>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '14px' }}>
-                  {memoryBoardPendingPhotos.map((photo) => {
-                    const isBusy = memoryBoardActionId === photo.id
-                    const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
-                    const createdAtLabel = formatDateTime(photo.createdAt)
+                <>
+                  <div className="window" style={{ maxWidth: '100%' }}>
+                    <div className="window-header" style={{ background: '#cfe7ff' }}>
+                      <span style={{ fontWeight: 900 }}>PENDING_PHOTOS</span>
+                    </div>
+                    <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
+                      {memoryBoardPendingPhotos.length === 0 ? (
+                        <p style={{ margin: 0, fontWeight: 800 }}>No pending photos right now.</p>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '14px' }}>
+                          {memoryBoardPendingPhotos.map((photo) => {
+                            const isBusy = memoryBoardActionId === photo.id
+                            const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
+                            const createdAtLabel = formatDateTime(photo.createdAt)
 
-                    return (
-                      <div
-                        key={photo.id}
-                        style={{
-                          border: '4px solid black',
-                          boxShadow: '6px 6px 0 black',
-                          background: 'white',
-                          overflow: 'hidden',
-                          display: 'grid'
-                        }}
-                      >
-                        <img
-                          src={photo.photoUrl}
-                          alt={`Pending memoryboard photo by ${photo.username}`}
-                          style={{ width: '100%', height: '220px', objectFit: 'cover', borderBottom: '4px solid black', background: '#eaf1ff' }}
-                        />
+                            return (
+                              <div
+                                key={`pending-${photo.id}`}
+                                style={{
+                                  border: '4px solid black',
+                                  boxShadow: '6px 6px 0 black',
+                                  background: 'white',
+                                  overflow: 'hidden',
+                                  display: 'grid'
+                                }}
+                              >
+                                <img
+                                  src={photo.photoUrl}
+                                  alt={`Pending memoryboard photo by ${photo.username}`}
+                                  style={{ width: '100%', height: '220px', objectFit: 'cover', borderBottom: '4px solid black', background: '#eaf1ff' }}
+                                />
 
-                        <div style={{ padding: '12px', display: 'grid', gap: '8px' }}>
-                          <div style={{ fontWeight: 900, fontSize: '1rem', wordBreak: 'break-word' }}>{photo.username}</div>
-                          <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.8 }}>Taken: {takenAtLabel}</div>
-                          <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.72 }}>Uploaded: {createdAtLabel}</div>
+                                <div style={{ padding: '12px', display: 'grid', gap: '8px' }}>
+                                  <div style={{ fontWeight: 900, fontSize: '1rem', wordBreak: 'break-word' }}>{photo.username}</div>
+                                  <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.8 }}>Taken: {takenAtLabel}</div>
+                                  <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.72 }}>Uploaded: {createdAtLabel}</div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                            <button
-                              type="button"
-                              className="neo-btn"
-                              disabled={isBusy}
-                              onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Approve')}
-                              style={{ minWidth: 'auto', padding: '9px 10px', background: '#c9ffd2' }}
-                            >
-                              <CheckCircle2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              className="neo-btn"
-                              disabled={isBusy}
-                              onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Reject')}
-                              style={{ minWidth: 'auto', padding: '9px 10px', background: '#ffc8c8' }}
-                            >
-                              <XCircle size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                              Reject
-                            </button>
-                          </div>
-                          {isBusy && <div style={{ fontWeight: 800, fontSize: '0.76rem' }}>Saving...</div>}
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                                    <button
+                                      type="button"
+                                      className="neo-btn"
+                                      disabled={isBusy}
+                                      onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Approve')}
+                                      style={{ minWidth: 'auto', padding: '9px 10px', background: '#c9ffd2' }}
+                                    >
+                                      <CheckCircle2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                      Approve
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="neo-btn"
+                                      disabled={isBusy}
+                                      onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Reject')}
+                                      style={{ minWidth: 'auto', padding: '9px 10px', background: '#ffc8c8' }}
+                                    >
+                                      <XCircle size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                      Reject
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="neo-btn"
+                                      disabled={isBusy}
+                                      onClick={() => void handleDeleteMemoryBoardPhoto(photo.id)}
+                                      style={{ minWidth: 'auto', padding: '9px 10px', background: '#ffb9b9' }}
+                                    >
+                                      <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                      Delete
+                                    </button>
+                                  </div>
+                                  {isBusy && <div style={{ fontWeight: 800, fontSize: '0.76rem' }}>Saving...</div>}
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="window" style={{ maxWidth: '100%' }}>
+                    <div className="window-header" style={{ background: '#d7ffd8' }}>
+                      <span style={{ fontWeight: 900 }}>APPROVED_PHOTOS</span>
+                    </div>
+                    <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
+                      {memoryBoardApprovedPhotos.length === 0 ? (
+                        <p style={{ margin: 0, fontWeight: 800 }}>No approved photos yet.</p>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '12px' }}>
+                          {memoryBoardApprovedPhotos.map((photo) => {
+                            const isBusy = memoryBoardActionId === photo.id
+                            const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
+                            return (
+                              <div
+                                key={`approved-${photo.id}`}
+                                style={{
+                                  border: '3px solid black',
+                                  boxShadow: '5px 5px 0 black',
+                                  background: 'white',
+                                  overflow: 'hidden',
+                                  display: 'grid'
+                                }}
+                              >
+                                <img
+                                  src={photo.photoUrl}
+                                  alt={`Approved memoryboard photo by ${photo.username}`}
+                                  style={{ width: '100%', height: '170px', objectFit: 'cover', borderBottom: '3px solid black', background: '#eaf1ff' }}
+                                />
+                                <div style={{ padding: '10px', display: 'grid', gap: '7px' }}>
+                                  <div style={{ fontWeight: 900, fontSize: '0.9rem', wordBreak: 'break-word' }}>{photo.username}</div>
+                                  <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.8 }}>{takenAtLabel}</div>
+                                  <button
+                                    type="button"
+                                    className="neo-btn"
+                                    disabled={isBusy}
+                                    onClick={() => void handleDeleteMemoryBoardPhoto(photo.id)}
+                                    style={{ minWidth: 'auto', width: 'fit-content', padding: '8px 10px', background: '#ffb9b9' }}
+                                  >
+                                    <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           )}

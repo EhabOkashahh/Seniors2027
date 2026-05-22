@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Clock3, ImagePlus, Images, Upload } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Upload, X } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import {
   getMemoryBoardPhotosRequest,
@@ -16,6 +16,8 @@ export default function MemoryBoard() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [isViewerOpen, setIsViewerOpen] = useState(false)
+  const [viewerIndex, setViewerIndex] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadPhotos = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -73,8 +75,33 @@ export default function MemoryBoard() {
     })
   }, [photos])
 
+  useEffect(() => {
+    if (sortedPhotos.length === 0) {
+      setIsViewerOpen(false)
+      setViewerIndex(0)
+      return
+    }
+
+    setViewerIndex((prev) => Math.min(prev, sortedPhotos.length - 1))
+  }, [sortedPhotos])
+
   const handleOpenFilePicker = () => {
     fileInputRef.current?.click()
+  }
+
+  const openViewerAt = (index: number) => {
+    setViewerIndex(index)
+    setIsViewerOpen(true)
+  }
+
+  const goViewerPrevious = () => {
+    if (sortedPhotos.length <= 1) return
+    setViewerIndex((prev) => (prev - 1 + sortedPhotos.length) % sortedPhotos.length)
+  }
+
+  const goViewerNext = () => {
+    if (sortedPhotos.length <= 1) return
+    setViewerIndex((prev) => (prev + 1) % sortedPhotos.length)
   }
 
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,6 +217,7 @@ export default function MemoryBoard() {
                           key={item.id}
                           whileHover={{ y: -3, rotate: rotation + 0.6, scale: 1.03 }}
                           transition={{ duration: 0.16 }}
+                          onClick={() => openViewerAt(index)}
                           style={{
                             border: '2px solid black',
                             boxShadow: '4px 4px 0 black',
@@ -197,7 +225,8 @@ export default function MemoryBoard() {
                             padding: '6px',
                             display: 'grid',
                             gap: '6px',
-                            transform: `rotate(${rotation}deg)`
+                            transform: `rotate(${rotation}deg)`,
+                            cursor: 'pointer'
                           }}
                         >
                           <div
@@ -237,6 +266,90 @@ export default function MemoryBoard() {
           </div>
         </div>
       </motion.div>
+
+      {isViewerOpen && sortedPhotos[viewerIndex] && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1250,
+            background: 'rgba(0, 0, 0, 0.86)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '18px'
+          }}
+          onClick={() => setIsViewerOpen(false)}
+        >
+          <div
+            style={{
+              width: 'min(980px, 96vw)',
+              background: '#fff7e6',
+              border: '4px solid black',
+              boxShadow: '10px 10px 0 black',
+              padding: '12px',
+              display: 'grid',
+              gap: '10px'
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+              <div style={{ fontWeight: 900, fontSize: '0.92rem' }}>
+                {viewerIndex + 1} / {sortedPhotos.length}
+              </div>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={() => setIsViewerOpen(false)}
+                style={{ minWidth: 'auto', padding: '8px 10px', background: '#ffd1d1' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={goViewerPrevious}
+                disabled={sortedPhotos.length <= 1}
+                style={{ minWidth: 'auto', padding: '8px 10px' }}
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <img
+                src={sortedPhotos[viewerIndex].photoUrl}
+                alt={`Memory photo by ${sortedPhotos[viewerIndex].username}`}
+                style={{
+                  width: '100%',
+                  maxHeight: '76vh',
+                  objectFit: 'contain',
+                  border: '3px solid black',
+                  background: '#0f0f0f'
+                }}
+              />
+
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={goViewerNext}
+                disabled={sortedPhotos.length <= 1}
+                style={{ minWidth: 'auto', padding: '8px 10px' }}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 900, fontSize: '0.84rem' }}>{sortedPhotos[viewerIndex].username}</div>
+              <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.78 }}>
+                {formatShortDate(sortedPhotos[viewerIndex].exifTakenAtUtc ?? sortedPhotos[viewerIndex].createdAt)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </PortalLayout>
   )
 }

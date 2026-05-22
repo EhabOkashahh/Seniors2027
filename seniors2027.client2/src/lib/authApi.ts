@@ -1292,6 +1292,29 @@ export async function reviewAdminMemoryBoardPhotoRequest(
   }
 }
 
+export async function deleteAdminMemoryBoardPhotoRequest(photoId: number): Promise<ApiResult<null>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/memoryboard/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    return { ok: true, data: null }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
 export async function getPortalAnnouncementsRequest(maxCount: number = 6): Promise<ApiResult<AnnouncementItem[]>> {
   try {
     const token = getAuthToken()

@@ -555,6 +555,26 @@ public class AdminController(
         return Ok(updated);
     }
 
+    [HttpDelete("memoryboard/photos/{photoId:int}")]
+    public async Task<ActionResult> DeleteMemoryBoardPhoto(int photoId)
+    {
+        var photo = await _context.MemoryBoardPhotos.FirstOrDefaultAsync(p => p.Id == photoId);
+        if (photo == null) return NotFound();
+
+        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+        var hasLocalPhoto = TryGetLocalSeniorsPhotoPath(photo.PhotoUrl, photosDirectory, out var localPhotoPath);
+
+        _context.MemoryBoardPhotos.Remove(photo);
+        await _context.SaveChangesAsync();
+
+        if (hasLocalPhoto)
+        {
+            TryDeleteFile(localPhotoPath);
+        }
+
+        return NoContent();
+    }
+
     private static AdminUserListItemDto MapAdminUserDto(User user)
     {
         return new AdminUserListItemDto
