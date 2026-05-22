@@ -139,7 +139,10 @@ export default function Directory() {
                     boxShadow: '6px 6px 0px black',
                     cursor: 'pointer',
                     overflow: 'hidden',
-                    transition: 'box-shadow 0.2s'
+                    transition: 'box-shadow 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%'
                   }}
                 >
                   <div style={{ width: '100%', height: isMobile ? '150px' : '200px', borderBottom: '4px solid black', background: '#eee' }}>
@@ -155,13 +158,23 @@ export default function Directory() {
                       </div>
                     )}
                   </div>
-                  <div style={{ padding: '15px', textAlign: 'center' }}>
-                    <div style={{ fontWeight: 900, fontSize: '1.1rem', textTransform: 'uppercase' }}>{user.username}</div>
+                  <div style={{ padding: '15px', textAlign: 'center', display: 'flex', flexDirection: 'column', flex: 1, gap: '12px' }}>
+                    <div
+                      style={{
+                        fontWeight: 900,
+                        fontSize: '1.1rem',
+                        textTransform: 'uppercase',
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word'
+                      }}
+                    >
+                      {user.username}
+                    </div>
                     <button 
                       style={{
                         display: 'block',
                         width: '100%',
-                        marginTop: '15px',
+                        marginTop: 'auto',
                         padding: '8px',
                         fontWeight: 900,
                         background: 'black',
