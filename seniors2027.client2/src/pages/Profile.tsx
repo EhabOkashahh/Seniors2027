@@ -839,7 +839,9 @@ export default function Profile() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
                   {visibleSocialLinks.map((link) => {
                     const platform = detectSocialPlatform(link)
+                    const brandIconUrl = getSocialPlatformIconUrl(platform)
                     const faviconUrl = getWebsiteFaviconUrl(link)
+                    const theme = getSocialPlatformTheme(platform)
                     return (
                       <a
                         key={link}
@@ -853,7 +855,7 @@ export default function Profile() {
                           height: '40px',
                           borderRadius: '50%',
                           border: '2px solid black',
-                          background: '#fff7cf',
+                          background: theme.background,
                           boxShadow: '3px 3px 0 black',
                           display: 'grid',
                           placeItems: 'center',
@@ -862,7 +864,7 @@ export default function Profile() {
                         }}
                       >
                         <img
-                          src={faviconUrl ?? '/favicon.svg'}
+                          src={brandIconUrl ?? faviconUrl ?? '/favicon.svg'}
                           alt={`${platform} icon`}
                           onError={(event) => {
                             event.currentTarget.src = '/favicon.svg'
@@ -1181,7 +1183,9 @@ export default function Profile() {
               ) : (
                 socialLinksDraft.map((link) => {
                   const platform = detectSocialPlatform(link)
+                  const brandIconUrl = getSocialPlatformIconUrl(platform)
                   const faviconUrl = getWebsiteFaviconUrl(link)
+                  const theme = getSocialPlatformTheme(platform)
                   return (
                     <div
                       key={link}
@@ -1195,9 +1199,19 @@ export default function Profile() {
                         padding: '6px 8px'
                       }}
                     >
-                      <div style={{ width: '32px', height: '32px', border: '2px solid black', borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'white' }}>
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          border: '2px solid black',
+                          borderRadius: '50%',
+                          display: 'grid',
+                          placeItems: 'center',
+                          background: theme.background
+                        }}
+                      >
                         <img
-                          src={faviconUrl ?? '/favicon.svg'}
+                          src={brandIconUrl ?? faviconUrl ?? '/favicon.svg'}
                           alt={`${platform} icon`}
                           onError={(event) => {
                             event.currentTarget.src = '/favicon.svg'
@@ -1636,6 +1650,52 @@ function detectSocialPlatform(link: string): SocialPlatform {
     return 'website'
   } catch {
     return 'website'
+  }
+}
+
+function getSocialPlatformTheme(platform: SocialPlatform): { background: string } {
+  switch (platform) {
+    case 'instagram':
+      return { background: 'linear-gradient(135deg, #feda75 0%, #fa7e1e 28%, #d62976 55%, #962fbf 78%, #4f5bd5 100%)' }
+    case 'facebook':
+      return { background: '#1877f2' }
+    case 'twitter':
+      return { background: '#111111' }
+    case 'youtube':
+      return { background: '#ff0000' }
+    case 'linkedin':
+      return { background: '#0a66c2' }
+    case 'github':
+      return { background: '#24292f' }
+    case 'telegram':
+      return { background: '#229ed9' }
+    case 'tiktok':
+      return { background: 'linear-gradient(135deg, #25f4ee 0%, #000000 55%, #fe2c55 100%)' }
+    default:
+      return { background: 'var(--retro-yellow)' }
+  }
+}
+
+function getSocialPlatformIconUrl(platform: SocialPlatform): string | null {
+  switch (platform) {
+    case 'instagram':
+      return 'https://cdn.simpleicons.org/instagram/ffffff'
+    case 'facebook':
+      return 'https://cdn.simpleicons.org/facebook/ffffff'
+    case 'twitter':
+      return 'https://cdn.simpleicons.org/x/ffffff'
+    case 'youtube':
+      return 'https://cdn.simpleicons.org/youtube/ffffff'
+    case 'linkedin':
+      return 'https://cdn.simpleicons.org/linkedin/ffffff'
+    case 'github':
+      return 'https://cdn.simpleicons.org/github/ffffff'
+    case 'telegram':
+      return 'https://cdn.simpleicons.org/telegram/ffffff'
+    case 'tiktok':
+      return 'https://cdn.simpleicons.org/tiktok/ffffff'
+    default:
+      return null
   }
 }
 
