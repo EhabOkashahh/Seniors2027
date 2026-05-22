@@ -1178,7 +1178,7 @@ export default function Profile() {
             >
               {socialLinksDraft.length === 0 ? (
                 <div style={{ fontWeight: 700, opacity: 0.8 }}>
-                  No links yet. Add Instagram, Facebook, TikTok, YouTube, LinkedIn, or any website profile.
+                  No links yet. Add Instagram, Facebook, TikTok, YouTube, LinkedIn, Behance, Gmail, WhatsApp, or any website profile.
                 </div>
               ) : (
                 socialLinksDraft.map((link) => {
@@ -1596,6 +1596,9 @@ type SocialPlatform =
   | 'github'
   | 'telegram'
   | 'tiktok'
+  | 'whatsapp'
+  | 'gmail'
+  | 'behance'
   | 'website'
 
 function normalizeSocialLinks(links: string[] | undefined | null): string[] {
@@ -1646,6 +1649,9 @@ function detectSocialPlatform(link: string): SocialPlatform {
     if (hostname.includes('github.')) return 'github'
     if (hostname === 't.me' || hostname.includes('telegram.')) return 'telegram'
     if (hostname.includes('tiktok.')) return 'tiktok'
+    if (hostname === 'wa.me' || hostname.includes('whatsapp.')) return 'whatsapp'
+    if (hostname.includes('gmail.') || hostname.includes('googlemail.') || hostname === 'mail.google.com') return 'gmail'
+    if (hostname.includes('behance.')) return 'behance'
 
     return 'website'
   } catch {
@@ -1671,6 +1677,12 @@ function getSocialPlatformTheme(platform: SocialPlatform): { background: string 
       return { background: '#229ed9' }
     case 'tiktok':
       return { background: 'linear-gradient(135deg, #25f4ee 0%, #000000 55%, #fe2c55 100%)' }
+    case 'whatsapp':
+      return { background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)' }
+    case 'gmail':
+      return { background: '#ea4335' }
+    case 'behance':
+      return { background: '#1769ff' }
     default:
       return { background: 'var(--retro-yellow)' }
   }
@@ -1694,6 +1706,12 @@ function getSocialPlatformIconUrl(platform: SocialPlatform): string | null {
       return 'https://cdn.simpleicons.org/telegram/ffffff'
     case 'tiktok':
       return 'https://cdn.simpleicons.org/tiktok/ffffff'
+    case 'whatsapp':
+      return 'https://cdn.simpleicons.org/whatsapp/ffffff'
+    case 'gmail':
+      return 'https://cdn.simpleicons.org/gmail/ffffff'
+    case 'behance':
+      return 'https://cdn.simpleicons.org/behance/ffffff'
     default:
       return null
   }
@@ -1715,7 +1733,10 @@ function getWebsiteFaviconUrl(link: string): string | null {
       linkedin: 'linkedin.com',
       github: 'github.com',
       telegram: 'telegram.org',
-      tiktok: 'tiktok.com'
+      tiktok: 'tiktok.com',
+      whatsapp: 'whatsapp.com',
+      gmail: 'gmail.com',
+      behance: 'behance.net'
     }
 
     const domain = preferredDomains[platform] ?? url.hostname.toLowerCase().replace(/^www\./, '')
