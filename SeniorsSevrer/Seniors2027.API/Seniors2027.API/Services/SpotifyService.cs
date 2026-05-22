@@ -48,7 +48,7 @@ public sealed class SpotifyService : ISpotifyService
         query.Append("&scope=").Append(Uri.EscapeDataString(scopes));
         query.Append("&redirect_uri=").Append(Uri.EscapeDataString(_redirectUri));
         query.Append("&state=").Append(Uri.EscapeDataString(state));
-        query.Append("&show_dialog=false");
+        query.Append("&show_dialog=true");
 
         return $"{AccountsBaseUrl}/authorize?{query}";
     }

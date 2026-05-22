@@ -1062,7 +1062,14 @@ export default function Profile() {
                             className="neo-btn"
                             onClick={() => void handleConnectSpotify()}
                             disabled={spotifyActionLoading}
-                            style={{ minWidth: 'auto', width: 'fit-content', background: '#ccffd5' }}
+                            style={{
+                              minWidth: 'auto',
+                              width: 'fit-content',
+                              background: '#ccffd5',
+                              padding: '4px 10px',
+                              fontSize: '0.75rem',
+                              boxShadow: '3px 3px 0 black'
+                            }}
                           >
                             {spotifyActionLoading ? 'Connecting...' : 'Connect Spotify'}
                           </button>
@@ -1123,7 +1130,14 @@ export default function Profile() {
                           className="neo-btn"
                           onClick={() => void handleDisconnectSpotify()}
                           disabled={spotifyActionLoading}
-                          style={{ minWidth: 'auto', width: 'fit-content', background: '#ffd5d5' }}
+                          style={{
+                            minWidth: 'auto',
+                            width: 'fit-content',
+                            background: '#ffd5d5',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            boxShadow: '3px 3px 0 black'
+                          }}
                         >
                           {spotifyActionLoading ? 'Working...' : 'Disconnect Spotify'}
                         </button>
