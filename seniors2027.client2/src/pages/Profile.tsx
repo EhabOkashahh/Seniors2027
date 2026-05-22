@@ -906,9 +906,22 @@ export default function Profile() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '96px' }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontWeight: 700,
+                        fontSize: '1rem',
+                        lineHeight: 1.45,
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {descriptionInput?.trim() || 'No description yet.'}
+                    </p>
                     {isOwnProfile && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '8px', marginTop: 'auto' }}>
                         <button
                           type="button"
                           aria-label="Edit description"
@@ -937,19 +950,6 @@ export default function Profile() {
                         </button>
                       </div>
                     )}
-                    <p
-                      style={{
-                        margin: 0,
-                        fontWeight: 700,
-                        fontSize: '1rem',
-                        lineHeight: 1.45,
-                        whiteSpace: 'pre-wrap',
-                        overflowWrap: 'anywhere',
-                        wordBreak: 'break-word',
-                      }}
-                    >
-                      {descriptionInput?.trim() || 'No description yet.'}
-                    </p>
                   </div>
                 )}
               </div>
