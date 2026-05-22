@@ -599,6 +599,58 @@ export async function uploadMemoryBoardPhotoRequest(file: File): Promise<ApiResu
   }
 }
 
+export async function getMyMemoryBoardPhotosRequest(
+  status: MemoryBoardPhotoStatus = 'Pending',
+  maxCount: number = 400
+): Promise<ApiResult<MemoryBoardPhoto[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/memoryboard/my/photos?status=${encodeURIComponent(status)}&maxCount=${maxCount}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as MemoryBoardPhoto[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function deleteMyMemoryBoardPhotoRequest(photoId: number): Promise<ApiResult<null>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/memoryboard/my/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    return { ok: true, data: null }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
 export async function getActiveDailyHighlightsRequest(maxCount: number = 50): Promise<ApiResult<DailyHighlight[]>> {
   try {
     const token = getAuthToken()

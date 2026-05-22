@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Upload, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Trash2, Upload, X } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import {
+  deleteMyMemoryBoardPhotoRequest,
+  getMeRequest,
   getMemoryBoardPhotosRequest,
+  getMyMemoryBoardPhotosRequest,
   uploadMemoryBoardPhotoRequest,
   type MemoryBoardPhoto
 } from '../lib/authApi'
@@ -13,11 +16,16 @@ const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
 
 export default function MemoryBoard() {
   const [photos, setPhotos] = useState<MemoryBoardPhoto[]>([])
+  const [myPendingPhotos, setMyPendingPhotos] = useState<MemoryBoardPhoto[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [myUploadsLoading, setMyUploadsLoading] = useState(false)
+  const [myUserId, setMyUserId] = useState<number | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
+  const [isMyUploadsOpen, setIsMyUploadsOpen] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
+  const [deleteActionId, setDeleteActionId] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadPhotos = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -43,17 +51,52 @@ export default function MemoryBoard() {
   }, [])
 
   useEffect(() => {
+    const run = async () => {
+      const meResult = await getMeRequest()
+      if (meResult.ok && meResult.data) {
+        setMyUserId(meResult.data.id)
+      }
+    }
+
+    void run()
+  }, [])
+
+  const loadMyPendingPhotos = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setMyUploadsLoading(true)
+    }
+
+    const result = await getMyMemoryBoardPhotosRequest('Pending', 800)
+    if (!result.ok || !result.data) {
+      if (!silent) {
+        setMyPendingPhotos([])
+        setMessage(result.error ?? 'Could not load your pending uploads.')
+        setMyUploadsLoading(false)
+      }
+      return
+    }
+
+    setMyPendingPhotos(result.data)
+    if (!silent) {
+      setMyUploadsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
     void loadPhotos()
-  }, [loadPhotos])
+    void loadMyPendingPhotos({ silent: true })
+  }, [loadPhotos, loadMyPendingPhotos])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       void loadPhotos({ silent: true })
+      void loadMyPendingPhotos({ silent: true })
     }, MEMORYBOARD_SYNC_INTERVAL_MS)
 
     const onVisibilityOrFocus = () => {
       if (document.visibilityState !== 'hidden') {
         void loadPhotos({ silent: true })
+        void loadMyPendingPhotos({ silent: true })
       }
     }
 
@@ -65,7 +108,7 @@ export default function MemoryBoard() {
       document.removeEventListener('visibilitychange', onVisibilityOrFocus)
       window.removeEventListener('focus', onVisibilityOrFocus)
     }
-  }, [loadPhotos])
+  }, [loadPhotos, loadMyPendingPhotos])
 
   const sortedPhotos = useMemo(() => {
     return [...photos].sort((left, right) => {
@@ -89,6 +132,11 @@ export default function MemoryBoard() {
     fileInputRef.current?.click()
   }
 
+  const handleOpenMyUploads = () => {
+    setIsMyUploadsOpen(true)
+    void loadMyPendingPhotos()
+  }
+
   const openViewerAt = (index: number) => {
     setViewerIndex(index)
     setIsViewerOpen(true)
@@ -102,6 +150,29 @@ export default function MemoryBoard() {
   const goViewerNext = () => {
     if (sortedPhotos.length <= 1) return
     setViewerIndex((prev) => (prev + 1) % sortedPhotos.length)
+  }
+
+  const handleDeleteMyPhoto = async (photoId: number, mode: 'delete' | 'withdraw') => {
+    const confirmMessage = mode === 'withdraw'
+      ? 'Withdraw this photo from approval queue?'
+      : 'Delete your photo from Memoryboard?'
+    const confirmed = window.confirm(confirmMessage)
+    if (!confirmed) return
+
+    setDeleteActionId(photoId)
+    setMessage(null)
+
+    const result = await deleteMyMemoryBoardPhotoRequest(photoId)
+    setDeleteActionId(null)
+
+    if (!result.ok) {
+      setMessage(result.error ?? 'Could not delete photo.')
+      return
+    }
+
+    setPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+    setMyPendingPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+    setMessage(mode === 'withdraw' ? 'Pending photo withdrawn.' : 'Photo deleted from Memoryboard.')
   }
 
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +197,7 @@ export default function MemoryBoard() {
       return
     }
 
+    setMyPendingPhotos((prev) => [result.data!, ...prev.filter((photo) => photo.id !== result.data!.id)])
     setMessage('Photo uploaded. It will appear in Memoryboard after admin approval.')
   }
 
@@ -143,16 +215,26 @@ export default function MemoryBoard() {
                 <div style={{ display: 'grid', gap: '4px' }}>
                   <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.02em' }}>Memoryboard</h1>
                 </div>
-                <button
-                  type="button"
-                  className="neo-btn"
-                  onClick={handleOpenFilePicker}
-                  disabled={uploading}
-                  style={{ minWidth: 'auto', padding: '10px 14px', background: '#d6ffd9' }}
-                >
-                  <Upload size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  {uploading ? 'Uploading...' : 'Add Photo'}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="neo-btn"
+                    onClick={handleOpenMyUploads}
+                    style={{ minWidth: 'auto', padding: '10px 14px', background: '#ffe6c2' }}
+                  >
+                    My Uploads ({myPendingPhotos.length})
+                  </button>
+                  <button
+                    type="button"
+                    className="neo-btn"
+                    onClick={handleOpenFilePicker}
+                    disabled={uploading}
+                    style={{ minWidth: 'auto', padding: '10px 14px', background: '#d6ffd9' }}
+                  >
+                    <Upload size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    {uploading ? 'Uploading...' : 'Add Photo'}
+                  </button>
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -205,6 +287,8 @@ export default function MemoryBoard() {
                     {sortedPhotos.map((item, index) => {
                       const rotation = ((item.id * 7 + index * 3) % 7) - 3
                       const pinColor = PHOTO_PIN_COLORS[(item.id + index) % PHOTO_PIN_COLORS.length]
+                      const isOwnedByMe = myUserId !== null && item.userId === myUserId
+                      const isDeleting = deleteActionId === item.id
 
                       return (
                         <motion.div
@@ -250,6 +334,21 @@ export default function MemoryBoard() {
                             <Clock3 size={11} />
                             {formatShortDate(item.exifTakenAtUtc ?? item.createdAt)}
                           </div>
+                          {isOwnedByMe && (
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              disabled={isDeleting}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                void handleDeleteMyPhoto(item.id, 'delete')
+                              }}
+                              style={{ minWidth: 'auto', width: 'fit-content', padding: '5px 8px', fontSize: '0.62rem', background: '#ffd0d0' }}
+                            >
+                              <Trash2 size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                              {isDeleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                          )}
                         </motion.div>
                       )
                     })}
@@ -260,6 +359,111 @@ export default function MemoryBoard() {
           </div>
         </div>
       </motion.div>
+
+      {isMyUploadsOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1240,
+            background: 'rgba(0, 0, 0, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '18px'
+          }}
+          onClick={() => setIsMyUploadsOpen(false)}
+        >
+          <div
+            style={{
+              width: 'min(860px, 96vw)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              background: '#fff7e6',
+              border: '4px solid black',
+              boxShadow: '10px 10px 0 black',
+              padding: '14px',
+              display: 'grid',
+              gap: '10px'
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 900, fontSize: '1rem' }}>Pending Uploads ({myPendingPhotos.length})</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={() => void loadMyPendingPhotos()}
+                  disabled={myUploadsLoading}
+                  style={{ minWidth: 'auto', padding: '7px 10px' }}
+                >
+                  {myUploadsLoading ? 'Refreshing...' : 'Refresh'}
+                </button>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={() => setIsMyUploadsOpen(false)}
+                  style={{ minWidth: 'auto', padding: '7px 10px', background: '#ffd1d1' }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+
+            {myUploadsLoading ? (
+              <p style={{ margin: 0, fontWeight: 800 }}>Loading your pending uploads...</p>
+            ) : myPendingPhotos.length === 0 ? (
+              <p style={{ margin: 0, fontWeight: 800 }}>You have no photos waiting for approval.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '10px' }}>
+                {myPendingPhotos.map((photo) => {
+                  const isDeleting = deleteActionId === photo.id
+                  return (
+                    <div
+                      key={`mine-pending-${photo.id}`}
+                      style={{
+                        border: '2px solid black',
+                        boxShadow: '4px 4px 0 black',
+                        background: 'white',
+                        padding: '8px',
+                        display: 'grid',
+                        gap: '7px'
+                      }}
+                    >
+                      <img
+                        src={photo.photoUrl}
+                        alt="Pending upload"
+                        style={{
+                          width: '100%',
+                          height: '130px',
+                          objectFit: 'cover',
+                          border: '2px solid black',
+                          background: '#eaf1ff'
+                        }}
+                      />
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.7rem', opacity: 0.8 }}>
+                        <Clock3 size={11} />
+                        {formatShortDate(photo.exifTakenAtUtc ?? photo.createdAt)}
+                      </div>
+                      <button
+                        type="button"
+                        className="neo-btn"
+                        disabled={isDeleting}
+                        onClick={() => void handleDeleteMyPhoto(photo.id, 'withdraw')}
+                        style={{ minWidth: 'auto', width: 'fit-content', padding: '6px 9px', fontSize: '0.7rem', background: '#ffd6d6' }}
+                      >
+                        <Trash2 size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                        {isDeleting ? 'Withdrawing...' : 'Withdraw'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {isViewerOpen && sortedPhotos[viewerIndex] && (
         <div
