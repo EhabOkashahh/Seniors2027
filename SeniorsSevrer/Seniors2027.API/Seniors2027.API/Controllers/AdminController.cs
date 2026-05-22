@@ -518,16 +518,48 @@ public class AdminController(
     {
         if (!User.TryGetUserId(out var reviewerUserId)) return Unauthorized();
 
-        var photo = await _context.MemoryBoardPhotos.FirstOrDefaultAsync(p => p.Id == photoId);
+        var photo = await _context.MemoryBoardPhotos
+            .Include(p => p.User)
+            .FirstOrDefaultAsync(p => p.Id == photoId);
         if (photo == null) return NotFound();
         if (photo.Status != MemoryBoardPhotoStatus.Pending)
         {
             return BadRequest("Photo is already reviewed.");
         }
 
-        photo.Status = dto.Decision == MemoryBoardPhotoDecision.Approve
-            ? MemoryBoardPhotoStatus.Approved
-            : MemoryBoardPhotoStatus.Rejected;
+        if (dto.Decision == MemoryBoardPhotoDecision.Reject)
+        {
+            var reviewedAtUtc = DateTime.UtcNow;
+            var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+            var hasLocalPhoto = TryGetLocalSeniorsPhotoPath(photo.PhotoUrl, photosDirectory, out var localPhotoPath);
+
+            _context.MemoryBoardPhotos.Remove(photo);
+            await _context.SaveChangesAsync();
+
+            if (hasLocalPhoto)
+            {
+                TryDeleteFile(localPhotoPath);
+            }
+
+            var rejected = new MemoryBoardPhotoDto
+            {
+                Id = photo.Id,
+                UserId = photo.UserId,
+                Username = photo.User.Username,
+                PhotoUrl = photo.PhotoUrl,
+                Status = MemoryBoardPhotoStatus.Rejected,
+                CreatedAt = photo.CreatedAt,
+                ExifTakenAtUtc = photo.ExifTakenAtUtc,
+                SortDateUtc = photo.ExifTakenAtUtc ?? photo.CreatedAt,
+                ReviewedAtUtc = reviewedAtUtc,
+                ReviewedByUserId = reviewerUserId,
+                ReviewedByUsername = null
+            };
+
+            return Ok(rejected);
+        }
+
+        photo.Status = MemoryBoardPhotoStatus.Approved;
         photo.ReviewedByUserId = reviewerUserId;
         photo.ReviewedAtUtc = DateTime.UtcNow;
 

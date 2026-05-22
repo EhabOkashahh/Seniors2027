@@ -24,7 +24,6 @@ import {
   createAdminEventRequest,
   deleteAdminAnnouncementRequest,
   deleteAdminEventRequest,
-  deleteAdminMemoryBoardPhotoRequest,
   deleteAdminUserRequest,
   getAdminAnnouncementsRequest,
   getAdminEventsRequest,
@@ -47,6 +46,7 @@ import {
 const USERS_PAGE_SIZE = 20
 const USERS_FETCH_SIZE = USERS_PAGE_SIZE + 1
 const REQUESTS_SYNC_INTERVAL_MS = 5000
+const MEMORYBOARD_SYNC_INTERVAL_MS = 5000
 
 type AdminSection = 'requests' | 'users' | 'announcements' | 'memoryboard'
 
@@ -164,9 +164,11 @@ export default function AdminJoinRequests() {
     setEventsLoading(false)
   }, [])
 
-  const loadMemoryBoardPhotos = useCallback(async () => {
-    setMemoryBoardLoading(true)
-    setMemoryBoardMessage(null)
+  const loadMemoryBoardPhotos = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setMemoryBoardLoading(true)
+      setMemoryBoardMessage(null)
+    }
 
     const [pendingResult, approvedResult] = await Promise.all([
       getAdminMemoryBoardPhotosRequest('Pending', 400),
@@ -174,24 +176,30 @@ export default function AdminJoinRequests() {
     ])
 
     if (!pendingResult.ok || !pendingResult.data) {
-      setMemoryBoardPendingPhotos([])
-      setMemoryBoardApprovedPhotos([])
-      setMemoryBoardMessage(pendingResult.error ?? 'Could not load pending memoryboard photos.')
-      setMemoryBoardLoading(false)
+      if (!silent) {
+        setMemoryBoardPendingPhotos([])
+        setMemoryBoardApprovedPhotos([])
+        setMemoryBoardMessage(pendingResult.error ?? 'Could not load pending memoryboard photos.')
+        setMemoryBoardLoading(false)
+      }
       return
     }
 
     if (!approvedResult.ok || !approvedResult.data) {
-      setMemoryBoardPendingPhotos(pendingResult.data)
-      setMemoryBoardApprovedPhotos([])
-      setMemoryBoardMessage(approvedResult.error ?? 'Could not load approved memoryboard photos.')
-      setMemoryBoardLoading(false)
+      if (!silent) {
+        setMemoryBoardPendingPhotos(pendingResult.data)
+        setMemoryBoardApprovedPhotos([])
+        setMemoryBoardMessage(approvedResult.error ?? 'Could not load approved memoryboard photos.')
+        setMemoryBoardLoading(false)
+      }
       return
     }
 
     setMemoryBoardPendingPhotos(pendingResult.data)
     setMemoryBoardApprovedPhotos(approvedResult.data)
-    setMemoryBoardLoading(false)
+    if (!silent) {
+      setMemoryBoardLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -254,6 +262,25 @@ export default function AdminJoinRequests() {
   useEffect(() => {
     if (activeSection !== 'memoryboard') return
     void loadMemoryBoardPhotos()
+
+    const timer = window.setInterval(() => {
+      void loadMemoryBoardPhotos({ silent: true })
+    }, MEMORYBOARD_SYNC_INTERVAL_MS)
+
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState !== 'hidden') {
+        void loadMemoryBoardPhotos({ silent: true })
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+    }
   }, [activeSection, loadMemoryBoardPhotos])
 
   const reviewRequest = async (requestId: number, decision: JoinRequestDecision) => {
@@ -402,13 +429,13 @@ export default function AdminJoinRequests() {
     const result = await reviewAdminMemoryBoardPhotoRequest(photoId, decision)
     setMemoryBoardActionId(null)
 
-    if (!result.ok || !result.data) {
+    if (!result.ok) {
       setMemoryBoardMessage(result.error ?? 'Could not update photo status.')
       return
     }
 
     setMemoryBoardPendingPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
-    if (decision === 'Approve') {
+    if (decision === 'Approve' && result.data) {
       const approvedPhoto = result.data
       setMemoryBoardApprovedPhotos((prev) => {
         const merged = [...prev.filter((photo) => photo.id !== approvedPhoto.id), approvedPhoto]
@@ -429,28 +456,11 @@ export default function AdminJoinRequests() {
           return leftCreated - rightCreated
         })
       })
-    }
-    setMemoryBoardMessage(decision === 'Approve' ? 'Photo approved.' : 'Photo rejected.')
-  }
-
-  const handleDeleteMemoryBoardPhoto = async (photoId: number) => {
-    const confirmed = window.confirm('Delete this photo from Memoryboard?')
-    if (!confirmed) return
-
-    setMemoryBoardActionId(photoId)
-    setMemoryBoardMessage(null)
-
-    const result = await deleteAdminMemoryBoardPhotoRequest(photoId)
-    setMemoryBoardActionId(null)
-
-    if (!result.ok) {
-      setMemoryBoardMessage(result.error ?? 'Could not delete photo.')
+    } else if (decision === 'Approve' && !result.data) {
+      setMemoryBoardMessage('Photo approved. Refresh if it does not appear yet.')
       return
     }
-
-    setMemoryBoardPendingPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
-    setMemoryBoardApprovedPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
-    setMemoryBoardMessage('Photo deleted.')
+    setMemoryBoardMessage(decision === 'Approve' ? 'Photo approved.' : 'Photo rejected.')
   }
 
   const isUsersPreviousDisabled = usersPageNumber === 1 || usersLoading
@@ -888,15 +898,15 @@ export default function AdminJoinRequests() {
                                   <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.8 }}>Taken: {takenAtLabel}</div>
                                   <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.72 }}>Uploaded: {createdAtLabel}</div>
 
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                                     <button
                                       type="button"
                                       className="neo-btn"
                                       disabled={isBusy}
                                       onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Approve')}
-                                      style={{ minWidth: 'auto', padding: '9px 10px', background: '#c9ffd2' }}
+                                      style={{ minWidth: 'auto', padding: '6px 8px', fontSize: '0.74rem', background: '#c9ffd2' }}
                                     >
-                                      <CheckCircle2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                      <CheckCircle2 size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                                       Approve
                                     </button>
                                     <button
@@ -904,20 +914,10 @@ export default function AdminJoinRequests() {
                                       className="neo-btn"
                                       disabled={isBusy}
                                       onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Reject')}
-                                      style={{ minWidth: 'auto', padding: '9px 10px', background: '#ffc8c8' }}
+                                      style={{ minWidth: 'auto', padding: '6px 8px', fontSize: '0.74rem', background: '#ffc8c8' }}
                                     >
-                                      <XCircle size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                      <XCircle size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                                       Reject
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="neo-btn"
-                                      disabled={isBusy}
-                                      onClick={() => void handleDeleteMemoryBoardPhoto(photo.id)}
-                                      style={{ minWidth: 'auto', padding: '9px 10px', background: '#ffb9b9' }}
-                                    >
-                                      <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                      Delete
                                     </button>
                                   </div>
                                   {isBusy && <div style={{ fontWeight: 800, fontSize: '0.76rem' }}>Saving...</div>}
@@ -938,9 +938,9 @@ export default function AdminJoinRequests() {
                       {memoryBoardApprovedPhotos.length === 0 ? (
                         <p style={{ margin: 0, fontWeight: 800 }}>No approved photos yet.</p>
                       ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '12px' }}>
+                        <div style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'stretch', gap: '12px', width: 'max-content', minWidth: '100%' }}>
                           {memoryBoardApprovedPhotos.map((photo) => {
-                            const isBusy = memoryBoardActionId === photo.id
                             const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
                             return (
                               <div
@@ -950,7 +950,9 @@ export default function AdminJoinRequests() {
                                   boxShadow: '5px 5px 0 black',
                                   background: 'white',
                                   overflow: 'hidden',
-                                  display: 'grid'
+                                  display: 'grid',
+                                  width: '220px',
+                                  flex: '0 0 220px'
                                 }}
                               >
                                 <img
@@ -961,20 +963,11 @@ export default function AdminJoinRequests() {
                                 <div style={{ padding: '10px', display: 'grid', gap: '7px' }}>
                                   <div style={{ fontWeight: 900, fontSize: '0.9rem', wordBreak: 'break-word' }}>{photo.username}</div>
                                   <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.8 }}>{takenAtLabel}</div>
-                                  <button
-                                    type="button"
-                                    className="neo-btn"
-                                    disabled={isBusy}
-                                    onClick={() => void handleDeleteMemoryBoardPhoto(photo.id)}
-                                    style={{ minWidth: 'auto', width: 'fit-content', padding: '8px 10px', background: '#ffb9b9' }}
-                                  >
-                                    <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                    Delete
-                                  </button>
                                 </div>
                               </div>
                             )
                           })}
+                          </div>
                         </div>
                       )}
                     </div>
