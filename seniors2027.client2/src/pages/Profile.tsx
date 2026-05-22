@@ -959,15 +959,15 @@ export default function Profile() {
                         aria-label="Manage social links"
                         onClick={openSocialLinksModal}
                         style={{
-                          width: '36px',
-                          height: '36px',
+                          width: '30px',
+                          height: '30px',
                           display: 'grid',
                           placeItems: 'center',
                           padding: 0,
                           background: 'var(--retro-yellow)'
                         }}
                       >
-                        <Paperclip size={15} />
+                        <Paperclip size={12} />
                       </button>
                     )}
                   </div>
