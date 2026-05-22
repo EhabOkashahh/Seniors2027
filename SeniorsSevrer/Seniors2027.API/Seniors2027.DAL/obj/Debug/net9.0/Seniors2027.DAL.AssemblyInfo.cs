@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Seniors2027.DAL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d2c16a0d226173f1ddf875b237e40b44ac695046")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+360108b34bb3382f0402cbfecdc0dbbe2d7039e3")]
 [assembly: System.Reflection.AssemblyProductAttribute("Seniors2027.DAL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Seniors2027.DAL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

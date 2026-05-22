@@ -21,6 +21,7 @@ export default function MemoryBoard() {
   const [uploading, setUploading] = useState(false)
   const [myUploadsLoading, setMyUploadsLoading] = useState(false)
   const [myUserId, setMyUserId] = useState<number | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [isMyUploadsOpen, setIsMyUploadsOpen] = useState(false)
@@ -55,6 +56,7 @@ export default function MemoryBoard() {
       const meResult = await getMeRequest()
       if (meResult.ok && meResult.data) {
         setMyUserId(meResult.data.id)
+        setIsAdmin(meResult.data.role === 'Admin')
       }
     }
 
@@ -155,7 +157,7 @@ export default function MemoryBoard() {
   const handleDeleteMyPhoto = async (photoId: number, mode: 'delete' | 'withdraw') => {
     const confirmMessage = mode === 'withdraw'
       ? 'Withdraw this photo from approval queue?'
-      : 'Delete your photo from Memoryboard?'
+      : 'Delete this photo from Memoryboard?'
     const confirmed = window.confirm(confirmMessage)
     if (!confirmed) return
 
@@ -216,14 +218,16 @@ export default function MemoryBoard() {
                   <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.02em' }}>Memoryboard</h1>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="neo-btn"
-                    onClick={handleOpenMyUploads}
-                    style={{ minWidth: 'auto', padding: '10px 14px', background: '#ffe6c2' }}
-                  >
-                    My Uploads ({myPendingPhotos.length})
-                  </button>
+                  {!isAdmin && (
+                    <button
+                      type="button"
+                      className="neo-btn"
+                      onClick={handleOpenMyUploads}
+                      style={{ minWidth: 'auto', padding: '10px 14px', background: '#ffe6c2' }}
+                    >
+                      My Uploads ({myPendingPhotos.length})
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="neo-btn"
@@ -288,6 +292,7 @@ export default function MemoryBoard() {
                       const rotation = ((item.id * 7 + index * 3) % 7) - 3
                       const pinColor = PHOTO_PIN_COLORS[(item.id + index) % PHOTO_PIN_COLORS.length]
                       const isOwnedByMe = myUserId !== null && item.userId === myUserId
+                      const canDeletePhoto = isAdmin || isOwnedByMe
                       const isDeleting = deleteActionId === item.id
 
                       return (
@@ -334,7 +339,7 @@ export default function MemoryBoard() {
                             <Clock3 size={11} />
                             {formatShortDate(item.exifTakenAtUtc ?? item.createdAt)}
                           </div>
-                          {isOwnedByMe && (
+                          {canDeletePhoto && (
                             <button
                               type="button"
                               className="neo-btn"
@@ -360,7 +365,7 @@ export default function MemoryBoard() {
         </div>
       </motion.div>
 
-      {isMyUploadsOpen && (
+      {isMyUploadsOpen && !isAdmin && (
         <div
           style={{
             position: 'fixed',

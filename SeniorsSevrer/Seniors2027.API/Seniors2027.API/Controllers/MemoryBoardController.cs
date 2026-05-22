@@ -165,8 +165,11 @@ public class MemoryBoardController(
     public async Task<ActionResult> DeleteMyPhoto(int photoId)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized();
+        var requesterIsAdmin = User.IsInRole(nameof(UserRole.Admin));
 
-        var photo = await _context.MemoryBoardPhotos.FirstOrDefaultAsync(p => p.Id == photoId && p.UserId == userId);
+        var photo = requesterIsAdmin
+            ? await _context.MemoryBoardPhotos.FirstOrDefaultAsync(p => p.Id == photoId)
+            : await _context.MemoryBoardPhotos.FirstOrDefaultAsync(p => p.Id == photoId && p.UserId == userId);
         if (photo == null) return NotFound();
 
         var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
