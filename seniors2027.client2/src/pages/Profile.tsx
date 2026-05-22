@@ -38,6 +38,11 @@ import {
   type User
 } from '../lib/authApi'
 
+type ToastItem = {
+  id: number
+  message: string
+}
+
 export default function Profile() {
   const { id } = useParams()
   const location = useLocation()
@@ -93,9 +98,112 @@ export default function Profile() {
   const [spotifyLoading, setSpotifyLoading] = useState(false)
   const [spotifyActionLoading, setSpotifyActionLoading] = useState(false)
   const [spotifyMessage, setSpotifyMessage] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<ToastItem[]>([])
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
   const isAdmin = me?.role === 'Admin'
+  const activeToastMessagesRef = useRef<Set<string>>(new Set())
+  const toastTimersRef = useRef<Map<number, number>>(new Map())
+  const toastMessagesByIdRef = useRef<Map<number, string>>(new Map())
+  const nextToastIdRef = useRef(1)
+
+  const dismissToast = useCallback((toastId: number) => {
+    const timeoutId = toastTimersRef.current.get(toastId)
+    if (typeof timeoutId === 'number') {
+      window.clearTimeout(timeoutId)
+      toastTimersRef.current.delete(toastId)
+    }
+
+    const message = toastMessagesByIdRef.current.get(toastId)
+    if (typeof message === 'string') {
+      activeToastMessagesRef.current.delete(message)
+      toastMessagesByIdRef.current.delete(toastId)
+    }
+
+    setToasts((prev) => prev.filter((toast) => toast.id !== toastId))
+  }, [])
+
+  const notify = useCallback((message: string | null | undefined) => {
+    const text = typeof message === 'string' ? message.trim() : ''
+    if (!text) return
+    if (activeToastMessagesRef.current.has(text)) return
+
+    const toastId = nextToastIdRef.current++
+    activeToastMessagesRef.current.add(text)
+    toastMessagesByIdRef.current.set(toastId, text)
+    setToasts((prev) => [...prev, { id: toastId, message: text }])
+
+    const timeoutId = window.setTimeout(() => {
+      dismissToast(toastId)
+    }, 5000)
+
+    toastTimersRef.current.set(toastId, timeoutId)
+  }, [dismissToast])
+
+  useEffect(() => {
+    return () => {
+      toastTimersRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId)
+      })
+      toastTimersRef.current.clear()
+      toastMessagesByIdRef.current.clear()
+      activeToastMessagesRef.current.clear()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!usernameMessage) return
+    notify(usernameMessage)
+    setUsernameMessage(null)
+  }, [notify, usernameMessage])
+
+  useEffect(() => {
+    if (!descriptionMessage) return
+    notify(descriptionMessage)
+    setDescriptionMessage(null)
+  }, [descriptionMessage, notify])
+
+  useEffect(() => {
+    if (!socialLinksMessage) return
+    notify(socialLinksMessage)
+    setSocialLinksMessage(null)
+  }, [notify, socialLinksMessage])
+
+  useEffect(() => {
+    if (!spotifyMessage) return
+    notify(spotifyMessage)
+    setSpotifyMessage(null)
+  }, [notify, spotifyMessage])
+
+  useEffect(() => {
+    if (!photoMessage) return
+    notify(photoMessage)
+    setPhotoMessage(null)
+  }, [notify, photoMessage])
+
+  useEffect(() => {
+    if (!galleryMessage) return
+    notify(galleryMessage)
+    setGalleryMessage(null)
+  }, [galleryMessage, notify])
+
+  useEffect(() => {
+    if (!noteMessage) return
+    notify(noteMessage)
+    setNoteMessage(null)
+  }, [noteMessage, notify])
+
+  useEffect(() => {
+    if (!latestNotesError) return
+    notify(latestNotesError)
+    setLatestNotesError(null)
+  }, [latestNotesError, notify])
+
+  useEffect(() => {
+    if (!bookError) return
+    notify(bookError)
+    setBookError(null)
+  }, [bookError, notify])
 
   useEffect(() => {
     const onResize = () => {
@@ -1109,11 +1217,6 @@ export default function Profile() {
                   </div>
                 )}
               </div>
-              {usernameMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{usernameMessage}</div>}
-              {descriptionMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{descriptionMessage}</div>}
-              {socialLinksMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{socialLinksMessage}</div>}
-              {spotifyMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{spotifyMessage}</div>}
-              {photoMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{photoMessage}</div>}
               {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
             </div>
           </div>
@@ -1140,7 +1243,6 @@ export default function Profile() {
                     {sendingNote ? 'Sending...' : 'Send Note'}
                   </button>
                 </div>
-                {noteMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{noteMessage}</div>}
               </div>
             )}
 
@@ -1168,8 +1270,6 @@ export default function Profile() {
 
               {latestNotesLoading ? (
                 <p style={{ margin: 0, fontWeight: 700 }}>Loading latest notes...</p>
-              ) : latestNotesError ? (
-                <p style={{ margin: 0, fontWeight: 700 }}>{latestNotesError}</p>
               ) : latestNotes.length === 0 ? (
                 <p style={{ margin: 0, fontWeight: 700 }}>No notes yet.</p>
               ) : (
@@ -1307,9 +1407,39 @@ export default function Profile() {
                   : `${displayName} has not shared any moments yet. No snapshots, just mystery.`}
               </div>
             )}
-            {galleryMessage && <div style={{ marginTop: '12px', fontWeight: 800 }}>{galleryMessage}</div>}
           </div>
         </div>
+      </div>
+
+      <div
+        style={{
+          position: 'fixed',
+          top: '18px',
+          right: '18px',
+          zIndex: 120,
+          display: 'grid',
+          gap: '10px',
+          width: 'min(360px, calc(100vw - 24px))',
+          pointerEvents: 'none'
+        }}
+      >
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            style={{
+              border: '3px solid black',
+              boxShadow: '6px 6px 0 black',
+              background: 'var(--retro-yellow)',
+              padding: '10px 12px',
+              fontWeight: 800,
+              fontSize: '0.9rem',
+              lineHeight: 1.35,
+              pointerEvents: 'auto'
+            }}
+          >
+            {toast.message}
+          </div>
+        ))}
       </div>
 
       {isSocialLinksModalOpen && (
@@ -1458,12 +1588,6 @@ export default function Profile() {
               )}
             </div>
 
-            {socialLinksMessage && (
-              <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>
-                {socialLinksMessage}
-              </div>
-            )}
-
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
               <button type="button" className="neo-btn" onClick={closeSocialLinksModal} disabled={socialLinksSaving}>
                 Cancel
@@ -1517,8 +1641,6 @@ export default function Profile() {
 
             {bookLoading ? (
               <p style={{ margin: 0, fontWeight: 800 }}>Loading page...</p>
-            ) : bookError ? (
-              <p style={{ margin: 0, fontWeight: 800 }}>{bookError}</p>
             ) : (
               <>
                 <motion.div
