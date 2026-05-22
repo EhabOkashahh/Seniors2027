@@ -164,6 +164,11 @@ export default function Directory() {
                         fontWeight: 900,
                         fontSize: '1.1rem',
                         textTransform: 'uppercase',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: isMobile ? '48px' : '56px',
+                        lineHeight: 1.2,
                         overflowWrap: 'anywhere',
                         wordBreak: 'break-word'
                       }}
