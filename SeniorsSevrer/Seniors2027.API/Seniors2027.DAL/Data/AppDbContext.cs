@@ -28,6 +28,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.Email).IsRequired().HasMaxLength(320);
             entity.Property(e => e.SocialLinksJson).HasMaxLength(4000);
+            entity.Property(e => e.SpotifyAccessToken).HasMaxLength(2048);
+            entity.Property(e => e.SpotifyRefreshToken).HasMaxLength(2048);
             entity.HasIndex(e => e.Email).IsUnique();
             entity.Property(e => e.Role).HasConversion<int>();
             entity.Property(e => e.IsLocked).HasDefaultValue(false);

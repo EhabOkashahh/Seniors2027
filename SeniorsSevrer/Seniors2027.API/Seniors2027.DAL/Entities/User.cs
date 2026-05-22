@@ -17,6 +17,12 @@ public class User
     public string? Description { get; set; }
     [MaxLength(4000)]
     public string? SocialLinksJson { get; set; }
+    [MaxLength(2048)]
+    public string? SpotifyAccessToken { get; set; }
+    [MaxLength(2048)]
+    public string? SpotifyRefreshToken { get; set; }
+    public DateTime? SpotifyTokenExpiresAtUtc { get; set; }
+    public DateTime? SpotifyConnectedAtUtc { get; set; }
     [Required]
     [MaxLength(320)]
     public string Email { get; set; } = string.Empty;

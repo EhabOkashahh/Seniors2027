@@ -168,6 +168,16 @@ export type MeUser = {
   role?: AppUserRole | null
 }
 
+export type SpotifyNowPlaying = {
+  isConnected: boolean
+  isPlaying: boolean
+  trackName?: string | null
+  artists?: string | null
+  albumName?: string | null
+  albumImageUrl?: string | null
+  spotifyTrackUrl?: string | null
+}
+
 export type JoinRequestStatus = 'Pending' | 'Accepted' | 'Declined'
 export type JoinRequestDecision = 'Accept' | 'Decline'
 
@@ -865,6 +875,140 @@ export async function updateMySocialLinksRequest(
 
     const data = (await tryReadJson(response)) as { message?: string; socialLinks?: string[] } | null
     return { ok: true, data: data ?? {} }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getSpotifyConnectUrlRequest(): Promise<ApiResult<{ url: string }>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/spotify/connect-url`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as { url?: string }
+    if (!data?.url) {
+      return { ok: false, error: 'Spotify connect URL is missing.' }
+    }
+
+    return { ok: true, data: { url: data.url } }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function disconnectSpotifyRequest(): Promise<ApiResult<{ message?: string }>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/spotify/disconnect`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await tryReadJson(response)) as { message?: string } | null
+    return { ok: true, data: data ?? {} }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getMySpotifyNowPlayingRequest(): Promise<ApiResult<SpotifyNowPlaying>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/spotify/me/now-playing`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as SpotifyNowPlaying
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function exchangeSpotifyCodeRequest(
+  code: string,
+  state: string
+): Promise<ApiResult<{ status: string; userId?: number; reason?: string }>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/spotify/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`
+    )
+
+    // The backend redirect response will be handled by fetch as a follow-up if we don't prevent it,
+    // but since we want the JSON result or to know where it's going, we check the URL or response.
+    // However, the backend currently redirects. We should probably add a JSON-returning version or handle the redirect.
+    // For now, let's assume the backend redirect is what we want or we parse the resulting URL.
+    
+    if (response.redirected) {
+      const url = new URL(response.url)
+      const status = url.searchParams.get('spotify') || 'failed'
+      const reason = url.searchParams.get('reason') || undefined
+      // Extract userId from path /profile/:id
+      const pathParts = url.pathname.split('/')
+      const userId = parseInt(pathParts[pathParts.length - 1], 10)
+
+      return { ok: true, data: { status, userId: isNaN(userId) ? undefined : userId, reason } }
+    }
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    // If it didn't redirect but returned 200 (though current backend redirects)
+    return { ok: true, data: { status: 'connected' } }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getUserSpotifyNowPlayingRequest(userId: number): Promise<ApiResult<SpotifyNowPlaying | null>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/spotify/users/${userId}/now-playing`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await tryReadJson(response)) as SpotifyNowPlaying | null
+    return { ok: true, data: data ?? null }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
   }

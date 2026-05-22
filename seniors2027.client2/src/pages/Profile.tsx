@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useParams } from 'react-router-dom'
 import {
   Image as ImageIcon,
   BookOpen,
   Pencil,
   Paperclip,
   Plus,
+  Music2,
   X
 } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
@@ -16,10 +17,14 @@ import {
   checkMyUsernameAvailabilityRequest,
   deleteGalleryPhotoRequest,
   deleteNoteRequest,
+  disconnectSpotifyRequest,
   getUserGalleryPhotosRequest,
   getLatestReceivedNotesRequest,
   getMeRequest,
   getReceivedNotesPageRequest,
+  getSpotifyConnectUrlRequest,
+  getUserSpotifyNowPlayingRequest,
+  getMySpotifyNowPlayingRequest,
   getUserByIdRequest,
   sendNoteRequest,
   updateMyPhotoRequest,
@@ -29,11 +34,13 @@ import {
   type MeUser,
   type NoteItem,
   type PagedNotes,
+  type SpotifyNowPlaying,
   type User
 } from '../lib/authApi'
 
 export default function Profile() {
   const { id } = useParams()
+  const location = useLocation()
   const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -83,6 +90,10 @@ export default function Profile() {
   const [deletingNoteIds, setDeletingNoteIds] = useState<number[]>([])
   const [deletingGalleryPhotoIds, setDeletingGalleryPhotoIds] = useState<number[]>([])
   const [noteMessage, setNoteMessage] = useState<string | null>(null)
+  const [spotifyNowPlaying, setSpotifyNowPlaying] = useState<SpotifyNowPlaying | null>(null)
+  const [spotifyLoading, setSpotifyLoading] = useState(false)
+  const [spotifyActionLoading, setSpotifyActionLoading] = useState(false)
+  const [spotifyMessage, setSpotifyMessage] = useState<string | null>(null)
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
   const isAdmin = me?.role === 'Admin'
@@ -107,6 +118,7 @@ export default function Profile() {
             setProfileUser(null)
             setMe(null)
             setSocialLinksDraft([])
+            setSpotifyNowPlaying(null)
             setLoading(false)
           }
           return
@@ -145,6 +157,81 @@ export default function Profile() {
       cancelled = true
     }
   }, [userId])
+
+  const fetchSpotifyStatus = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (userId === null) return
+
+    if (!silent) {
+      setSpotifyLoading(true)
+      setSpotifyMessage(null)
+    }
+
+    const result = isOwnProfile
+      ? await getMySpotifyNowPlayingRequest()
+      : await getUserSpotifyNowPlayingRequest(userId)
+
+    if (!result.ok) {
+      if (!silent) {
+        setSpotifyMessage(result.error ?? 'Could not load Spotify status.')
+        setSpotifyLoading(false)
+      }
+      return
+    }
+
+    if (isOwnProfile) {
+      setSpotifyNowPlaying(result.data ?? { isConnected: false, isPlaying: false })
+    } else {
+      setSpotifyNowPlaying(result.data ?? null)
+    }
+
+    if (!silent) {
+      setSpotifyLoading(false)
+    }
+  }, [isOwnProfile, userId])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const spotifyStatus = params.get('spotify')
+    if (!spotifyStatus) return
+
+    if (spotifyStatus === 'connected') {
+      setSpotifyMessage('Spotify connected successfully.')
+    } else if (spotifyStatus === 'failed') {
+      const reason = params.get('reason')
+      setSpotifyMessage(reason ? `Spotify connection failed: ${reason}` : 'Spotify connection failed.')
+    }
+
+    if (typeof window !== 'undefined') {
+      const cleanUrl = `${location.pathname}${location.hash}`
+      window.history.replaceState({}, document.title, cleanUrl)
+    }
+  }, [location.hash, location.pathname, location.search])
+
+  useEffect(() => {
+    if (userId === null) return
+    if (!me || !profileUser) return
+
+    void fetchSpotifyStatus()
+
+    const timer = window.setInterval(() => {
+      void fetchSpotifyStatus({ silent: true })
+    }, 15000)
+
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState !== 'hidden') {
+        void fetchSpotifyStatus({ silent: true })
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+    }
+  }, [fetchSpotifyStatus, me, profileUser, userId])
 
   const fetchLatestNotes = async () => {
     if (userId === null) return
@@ -507,6 +594,40 @@ export default function Profile() {
     setIsSocialLinksModalOpen(false)
   }
 
+  const handleConnectSpotify = async () => {
+    if (!isOwnProfile || spotifyActionLoading) return
+
+    setSpotifyActionLoading(true)
+    setSpotifyMessage(null)
+
+    const result = await getSpotifyConnectUrlRequest()
+    if (!result.ok || !result.data?.url) {
+      setSpotifyActionLoading(false)
+      setSpotifyMessage(result.error ?? 'Could not start Spotify connection.')
+      return
+    }
+
+    window.location.href = result.data.url
+  }
+
+  const handleDisconnectSpotify = async () => {
+    if (!isOwnProfile || spotifyActionLoading) return
+
+    setSpotifyActionLoading(true)
+    setSpotifyMessage(null)
+
+    const result = await disconnectSpotifyRequest()
+    setSpotifyActionLoading(false)
+
+    if (!result.ok) {
+      setSpotifyMessage(result.error ?? 'Could not disconnect Spotify.')
+      return
+    }
+
+    setSpotifyNowPlaying({ isConnected: false, isPlaying: false })
+    setSpotifyMessage(result.data?.message ?? 'Spotify disconnected.')
+  }
+
   const handleSendNote = async () => {
     if (userId === null) return
 
@@ -832,78 +953,189 @@ export default function Profile() {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'grid', gap: '8px' }}>
-                <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
-                  SOCIAL LINKS
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-                  {visibleSocialLinks.map((link) => {
-                    const platform = detectSocialPlatform(link)
-                    const brandIconUrl = getSocialPlatformIconUrl(platform)
-                    const faviconUrl = getWebsiteFaviconUrl(link)
-                    const localFallbackIconUrl = getLocalPlatformFallbackIconUrl(platform)
-                    const theme = getSocialPlatformTheme(platform)
-                    return (
-                      <a
-                        key={link}
-                        className="social-link-chip"
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={link}
-                        aria-label={`Open ${platform} profile`}
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          border: '2px solid black',
-                          background: theme.background,
-                          display: 'grid',
-                          placeItems: 'center',
-                          color: 'black',
-                          overflow: 'hidden'
-                        }}
-                      >
-                        <img
-                          src={brandIconUrl ?? faviconUrl ?? localFallbackIconUrl}
-                          alt={`${platform} icon`}
-                          onError={(event) => {
-                            const currentSrc = event.currentTarget.getAttribute('src') ?? ''
-                            if (currentSrc !== localFallbackIconUrl) {
-                              event.currentTarget.src = localFallbackIconUrl
-                              return
-                            }
-                            event.currentTarget.onerror = null
+              <div
+                style={{
+                  display: 'grid',
+                  gap: '12px',
+                  gridTemplateColumns: isTablet || (!isOwnProfile && !spotifyNowPlaying?.isPlaying)
+                    ? '1fr'
+                    : 'minmax(0, 1fr) minmax(240px, 320px)',
+                  alignItems: 'start'
+                }}
+              >
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
+                    SOCIAL LINKS
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+                    {visibleSocialLinks.map((link) => {
+                      const platform = detectSocialPlatform(link)
+                      const brandIconUrl = getSocialPlatformIconUrl(platform)
+                      const faviconUrl = getWebsiteFaviconUrl(link)
+                      const localFallbackIconUrl = getLocalPlatformFallbackIconUrl(platform)
+                      const theme = getSocialPlatformTheme(platform)
+                      return (
+                        <a
+                          key={link}
+                          className="social-link-chip"
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={link}
+                          aria-label={`Open ${platform} profile`}
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            border: '2px solid black',
+                            background: theme.background,
+                            display: 'grid',
+                            placeItems: 'center',
+                            color: 'black',
+                            overflow: 'hidden'
                           }}
-                          style={{ width: '22px', height: '22px', objectFit: 'contain' }}
-                        />
-                      </a>
-                    )
-                  })}
-                  {isOwnProfile && visibleSocialLinks.length === 0 && (
-                      <button
-                        type="button"
-                        onClick={openSocialLinksModal}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          border: '3px solid black',
-                          boxShadow: '4px 4px 0 black',
-                          background: 'var(--retro-yellow)',
-                          padding: '8px 10px',
-                          fontWeight: 800
-                        }}
-                      >
-                      <Paperclip size={16} />
-                      Add social links
-                    </button>
-                  )}
+                        >
+                          <img
+                            src={brandIconUrl ?? faviconUrl ?? localFallbackIconUrl}
+                            alt={`${platform} icon`}
+                            onError={(event) => {
+                              const currentSrc = event.currentTarget.getAttribute('src') ?? ''
+                              if (currentSrc !== localFallbackIconUrl) {
+                                event.currentTarget.src = localFallbackIconUrl
+                                return
+                              }
+                              event.currentTarget.onerror = null
+                            }}
+                            style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                          />
+                        </a>
+                      )
+                    })}
+                    {isOwnProfile && visibleSocialLinks.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={openSocialLinksModal}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            border: '3px solid black',
+                            boxShadow: '4px 4px 0 black',
+                            background: 'var(--retro-yellow)',
+                            padding: '8px 10px',
+                            fontWeight: 800
+                          }}
+                        >
+                        <Paperclip size={16} />
+                        Add social links
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {(isOwnProfile || spotifyNowPlaying?.isPlaying) && (
+                  <div style={{ display: 'grid', gap: '8px', alignContent: 'start' }}>
+                    <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
+                      SPOTIFY
+                    </div>
+                    <div
+                      style={{
+                        border: '3px solid black',
+                        boxShadow: '6px 6px 0 black',
+                        background: 'white',
+                        padding: '10px',
+                        minHeight: '96px',
+                        display: 'grid',
+                        gap: '10px',
+                        alignContent: 'start'
+                      }}
+                    >
+                      {spotifyLoading ? (
+                        <div style={{ fontWeight: 700 }}>Checking Spotify...</div>
+                      ) : isOwnProfile && !spotifyNowPlaying?.isConnected ? (
+                        <>
+                          <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
+                            Connect Spotify to show your current song on profile.
+                          </div>
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={() => void handleConnectSpotify()}
+                            disabled={spotifyActionLoading}
+                            style={{ minWidth: 'auto', width: 'fit-content', background: '#ccffd5' }}
+                          >
+                            {spotifyActionLoading ? 'Connecting...' : 'Connect Spotify'}
+                          </button>
+                        </>
+                      ) : spotifyNowPlaying?.isPlaying ? (
+                        <div style={{ display: 'grid', gap: '8px' }}>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gap: '8px',
+                              gridTemplateColumns: spotifyNowPlaying.albumImageUrl ? '58px 1fr' : '1fr',
+                              alignItems: 'center'
+                            }}
+                          >
+                            {spotifyNowPlaying.albumImageUrl && (
+                              <img
+                                src={spotifyNowPlaying.albumImageUrl}
+                                alt="Album artwork"
+                                style={{
+                                  width: '58px',
+                                  height: '58px',
+                                  objectFit: 'cover',
+                                  border: '2px solid black',
+                                  boxShadow: '3px 3px 0 black'
+                                }}
+                              />
+                            )}
+                            <div style={{ display: 'grid', gap: '4px' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 900, fontSize: '0.72rem', opacity: 0.84 }}>
+                                <Music2 size={13} />
+                                NOW PLAYING
+                              </div>
+                              <div style={{ fontWeight: 900, fontSize: '0.9rem', lineHeight: 1.25 }}>
+                                {spotifyNowPlaying.trackName ?? 'Unknown track'}
+                              </div>
+                              <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.86 }}>
+                                {spotifyNowPlaying.artists ?? 'Unknown artist'}
+                              </div>
+                              {spotifyNowPlaying.albumName && (
+                                <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.72 }}>
+                                  Album: {spotifyNowPlaying.albumName}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        isOwnProfile && (
+                          <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
+                            Not playing any song right now.
+                          </div>
+                        )
+                      )}
+
+                      {isOwnProfile && spotifyNowPlaying?.isConnected && (
+                        <button
+                          type="button"
+                          className="neo-btn"
+                          onClick={() => void handleDisconnectSpotify()}
+                          disabled={spotifyActionLoading}
+                          style={{ minWidth: 'auto', width: 'fit-content', background: '#ffd5d5' }}
+                        >
+                          {spotifyActionLoading ? 'Working...' : 'Disconnect Spotify'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               {usernameMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{usernameMessage}</div>}
               {descriptionMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{descriptionMessage}</div>}
               {socialLinksMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{socialLinksMessage}</div>}
+              {spotifyMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{spotifyMessage}</div>}
               {photoMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{photoMessage}</div>}
               {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
             </div>
