@@ -50,7 +50,6 @@ export default function Profile() {
   const [me, setMe] = useState<MeUser | null>(null)
   const [usernameInput, setUsernameInput] = useState('')
   const [usernameSaving, setUsernameSaving] = useState(false)
-  const [usernameChecking, setUsernameChecking] = useState(false)
   const [usernameMessage, setUsernameMessage] = useState<string | null>(null)
   const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [descriptionInput, setDescriptionInput] = useState('')
@@ -396,41 +395,6 @@ export default function Profile() {
     if (normalized.length < 3) return 'Username must be at least 3 characters.'
     if (normalized.length > 40) return 'Username must be 40 characters or less.'
     return null
-  }
-
-  const handleCheckUsernameAvailability = async (candidate: string): Promise<boolean> => {
-    if (!isOwnProfile) return false
-
-    const normalized = normalizeUsername(candidate)
-    const formatError = validateUsernameFormat(normalized)
-    if (formatError) {
-      setUsernameMessage(formatError)
-      return false
-    }
-
-    const currentUsername = normalizeUsername(profileUser?.username ?? '')
-    if (normalized.toLowerCase() === currentUsername.toLowerCase()) {
-      setUsernameMessage('This is your current username.')
-      return true
-    }
-
-    setUsernameChecking(true)
-    setUsernameMessage(null)
-    const availability = await checkMyUsernameAvailabilityRequest(normalized)
-    setUsernameChecking(false)
-
-    if (!availability.ok) {
-      setUsernameMessage(availability.error ?? 'Could not verify username availability.')
-      return false
-    }
-
-    if (availability.data?.exists) {
-      setUsernameMessage('Username is already taken.')
-      return false
-    }
-
-    setUsernameMessage('Username is available.')
-    return true
   }
 
   const handleSaveUsername = async () => {
@@ -833,9 +797,6 @@ export default function Profile() {
                       setUsernameInput(e.target.value)
                       setUsernameMessage(null)
                     }}
-                    onBlur={() => {
-                      void handleCheckUsernameAvailability(usernameInput)
-                    }}
                     style={{ width: '100%' }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
@@ -853,10 +814,10 @@ export default function Profile() {
                     <button
                       type="button"
                       onClick={() => void handleSaveUsername()}
-                      disabled={usernameSaving || usernameChecking}
+                      disabled={usernameSaving}
                       style={{ minWidth: '92px' }}
                     >
-                      {usernameSaving ? 'Saving...' : usernameChecking ? 'Checking...' : 'Save Username'}
+                      {usernameSaving ? 'Saving...' : 'Save Username'}
                     </button>
                   </div>
                 </div>
