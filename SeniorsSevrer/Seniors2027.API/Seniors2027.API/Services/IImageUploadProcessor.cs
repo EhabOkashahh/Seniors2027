@@ -17,4 +17,8 @@ public interface IImageUploadProcessor
         CancellationToken cancellationToken = default);
 }
 
-public sealed record StoredPhotoInfo(string FileName, string FilePath, string PhotoUrl);
+public sealed record StoredPhotoInfo(
+    string FileName,
+    string FilePath,
+    string PhotoUrl,
+    DateTime? ExifTakenAtUtc = null);

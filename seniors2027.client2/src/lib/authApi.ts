@@ -237,6 +237,23 @@ export type DailyHighlight = {
   user: DailyHighlightUser
 }
 
+export type MemoryBoardPhotoStatus = 'Pending' | 'Approved' | 'Rejected'
+export type MemoryBoardPhotoDecision = 'Approve' | 'Reject'
+
+export type MemoryBoardPhoto = {
+  id: number
+  userId: number
+  username: string
+  photoUrl: string
+  status: MemoryBoardPhotoStatus
+  createdAt: string
+  exifTakenAtUtc?: string | null
+  sortDateUtc: string
+  reviewedAtUtc?: string | null
+  reviewedByUserId?: number | null
+  reviewedByUsername?: string | null
+}
+
 export type AnnouncementItem = {
   id: number
   title: string
@@ -525,6 +542,57 @@ export async function uploadGalleryPhotoRequest(file: File): Promise<ApiResult<G
     }
 
     const data = (await response.json()) as GalleryPhoto
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getMemoryBoardPhotosRequest(maxCount: number = 2000): Promise<ApiResult<MemoryBoardPhoto[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/memoryboard/photos?maxCount=${maxCount}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as MemoryBoardPhoto[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function uploadMemoryBoardPhotoRequest(file: File): Promise<ApiResult<MemoryBoardPhoto>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const formData = new FormData()
+    formData.append('photo', file)
+
+    const response = await fetch(`${API_BASE_URL}/api/memoryboard/photos`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as MemoryBoardPhoto
     return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
@@ -1161,6 +1229,64 @@ export async function deleteAdminEventRequest(eventId: number): Promise<ApiResul
     }
 
     return { ok: true, data: null }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getAdminMemoryBoardPhotosRequest(
+  status: MemoryBoardPhotoStatus = 'Pending',
+  maxCount: number = 200
+): Promise<ApiResult<MemoryBoardPhoto[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/memoryboard/photos?status=${encodeURIComponent(status)}&maxCount=${maxCount}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as MemoryBoardPhoto[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function reviewAdminMemoryBoardPhotoRequest(
+  photoId: number,
+  decision: MemoryBoardPhotoDecision
+): Promise<ApiResult<MemoryBoardPhoto>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/memoryboard/photos/${photoId}/decision`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ decision })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as MemoryBoardPhoto
+    return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
   }

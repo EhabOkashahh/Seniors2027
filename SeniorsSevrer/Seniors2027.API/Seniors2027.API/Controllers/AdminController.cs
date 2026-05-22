@@ -131,6 +131,18 @@ public class AdminController(
             TryAddLocalPhotoPath(photo.PhotoUrl, photosDirectory, localPhotoPaths);
         }
 
+        var userMemoryBoardPhotos = await _context.MemoryBoardPhotos
+            .Where(p => p.UserId == userId)
+            .ToListAsync();
+        foreach (var photo in userMemoryBoardPhotos)
+        {
+            TryAddLocalPhotoPath(photo.PhotoUrl, photosDirectory, localPhotoPaths);
+        }
+
+        var reviewedMemoryBoardPhotos = await _context.MemoryBoardPhotos
+            .Where(p => p.ReviewedByUserId == userId && p.UserId != userId)
+            .ToListAsync();
+
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -145,6 +157,11 @@ public class AdminController(
             if (userGalleryPhotos.Count > 0)
             {
                 _context.GalleryPhotos.RemoveRange(userGalleryPhotos);
+            }
+
+            if (userMemoryBoardPhotos.Count > 0)
+            {
+                _context.MemoryBoardPhotos.RemoveRange(userMemoryBoardPhotos);
             }
 
             var userNotes = await _context.Notes
@@ -186,6 +203,11 @@ public class AdminController(
             {
                 if (joinRequest.ApprovedUserId == userId) joinRequest.ApprovedUserId = null;
                 if (joinRequest.ReviewedByUserId == userId) joinRequest.ReviewedByUserId = null;
+            }
+
+            foreach (var reviewedPhoto in reviewedMemoryBoardPhotos)
+            {
+                reviewedPhoto.ReviewedByUserId = null;
             }
 
             _context.Users.Remove(user);
@@ -446,6 +468,91 @@ public class AdminController(
         }
 
         return NoContent();
+    }
+
+    [HttpGet("memoryboard/photos")]
+    public async Task<ActionResult<IReadOnlyList<MemoryBoardPhotoDto>>> GetMemoryBoardPhotos(
+        [FromQuery] MemoryBoardPhotoStatus status = MemoryBoardPhotoStatus.Pending,
+        [FromQuery] int maxCount = 200)
+    {
+        var safeMaxCount = maxCount < 1 ? 50 : Math.Min(maxCount, 1000);
+
+        var query = _context.MemoryBoardPhotos
+            .AsNoTracking()
+            .Where(p => p.Status == status);
+
+        if (status == MemoryBoardPhotoStatus.Approved)
+        {
+            query = query
+                .OrderBy(p => p.ExifTakenAtUtc ?? p.CreatedAt)
+                .ThenBy(p => p.CreatedAt);
+        }
+        else
+        {
+            query = query.OrderByDescending(p => p.CreatedAt);
+        }
+
+        var items = await query
+            .Take(safeMaxCount)
+            .Select(p => new MemoryBoardPhotoDto
+            {
+                Id = p.Id,
+                UserId = p.UserId,
+                Username = p.User.Username,
+                PhotoUrl = p.PhotoUrl,
+                Status = p.Status,
+                CreatedAt = p.CreatedAt,
+                ExifTakenAtUtc = p.ExifTakenAtUtc,
+                SortDateUtc = p.ExifTakenAtUtc ?? p.CreatedAt,
+                ReviewedAtUtc = p.ReviewedAtUtc,
+                ReviewedByUserId = p.ReviewedByUserId,
+                ReviewedByUsername = p.ReviewedByUser != null ? p.ReviewedByUser.Username : null
+            })
+            .ToListAsync();
+
+        return Ok(items);
+    }
+
+    [HttpPost("memoryboard/photos/{photoId:int}/decision")]
+    public async Task<ActionResult<MemoryBoardPhotoDto>> ReviewMemoryBoardPhoto(int photoId, ReviewMemoryBoardPhotoDto dto)
+    {
+        if (!User.TryGetUserId(out var reviewerUserId)) return Unauthorized();
+
+        var photo = await _context.MemoryBoardPhotos.FirstOrDefaultAsync(p => p.Id == photoId);
+        if (photo == null) return NotFound();
+        if (photo.Status != MemoryBoardPhotoStatus.Pending)
+        {
+            return BadRequest("Photo is already reviewed.");
+        }
+
+        photo.Status = dto.Decision == MemoryBoardPhotoDecision.Approve
+            ? MemoryBoardPhotoStatus.Approved
+            : MemoryBoardPhotoStatus.Rejected;
+        photo.ReviewedByUserId = reviewerUserId;
+        photo.ReviewedAtUtc = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        var updated = await _context.MemoryBoardPhotos
+            .AsNoTracking()
+            .Where(p => p.Id == photoId)
+            .Select(p => new MemoryBoardPhotoDto
+            {
+                Id = p.Id,
+                UserId = p.UserId,
+                Username = p.User.Username,
+                PhotoUrl = p.PhotoUrl,
+                Status = p.Status,
+                CreatedAt = p.CreatedAt,
+                ExifTakenAtUtc = p.ExifTakenAtUtc,
+                SortDateUtc = p.ExifTakenAtUtc ?? p.CreatedAt,
+                ReviewedAtUtc = p.ReviewedAtUtc,
+                ReviewedByUserId = p.ReviewedByUserId,
+                ReviewedByUsername = p.ReviewedByUser != null ? p.ReviewedByUser.Username : null
+            })
+            .FirstAsync();
+
+        return Ok(updated);
     }
 
     private static AdminUserListItemDto MapAdminUserDto(User user)

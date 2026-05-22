@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Users, LogOut, Shield, User as UserIcon } from 'lucide-react'
+import { Home, Users, LogOut, Shield, User as UserIcon, Images } from 'lucide-react'
 import '../App.css'
 import RetroGridBackground from './landing/RetroGridBackground'
 import { getMeRequest } from '../lib/authApi'
@@ -32,6 +32,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
   const navItems = [
     { name: 'Dashboard', path: '/portal', icon: <Home size={20} /> },
     { name: 'Seniors', path: '/directory', icon: <Users size={20} /> },
+    { name: 'Memoryboard', path: '/memoryboard', icon: <Images size={20} /> },
     { name: 'My Profile', path: myProfilePath, icon: <UserIcon size={20} /> },
     ...(myRole === 'Admin' ? [{ name: 'Admin', path: '/admin', icon: <Shield size={20} /> }] : [])
   ]

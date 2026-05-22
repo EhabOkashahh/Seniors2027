@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<JoinRequest> JoinRequests { get; set; }
     public DbSet<Announcement> Announcements { get; set; }
     public DbSet<PortalEvent> Events { get; set; }
+    public DbSet<MemoryBoardPhoto> MemoryBoardPhotos { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -130,6 +131,26 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => e.EventDate);
             entity.HasIndex(e => e.CreatedAt);
+        });
+
+        modelBuilder.Entity<MemoryBoardPhoto>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.PhotoUrl).IsRequired().HasMaxLength(2048);
+            entity.Property(e => e.Status).HasConversion<int>();
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.MemoryBoardPhotos)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ReviewedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(e => new { e.Status, e.ExifTakenAtUtc, e.CreatedAt });
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
         });
     }
 }

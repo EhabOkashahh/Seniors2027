@@ -6,6 +6,7 @@ import PortalHome from './pages/PortalHome'
 import Directory from './pages/Directory'
 import Profile from './pages/Profile'
 import AdminJoinRequests from './pages/AdminJoinRequests'
+import MemoryBoard from './pages/MemoryBoard'
 import { getAuthToken, getRoleFromToken, getStoredRole } from './lib/session'
 
 const hasAuthToken = () => Boolean(getAuthToken())
@@ -74,6 +75,14 @@ function App() {
           element={
             <PrivateRoute>
               <Profile />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/memoryboard"
+          element={
+            <PrivateRoute>
+              <MemoryBoard />
             </PrivateRoute>
           }
         />

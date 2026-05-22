@@ -32,4 +32,5 @@ public class User
     public ICollection<DailyHighlight> DailyHighlights { get; set; } = new List<DailyHighlight>();
     public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
     public ICollection<PortalEvent> Events { get; set; } = new List<PortalEvent>();
+    public ICollection<MemoryBoardPhoto> MemoryBoardPhotos { get; set; } = new List<MemoryBoardPhoto>();
 }

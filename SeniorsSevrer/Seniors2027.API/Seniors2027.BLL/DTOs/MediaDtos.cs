@@ -1,4 +1,5 @@
 namespace Seniors2027.BLL.DTOs;
+using Seniors2027.DAL.Entities;
 
 public class GalleryPhotoDto
 {
@@ -24,4 +25,30 @@ public class DailyHighlightDto
     public DateTime CreatedAt { get; set; }
     public DateTime ExpiresAt { get; set; }
     public DailyHighlightUserDto User { get; set; } = new();
+}
+
+public enum MemoryBoardPhotoDecision
+{
+    Approve = 0,
+    Reject = 1
+}
+
+public class ReviewMemoryBoardPhotoDto
+{
+    public MemoryBoardPhotoDecision Decision { get; set; }
+}
+
+public class MemoryBoardPhotoDto
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string PhotoUrl { get; set; } = string.Empty;
+    public MemoryBoardPhotoStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ExifTakenAtUtc { get; set; }
+    public DateTime SortDateUtc { get; set; }
+    public DateTime? ReviewedAtUtc { get; set; }
+    public int? ReviewedByUserId { get; set; }
+    public string? ReviewedByUsername { get; set; }
 }

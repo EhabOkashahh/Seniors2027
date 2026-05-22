@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import {
   CalendarDays,
   CheckCircle2,
+  ImagePlus,
+  Images,
   LockKeyhole,
   LockOpen,
   Megaphone,
@@ -25,15 +27,19 @@ import {
   deleteAdminUserRequest,
   getAdminAnnouncementsRequest,
   getAdminEventsRequest,
+  getAdminMemoryBoardPhotosRequest,
   getAdminUsersRequest,
   getJoinRequestsRequest,
   getMeRequest,
+  reviewAdminMemoryBoardPhotoRequest,
   reviewJoinRequestRequest,
   setAdminUserLockRequest,
   type AdminUser,
   type AnnouncementItem,
   type JoinRequestDecision,
   type JoinRequestItem,
+  type MemoryBoardPhoto,
+  type MemoryBoardPhotoDecision,
   type PortalEventItem
 } from '../lib/authApi'
 
@@ -41,7 +47,7 @@ const USERS_PAGE_SIZE = 20
 const USERS_FETCH_SIZE = USERS_PAGE_SIZE + 1
 const REQUESTS_SYNC_INTERVAL_MS = 5000
 
-type AdminSection = 'requests' | 'users' | 'announcements'
+type AdminSection = 'requests' | 'users' | 'announcements' | 'memoryboard'
 
 export default function AdminJoinRequests() {
   const navigate = useNavigate()
@@ -77,6 +83,12 @@ export default function AdminJoinRequests() {
   const [eventDetailsInput, setEventDetailsInput] = useState('')
   const [eventPhotoFile, setEventPhotoFile] = useState<File | null>(null)
   const [announcementsMessage, setAnnouncementsMessage] = useState<string | null>(null)
+
+  const [memoryBoardPendingPhotos, setMemoryBoardPendingPhotos] = useState<MemoryBoardPhoto[]>([])
+  const [memoryBoardLoading, setMemoryBoardLoading] = useState(false)
+  const [memoryBoardActionId, setMemoryBoardActionId] = useState<number | null>(null)
+  const [memoryBoardMessage, setMemoryBoardMessage] = useState<string | null>(null)
+
   const announcementPhotoInputRef = useRef<HTMLInputElement>(null)
   const eventPhotoInputRef = useRef<HTMLInputElement>(null)
 
@@ -150,6 +162,22 @@ export default function AdminJoinRequests() {
     setEventsLoading(false)
   }, [])
 
+  const loadMemoryBoardPendingPhotos = useCallback(async () => {
+    setMemoryBoardLoading(true)
+    setMemoryBoardMessage(null)
+
+    const result = await getAdminMemoryBoardPhotosRequest('Pending', 400)
+    if (!result.ok || !result.data) {
+      setMemoryBoardPendingPhotos([])
+      setMemoryBoardMessage(result.error ?? 'Could not load pending memoryboard photos.')
+      setMemoryBoardLoading(false)
+      return
+    }
+
+    setMemoryBoardPendingPhotos(result.data)
+    setMemoryBoardLoading(false)
+  }, [])
+
   useEffect(() => {
     const run = async () => {
       const meResult = await getMeRequest()
@@ -206,6 +234,11 @@ export default function AdminJoinRequests() {
     if (activeSection !== 'announcements') return
     void loadAnnouncementsAndEvents()
   }, [activeSection, loadAnnouncementsAndEvents])
+
+  useEffect(() => {
+    if (activeSection !== 'memoryboard') return
+    void loadMemoryBoardPendingPhotos()
+  }, [activeSection, loadMemoryBoardPendingPhotos])
 
   const reviewRequest = async (requestId: number, decision: JoinRequestDecision) => {
     setActionRequestId(requestId)
@@ -346,6 +379,22 @@ export default function AdminJoinRequests() {
     setAnnouncementsMessage('Event deleted.')
   }
 
+  const handleReviewMemoryBoardPhoto = async (photoId: number, decision: MemoryBoardPhotoDecision) => {
+    setMemoryBoardActionId(photoId)
+    setMemoryBoardMessage(null)
+
+    const result = await reviewAdminMemoryBoardPhotoRequest(photoId, decision)
+    setMemoryBoardActionId(null)
+
+    if (!result.ok || !result.data) {
+      setMemoryBoardMessage(result.error ?? 'Could not update photo status.')
+      return
+    }
+
+    setMemoryBoardPendingPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+    setMemoryBoardMessage(decision === 'Approve' ? 'Photo approved.' : 'Photo rejected.')
+  }
+
   const isUsersPreviousDisabled = usersPageNumber === 1 || usersLoading
   const isUsersNextDisabled = usersLoading || !usersHasNextPage || adminUsers.length === 0
 
@@ -367,7 +416,7 @@ export default function AdminJoinRequests() {
             <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '10px' }}>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.02em' }}>Admin Dashboard</h1>
               <p style={{ margin: '6px 0 0 0', fontWeight: 700, opacity: 0.75 }}>
-                Manage requests, users, announcements, and events from one place.
+                Manage requests, users, announcements, events, and memoryboard approvals from one place.
               </p>
             </div>
           </div>
@@ -404,6 +453,15 @@ export default function AdminJoinRequests() {
                 >
                   <Megaphone size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
                   Announcements & Events
+                </button>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={() => setActiveSection('memoryboard')}
+                  style={activeSection === 'memoryboard' ? { background: '#d9f4ff' } : undefined}
+                >
+                  <Images size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                  Memoryboard Photos ({memoryBoardPendingPhotos.length})
                 </button>
               </div>
             </div>
@@ -697,6 +755,110 @@ export default function AdminJoinRequests() {
             </div>
           )}
 
+          {activeSection === 'memoryboard' && (
+            <div style={{ display: 'grid', gap: '12px' }}>
+              <div className="window" style={{ maxWidth: '100%' }}>
+                <div className="window-header" style={{ background: '#d4f4ff' }}>
+                  <ImagePlus size={18} />
+                  <span style={{ fontWeight: 900 }}>MEMORYBOARD_APPROVALS</span>
+                </div>
+                <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ fontWeight: 900, fontSize: '0.95rem' }}>
+                      Pending photos: {memoryBoardPendingPhotos.length}
+                    </div>
+                    <button
+                      type="button"
+                      className="neo-btn"
+                      onClick={() => void loadMemoryBoardPendingPhotos()}
+                      disabled={memoryBoardLoading}
+                      style={{ minWidth: 'auto', padding: '10px 14px' }}
+                    >
+                      <RefreshCw size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                      {memoryBoardLoading ? 'Refreshing...' : 'Refresh'}
+                    </button>
+                  </div>
+
+                  <p style={{ margin: 0, fontWeight: 700, opacity: 0.78 }}>
+                    New uploads stay hidden in Memoryboard until approved here.
+                  </p>
+                  {memoryBoardMessage && <div style={{ fontWeight: 800 }}>{memoryBoardMessage}</div>}
+                </div>
+              </div>
+
+              {memoryBoardLoading ? (
+                <div className="window">
+                  <div className="window-content" style={{ padding: '18px', textAlign: 'left' }}>
+                    <p style={{ margin: 0, fontWeight: 800 }}>Loading pending photos...</p>
+                  </div>
+                </div>
+              ) : memoryBoardPendingPhotos.length === 0 ? (
+                <div className="window">
+                  <div className="window-content" style={{ padding: '18px', textAlign: 'left' }}>
+                    <p style={{ margin: 0, fontWeight: 800 }}>No pending photos right now.</p>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '14px' }}>
+                  {memoryBoardPendingPhotos.map((photo) => {
+                    const isBusy = memoryBoardActionId === photo.id
+                    const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
+                    const createdAtLabel = formatDateTime(photo.createdAt)
+
+                    return (
+                      <div
+                        key={photo.id}
+                        style={{
+                          border: '4px solid black',
+                          boxShadow: '6px 6px 0 black',
+                          background: 'white',
+                          overflow: 'hidden',
+                          display: 'grid'
+                        }}
+                      >
+                        <img
+                          src={photo.photoUrl}
+                          alt={`Pending memoryboard photo by ${photo.username}`}
+                          style={{ width: '100%', height: '220px', objectFit: 'cover', borderBottom: '4px solid black', background: '#eaf1ff' }}
+                        />
+
+                        <div style={{ padding: '12px', display: 'grid', gap: '8px' }}>
+                          <div style={{ fontWeight: 900, fontSize: '1rem', wordBreak: 'break-word' }}>{photo.username}</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.8 }}>Taken: {takenAtLabel}</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.72 }}>Uploaded: {createdAtLabel}</div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              disabled={isBusy}
+                              onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Approve')}
+                              style={{ minWidth: 'auto', padding: '9px 10px', background: '#c9ffd2' }}
+                            >
+                              <CheckCircle2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              disabled={isBusy}
+                              onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Reject')}
+                              style={{ minWidth: 'auto', padding: '9px 10px', background: '#ffc8c8' }}
+                            >
+                              <XCircle size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                              Reject
+                            </button>
+                          </div>
+                          {isBusy && <div style={{ fontWeight: 800, fontSize: '0.76rem' }}>Saving...</div>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeSection === 'announcements' && (
             <div style={{ display: 'grid', gap: '12px' }}>
               <div className="window" style={{ maxWidth: '100%' }}>
@@ -918,4 +1080,16 @@ function formatEventDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
