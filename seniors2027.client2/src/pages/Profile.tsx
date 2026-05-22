@@ -803,7 +803,14 @@ export default function Profile() {
                           type="button"
                           aria-label="Manage social links"
                           onClick={openSocialLinksModal}
-                          style={{ width: '44px', height: '44px', display: 'grid', placeItems: 'center', padding: 0 }}
+                          style={{
+                            width: '44px',
+                            height: '44px',
+                            display: 'grid',
+                            placeItems: 'center',
+                            padding: 0,
+                            background: 'var(--retro-yellow)'
+                          }}
                         >
                           <Paperclip size={18} />
                         </button>
@@ -866,19 +873,20 @@ export default function Profile() {
                     )
                   })}
                   {isOwnProfile && visibleSocialLinks.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={openSocialLinksModal}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        border: '2px dashed black',
-                        background: '#fff8dc',
-                        padding: '8px 10px',
-                        fontWeight: 800
-                      }}
-                    >
+                      <button
+                        type="button"
+                        onClick={openSocialLinksModal}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          border: '3px solid black',
+                          boxShadow: '4px 4px 0 black',
+                          background: 'var(--retro-yellow)',
+                          padding: '8px 10px',
+                          fontWeight: 800
+                        }}
+                      >
                       <Paperclip size={16} />
                       Add social links
                     </button>
@@ -1139,7 +1147,7 @@ export default function Profile() {
                   }}
                   style={{ width: '100%' }}
                 />
-                <button type="button" className="neo-btn" onClick={handleAddSocialLink} style={{ minWidth: '112px' }}>
+                <button type="button" className="neo-btn" onClick={handleAddSocialLink} style={{ minWidth: '112px', background: 'var(--retro-yellow)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                     <Plus size={16} />
                     Add
@@ -1230,7 +1238,7 @@ export default function Profile() {
                 className="neo-btn"
                 onClick={handleSaveSocialLinks}
                 disabled={socialLinksSaving}
-                style={{ minWidth: '110px' }}
+                style={{ minWidth: '110px', background: 'var(--retro-yellow)' }}
               >
                 {socialLinksSaving ? 'Saving...' : 'Save Links'}
               </button>
