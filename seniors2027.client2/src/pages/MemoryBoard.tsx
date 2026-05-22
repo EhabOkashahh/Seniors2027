@@ -9,6 +9,7 @@ import {
 } from '../lib/authApi'
 
 const MEMORYBOARD_SYNC_INTERVAL_MS = 15000
+const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
 
 export default function MemoryBoard() {
   const [photos, setPhotos] = useState<MemoryBoardPhoto[]>([])
@@ -92,6 +93,12 @@ export default function MemoryBoard() {
       return
     }
 
+    if (result.data.status === 'Approved') {
+      setPhotos((prev) => [...prev, result.data!])
+      setMessage('Photo added directly to Memoryboard.')
+      return
+    }
+
     setMessage('Photo uploaded. It will appear in Memoryboard after admin approval.')
   }
 
@@ -142,17 +149,15 @@ export default function MemoryBoard() {
           <div className="window" style={{ maxWidth: '100%' }}>
             <div className="window-header" style={{ background: '#fff2b2' }}>
               <Images size={18} />
-              <span style={{ fontWeight: 900 }}>BOARD_STREAM</span>
+              <span style={{ fontWeight: 900 }}>RETRO_PHOTO_WALL</span>
             </div>
             <div
               className="window-content"
               style={{
-                padding: '14px',
-                maxHeight: '72vh',
-                overflowY: 'auto',
-                gap: '10px',
+                padding: '16px',
+                gap: '12px',
                 textAlign: 'left',
-                background: 'linear-gradient(180deg, #fffef2 0%, #f8f2ff 100%)'
+                background: 'linear-gradient(180deg, #fff3d7 0%, #ffe8c2 100%)'
               }}
             >
               {loading ? (
@@ -160,56 +165,73 @@ export default function MemoryBoard() {
               ) : sortedPhotos.length === 0 ? (
                 <p style={{ margin: 0, fontWeight: 900 }}>No approved photos yet. Add a photo and wait for admin approval.</p>
               ) : (
-                sortedPhotos.map((item, index) => (
+                <div
+                  style={{
+                    border: '3px solid black',
+                    boxShadow: '7px 7px 0 black',
+                    background:
+                      'radial-gradient(circle at 20% 16%, rgba(255,255,255,0.22), transparent 55%), repeating-linear-gradient(45deg, #d6a472 0px, #d6a472 12px, #cf9b6c 12px, #cf9b6c 24px)',
+                    padding: '14px'
+                  }}
+                >
                   <div
-                    key={item.id}
                     style={{
-                      border: '3px solid black',
-                      boxShadow: '6px 6px 0 black',
-                      background: 'white',
-                      padding: '10px',
                       display: 'grid',
-                      gap: '10px'
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                      gap: '12px'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <div
-                        style={{
-                          border: '2px solid black',
-                          background: '#e3f6ff',
-                          padding: '4px 8px',
-                          fontWeight: 900,
-                          fontSize: '0.72rem'
-                        }}
-                      >
-                        #{String(index + 1).padStart(3, '0')}
-                      </div>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.78rem' }}>
-                        <Clock3 size={14} />
-                        {formatDateTime(item.exifTakenAtUtc ?? item.createdAt)}
-                      </div>
-                    </div>
+                    {sortedPhotos.map((item, index) => {
+                      const rotation = ((item.id * 7 + index * 3) % 7) - 3
+                      const pinColor = PHOTO_PIN_COLORS[(item.id + index) % PHOTO_PIN_COLORS.length]
 
-                    <img
-                      src={item.photoUrl}
-                      alt={`Memory photo by ${item.username}`}
-                      style={{
-                        width: '100%',
-                        maxHeight: '520px',
-                        objectFit: 'cover',
-                        border: '3px solid black',
-                        background: '#eaf1ff'
-                      }}
-                    />
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-                      <div style={{ fontWeight: 900, fontSize: '0.82rem' }}>By: {item.username}</div>
-                      <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.74 }}>
-                        Uploaded: {formatDateTime(item.createdAt)}
-                      </div>
-                    </div>
+                      return (
+                        <motion.div
+                          key={item.id}
+                          whileHover={{ y: -3, rotate: rotation + 0.6, scale: 1.03 }}
+                          transition={{ duration: 0.16 }}
+                          style={{
+                            border: '2px solid black',
+                            boxShadow: '4px 4px 0 black',
+                            background: '#fffdf8',
+                            padding: '6px',
+                            display: 'grid',
+                            gap: '6px',
+                            transform: `rotate(${rotation}deg)`
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '20px',
+                              height: '10px',
+                              border: '2px solid black',
+                              background: pinColor,
+                              margin: '0 auto'
+                            }}
+                          />
+                          <img
+                            src={item.photoUrl}
+                            alt={`Memory photo by ${item.username}`}
+                            style={{
+                              width: '100%',
+                              height: '130px',
+                              objectFit: 'cover',
+                              border: '2px solid black',
+                              background: '#eaf1ff'
+                            }}
+                          />
+                          <div style={{ fontWeight: 900, fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.username}
+                          </div>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.62rem', opacity: 0.8 }}>
+                            <Clock3 size={11} />
+                            {formatShortDate(item.exifTakenAtUtc ?? item.createdAt)}
+                          </div>
+                        </motion.div>
+                      )
+                    })}
                   </div>
-                ))
+                </div>
               )}
             </div>
           </div>
@@ -219,14 +241,12 @@ export default function MemoryBoard() {
   )
 }
 
-function formatDateTime(value: string): string {
+function formatShortDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString(undefined, {
+  return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    day: 'numeric'
   })
 }

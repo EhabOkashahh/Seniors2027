@@ -54,6 +54,7 @@ public class MemoryBoardController(
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized();
         if (photo == null || photo.Length == 0) return BadRequest("Photo is required.");
+        var requesterIsAdmin = User.IsInRole(nameof(UserRole.Admin));
 
         StoredPhotoInfo? storedPhoto;
         try
@@ -73,8 +74,10 @@ public class MemoryBoardController(
             UserId = userId,
             PhotoUrl = storedPhoto.PhotoUrl,
             ExifTakenAtUtc = storedPhoto.ExifTakenAtUtc,
-            Status = MemoryBoardPhotoStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            Status = requesterIsAdmin ? MemoryBoardPhotoStatus.Approved : MemoryBoardPhotoStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            ReviewedAtUtc = requesterIsAdmin ? DateTime.UtcNow : null,
+            ReviewedByUserId = requesterIsAdmin ? userId : null
         };
 
         try
