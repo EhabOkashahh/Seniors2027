@@ -488,17 +488,19 @@ export default function MemoryBoard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '18px'
+            padding: isMobile ? '10px' : '18px'
           }}
           onClick={() => setIsViewerOpen(false)}
         >
           <div
             style={{
-              width: 'min(980px, 96vw)',
+              width: isMobile ? 'min(96vw, 560px)' : 'min(980px, 96vw)',
               background: '#fff7e6',
               border: '4px solid black',
               boxShadow: '10px 10px 0 black',
-              padding: '12px',
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              padding: isMobile ? '10px' : '12px',
               display: 'grid',
               gap: '10px'
             }}
@@ -518,39 +520,75 @@ export default function MemoryBoard() {
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'auto 1fr auto', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                className="neo-btn"
-                onClick={goViewerPrevious}
-                disabled={sortedPhotos.length <= 1}
-                style={{ minWidth: 'auto', padding: '8px 10px', justifySelf: isMobile ? 'flex-start' : 'stretch' }}
-              >
-                <ChevronLeft size={18} />
-              </button>
+            {isMobile ? (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <img
+                  src={sortedPhotos[viewerIndex].photoUrl}
+                  alt={`Memory photo by ${sortedPhotos[viewerIndex].username}`}
+                  style={{
+                    width: '100%',
+                    maxHeight: '60vh',
+                    objectFit: 'contain',
+                    border: '3px solid black',
+                    background: '#0f0f0f'
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="neo-btn"
+                    onClick={goViewerPrevious}
+                    disabled={sortedPhotos.length <= 1}
+                    style={{ minWidth: 'auto', padding: '8px 10px' }}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    className="neo-btn"
+                    onClick={goViewerNext}
+                    disabled={sortedPhotos.length <= 1}
+                    style={{ minWidth: 'auto', padding: '8px 10px' }}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={goViewerPrevious}
+                  disabled={sortedPhotos.length <= 1}
+                  style={{ minWidth: 'auto', padding: '8px 10px' }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
 
-              <img
-                src={sortedPhotos[viewerIndex].photoUrl}
-                alt={`Memory photo by ${sortedPhotos[viewerIndex].username}`}
-                style={{
-                  width: '100%',
-                  maxHeight: '76vh',
-                  objectFit: 'contain',
-                  border: '3px solid black',
-                  background: '#0f0f0f'
-                }}
-              />
+                <img
+                  src={sortedPhotos[viewerIndex].photoUrl}
+                  alt={`Memory photo by ${sortedPhotos[viewerIndex].username}`}
+                  style={{
+                    width: '100%',
+                    maxHeight: '76vh',
+                    objectFit: 'contain',
+                    border: '3px solid black',
+                    background: '#0f0f0f'
+                  }}
+                />
 
-              <button
-                type="button"
-                className="neo-btn"
-                onClick={goViewerNext}
-                disabled={sortedPhotos.length <= 1}
-                style={{ minWidth: 'auto', padding: '8px 10px', justifySelf: isMobile ? 'flex-end' : 'stretch' }}
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={goViewerNext}
+                  disabled={sortedPhotos.length <= 1}
+                  style={{ minWidth: 'auto', padding: '8px 10px' }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
               <div style={{ fontWeight: 900, fontSize: '0.84rem' }}>{sortedPhotos[viewerIndex].username}</div>
