@@ -765,7 +765,7 @@ export default function Profile() {
               padding: isMobile ? '14px' : '20px'
             }}
           >
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', alignSelf: 'start' }}>
               <GenderCapAvatar
                 src={displayPhoto}
                 alt={displayName}
