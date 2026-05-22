@@ -408,6 +408,28 @@ export default function AdminJoinRequests() {
     }
 
     setMemoryBoardPendingPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+    if (decision === 'Approve') {
+      const approvedPhoto = result.data
+      setMemoryBoardApprovedPhotos((prev) => {
+        const merged = [...prev.filter((photo) => photo.id !== approvedPhoto.id), approvedPhoto]
+        return merged.sort((left, right) => {
+          const leftSort = Date.parse(left.sortDateUtc ?? left.createdAt)
+          const rightSort = Date.parse(right.sortDateUtc ?? right.createdAt)
+
+          if (Number.isNaN(leftSort) && Number.isNaN(rightSort)) return left.id - right.id
+          if (Number.isNaN(leftSort)) return 1
+          if (Number.isNaN(rightSort)) return -1
+          if (leftSort !== rightSort) return leftSort - rightSort
+
+          const leftCreated = Date.parse(left.createdAt)
+          const rightCreated = Date.parse(right.createdAt)
+          if (Number.isNaN(leftCreated) && Number.isNaN(rightCreated)) return left.id - right.id
+          if (Number.isNaN(leftCreated)) return 1
+          if (Number.isNaN(rightCreated)) return -1
+          return leftCreated - rightCreated
+        })
+      })
+    }
     setMemoryBoardMessage(decision === 'Approve' ? 'Photo approved.' : 'Photo rejected.')
   }
 
