@@ -1186,7 +1186,18 @@ export default function Profile() {
                       <div style={{ fontWeight: 900, fontSize: '0.9rem' }}>{note.sender.username}</div>
                       <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.7 }}>{formatNoteDate(note.createdAt)}</div>
                     </div>
-                    <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.4 }}>{note.content}</p>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontWeight: 700,
+                        lineHeight: 1.4,
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word'
+                      }}
+                    >
+                      {note.content}
+                    </p>
                     {me && (note.sender.id === me.id || me.role === 'Admin') && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button
@@ -1536,7 +1547,18 @@ export default function Profile() {
                         />
                         <div style={{ fontWeight: 900 }}>{note.sender.username}</div>
                       </div>
-                      <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.45 }}>{note.content}</p>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontWeight: 700,
+                          lineHeight: 1.45,
+                          whiteSpace: 'pre-wrap',
+                          overflowWrap: 'anywhere',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {note.content}
+                      </p>
                       <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                         <div style={{ fontSize: '0.8rem', opacity: 0.72, fontWeight: 700 }}>{formatNoteDate(note.createdAt)}</div>
                         {me && (note.sender.id === me.id || me.role === 'Admin') && (

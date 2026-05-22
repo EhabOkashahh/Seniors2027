@@ -564,6 +564,8 @@ export default function PortalHome() {
                     fontSize: '0.82rem',
                     lineHeight: 1.34,
                     whiteSpace: 'pre-wrap',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
                     overflow: 'hidden',
                     display: '-webkit-box',
                     WebkitBoxOrient: 'vertical',
