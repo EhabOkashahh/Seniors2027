@@ -841,6 +841,7 @@ export default function Profile() {
                     const platform = detectSocialPlatform(link)
                     const brandIconUrl = getSocialPlatformIconUrl(platform)
                     const faviconUrl = getWebsiteFaviconUrl(link)
+                    const localFallbackIconUrl = getLocalPlatformFallbackIconUrl(platform)
                     const theme = getSocialPlatformTheme(platform)
                     return (
                       <a
@@ -864,10 +865,15 @@ export default function Profile() {
                         }}
                       >
                         <img
-                          src={brandIconUrl ?? faviconUrl ?? '/favicon.svg'}
+                          src={brandIconUrl ?? faviconUrl ?? localFallbackIconUrl}
                           alt={`${platform} icon`}
                           onError={(event) => {
-                            event.currentTarget.src = '/favicon.svg'
+                            const currentSrc = event.currentTarget.getAttribute('src') ?? ''
+                            if (currentSrc !== localFallbackIconUrl) {
+                              event.currentTarget.src = localFallbackIconUrl
+                              return
+                            }
+                            event.currentTarget.onerror = null
                           }}
                           style={{ width: '22px', height: '22px', objectFit: 'contain' }}
                         />
@@ -1185,6 +1191,7 @@ export default function Profile() {
                   const platform = detectSocialPlatform(link)
                   const brandIconUrl = getSocialPlatformIconUrl(platform)
                   const faviconUrl = getWebsiteFaviconUrl(link)
+                  const localFallbackIconUrl = getLocalPlatformFallbackIconUrl(platform)
                   const theme = getSocialPlatformTheme(platform)
                   return (
                     <div
@@ -1211,10 +1218,15 @@ export default function Profile() {
                         }}
                       >
                         <img
-                          src={brandIconUrl ?? faviconUrl ?? '/favicon.svg'}
+                          src={brandIconUrl ?? faviconUrl ?? localFallbackIconUrl}
                           alt={`${platform} icon`}
                           onError={(event) => {
-                            event.currentTarget.src = '/favicon.svg'
+                            const currentSrc = event.currentTarget.getAttribute('src') ?? ''
+                            if (currentSrc !== localFallbackIconUrl) {
+                              event.currentTarget.src = localFallbackIconUrl
+                              return
+                            }
+                            event.currentTarget.onerror = null
                           }}
                           style={{ width: '18px', height: '18px', objectFit: 'contain' }}
                         />
@@ -1722,7 +1734,7 @@ function getSocialPlatformIconUrl(platform: SocialPlatform): string | null {
     case 'youtube':
       return 'https://cdn.simpleicons.org/youtube/ffffff'
     case 'linkedin':
-      return 'https://cdn.simpleicons.org/linkedin/ffffff'
+      return getLocalPlatformFallbackIconUrl('linkedin')
     case 'github':
       return 'https://cdn.simpleicons.org/github/ffffff'
     case 'telegram':
@@ -1738,6 +1750,32 @@ function getSocialPlatformIconUrl(platform: SocialPlatform): string | null {
     default:
       return null
   }
+}
+
+function getLocalPlatformFallbackIconUrl(platform: SocialPlatform): string {
+  if (platform === 'linkedin') {
+    const linkedinSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#fff" d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854zm4.943 12.248V6.169H2.542v7.225zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248S2.4 3.226 2.4 3.934c0 .694.521 1.248 1.327 1.248m4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193V6.17H6.45c.03.678 0 7.225 0 7.225z"/></svg>`
+    return `data:image/svg+xml;utf8,${encodeURIComponent(linkedinSvg)}`
+  }
+
+  const labelMap: Record<SocialPlatform, string> = {
+    instagram: 'IG',
+    facebook: 'f',
+    twitter: 'X',
+    youtube: 'YT',
+    linkedin: 'in',
+    github: 'GH',
+    telegram: 'TG',
+    tiktok: 'TT',
+    whatsapp: 'WA',
+    gmail: 'M',
+    behance: 'Be',
+    website: 'www'
+  }
+
+  const label = labelMap[platform] ?? 'www'
+  const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#111"/><text x="32" y="40" text-anchor="middle" font-size="24" font-family="Arial, sans-serif" font-weight="700" fill="#fff">${label}</text></svg>`
+  return `data:image/svg+xml;utf8,${encodeURIComponent(fallbackSvg)}`
 }
 
 function getWebsiteFaviconUrl(link: string): string | null {
