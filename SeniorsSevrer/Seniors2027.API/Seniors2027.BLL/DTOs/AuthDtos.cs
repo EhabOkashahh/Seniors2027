@@ -50,6 +50,11 @@ public class UpdateDescriptionDto
     public string? Description { get; set; }
 }
 
+public class UpdateSocialLinksDto
+{
+    public List<string>? Links { get; set; }
+}
+
 public class UpdateUsernameDto
 {
     public required string Username { get; set; }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Seniors2027.DAL.Data;
 using Seniors2027.DAL.Entities;
+using System.Text.Json;
 
 namespace Seniors2027.API.Controllers;
 
@@ -62,12 +63,60 @@ public class UsersController : ControllerBase
                 u.Username,
                 u.PhotoUrl,
                 u.Description,
+                u.SocialLinksJson,
                 u.Gender
             })
             .FirstOrDefaultAsync();
 
         if (user == null) return NotFound();
 
-        return Ok(user);
+        return Ok(new
+        {
+            user.Id,
+            user.Username,
+            user.PhotoUrl,
+            user.Description,
+            socialLinks = ParseSocialLinks(user.SocialLinksJson),
+            user.Gender
+        });
+    }
+
+    private static IReadOnlyList<string> ParseSocialLinks(string? socialLinksJson)
+    {
+        if (string.IsNullOrWhiteSpace(socialLinksJson)) return Array.Empty<string>();
+
+        try
+        {
+            var links = JsonSerializer.Deserialize<List<string>>(socialLinksJson) ?? new List<string>();
+            var normalized = new List<string>();
+
+            foreach (var link in links)
+            {
+                if (string.IsNullOrWhiteSpace(link)) continue;
+
+                var candidate = link.Trim();
+                if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri)) continue;
+                if (!IsSupportedWebScheme(uri.Scheme)) continue;
+
+                if (normalized.Any(existing => string.Equals(existing, candidate, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                normalized.Add(candidate);
+            }
+
+            return normalized;
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private static bool IsSupportedWebScheme(string scheme)
+    {
+        return string.Equals(scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
     }
 }

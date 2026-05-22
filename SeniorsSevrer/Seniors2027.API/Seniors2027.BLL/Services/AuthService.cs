@@ -5,6 +5,7 @@ using Seniors2027.DAL.Interfaces;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace Seniors2027.BLL.Services;
 
@@ -16,6 +17,7 @@ public class AuthService(
     IConfiguration configuration) : IAuthService
 {
     private const int LoginOtpLifetimeMinutes = 20;
+    private const int MaxSocialLinksCount = 8;
     private static readonly TimeSpan PendingApprovalOtpLifetime = TimeSpan.FromHours(6);
     // public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
     // {
@@ -165,7 +167,8 @@ public class AuthService(
             Gender = user.Gender,
             Role = currentRole,
             PhotoUrl = user.PhotoUrl,
-            Description = user.Description
+            Description = user.Description,
+            SocialLinksJson = user.SocialLinksJson
         };
 
         return new AuthResponseDto
@@ -196,6 +199,7 @@ public class AuthService(
                     Role = u.Role,
                     PhotoUrl = u.PhotoUrl,
                     Description = u.Description,
+                    SocialLinksJson = u.SocialLinksJson,
                     IsLocked = u.IsLocked
                 })
                 .FirstOrDefault();
@@ -213,6 +217,7 @@ public class AuthService(
                     Role = u.Role,
                     PhotoUrl = u.PhotoUrl,
                     Description = u.Description,
+                    SocialLinksJson = u.SocialLinksJson,
                     IsLocked = false
                 })
                 .FirstOrDefault();
@@ -228,6 +233,7 @@ public class AuthService(
         public UserRole Role { get; init; }
         public string? PhotoUrl { get; init; }
         public string? Description { get; init; }
+        public string? SocialLinksJson { get; init; }
         public bool IsLocked { get; init; }
     }
 
@@ -312,6 +318,57 @@ public class AuthService(
         _unitOfWork.Repository<User>().Update(user);
         await _unitOfWork.CompleteAsync();
         return true;
+    }
+
+    public async Task<bool> UpdateSocialLinksAsync(int userId, IEnumerable<string>? links)
+    {
+        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        if (user == null) return false;
+
+        var normalizedLinks = NormalizeSocialLinks(links);
+        user.SocialLinksJson = normalizedLinks.Count == 0 ? null : JsonSerializer.Serialize(normalizedLinks);
+
+        _unitOfWork.Repository<User>().Update(user);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
+
+    private static List<string> NormalizeSocialLinks(IEnumerable<string>? links)
+    {
+        if (links == null) return new List<string>();
+
+        var normalized = new List<string>();
+        foreach (var rawLink in links)
+        {
+            if (string.IsNullOrWhiteSpace(rawLink)) continue;
+
+            var candidate = rawLink.Trim();
+            if (!candidate.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                && !candidate.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                candidate = $"https://{candidate}";
+            }
+
+            if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri)) continue;
+            if (!IsSupportedWebScheme(uri.Scheme)) continue;
+
+            var normalizedUrl = uri.ToString();
+            if (normalized.Any(existing => string.Equals(existing, normalizedUrl, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            normalized.Add(normalizedUrl);
+            if (normalized.Count >= MaxSocialLinksCount) break;
+        }
+
+        return normalized;
+    }
+
+    private static bool IsSupportedWebScheme(string scheme)
+    {
+        return string.Equals(scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
     }
 
     private string GenerateOtp()

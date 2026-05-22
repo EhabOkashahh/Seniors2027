@@ -108,6 +108,7 @@ export async function verifyOtpRequest(payload: VerifyOtpPayload): Promise<
     role?: AppUserRole | null
     photoUrl?: string | null
     description?: string | null
+    socialLinks?: string[]
     profileCompletionRequired?: boolean
   }>
 > {
@@ -134,6 +135,7 @@ export async function verifyOtpRequest(payload: VerifyOtpPayload): Promise<
       role?: AppUserRole | null
       photoUrl?: string | null
       description?: string | null
+      socialLinks?: string[]
       profileCompletionRequired?: boolean
     }
     return { ok: true, data }
@@ -153,6 +155,7 @@ export type User = {
   username: string
   photoUrl?: string | null
   description?: string | null
+  socialLinks?: string[]
   gender: string
 }
 
@@ -161,6 +164,7 @@ export type MeUser = {
   username: string
   photoUrl?: string | null
   description?: string | null
+  socialLinks?: string[]
   role?: AppUserRole | null
 }
 
@@ -711,6 +715,35 @@ export async function updateMyUsernameRequest(
     }
 
     const data = (await tryReadJson(response)) as { message?: string } | null
+    return { ok: true, data: data ?? {} }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function updateMySocialLinksRequest(
+  links: string[],
+  tokenOverride?: string
+): Promise<ApiResult<{ message?: string; socialLinks?: string[] }>> {
+  try {
+    const token = tokenOverride ?? getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/auth/me/social-links`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ links })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await tryReadJson(response)) as { message?: string; socialLinks?: string[] } | null
     return { ok: true, data: data ?? {} }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }

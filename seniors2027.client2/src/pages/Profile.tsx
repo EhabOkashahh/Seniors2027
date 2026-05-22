@@ -1,7 +1,23 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Navigate, useParams } from 'react-router-dom'
-import { Image as ImageIcon, Pin, BookOpen, Pencil } from 'lucide-react'
+import {
+  Image as ImageIcon,
+  BookOpen,
+  Pencil,
+  Paperclip,
+  Plus,
+  X,
+  Camera,
+  Users,
+  MessageCircle,
+  Video,
+  Briefcase,
+  Code,
+  Music2,
+  Globe,
+  Send
+} from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import ImageCropEditorModal, { type ImageCropResult } from '../components/photo/ImageCropEditorModal'
@@ -16,6 +32,7 @@ import {
   getUserByIdRequest,
   sendNoteRequest,
   updateMyPhotoRequest,
+  updateMySocialLinksRequest,
   updateMyUsernameRequest,
   type GalleryPhoto,
   type MeUser,
@@ -42,6 +59,11 @@ export default function Profile() {
   const [descriptionSaving, setDescriptionSaving] = useState(false)
   const [descriptionMessage, setDescriptionMessage] = useState<string | null>(null)
   const [isEditingDescription, setIsEditingDescription] = useState(false)
+  const [socialLinksDraft, setSocialLinksDraft] = useState<string[]>([])
+  const [socialLinkInput, setSocialLinkInput] = useState('')
+  const [socialLinksSaving, setSocialLinksSaving] = useState(false)
+  const [socialLinksMessage, setSocialLinksMessage] = useState<string | null>(null)
+  const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false)
   const [photoUpdating, setPhotoUpdating] = useState(false)
   const [photoMessage, setPhotoMessage] = useState<string | null>(null)
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false)
@@ -93,6 +115,7 @@ export default function Profile() {
           if (!cancelled) {
             setProfileUser(null)
             setMe(null)
+            setSocialLinksDraft([])
             setLoading(false)
           }
           return
@@ -105,8 +128,10 @@ export default function Profile() {
           setProfileUser(userResult.data)
           setUsernameInput(userResult.data.username ?? '')
           setDescriptionInput(userResult.data.description ?? '')
+          setSocialLinksDraft(normalizeSocialLinks(userResult.data.socialLinks))
         } else {
           setProfileUser(null)
+          setSocialLinksDraft([])
         }
 
         if (meResult.ok && meResult.data) {
@@ -114,6 +139,7 @@ export default function Profile() {
           if (userResult.ok && userResult.data && meResult.data.id === userResult.data.id) {
             setUsernameInput(meResult.data.username ?? userResult.data.username ?? '')
             setDescriptionInput(meResult.data.description ?? userResult.data.description ?? '')
+            setSocialLinksDraft(normalizeSocialLinks(meResult.data.socialLinks ?? userResult.data.socialLinks))
           }
         } else {
           setMe(null)
@@ -254,6 +280,8 @@ export default function Profile() {
 
   const displayName = profileUser?.username ?? 'Senior'
   const displayPhoto = profileUser?.photoUrl || '/favicon.svg'
+  const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
+  const maxSocialLinks = 8
   const galleryPageSize = 4
   const galleryTotalPages = Math.max(1, Math.ceil(galleryPhotos.length / galleryPageSize))
   const safeGalleryPageNumber = Math.min(galleryPageNumber, galleryTotalPages)
@@ -419,6 +447,73 @@ export default function Profile() {
     } finally {
       setDescriptionSaving(false)
     }
+  }
+
+  const openSocialLinksModal = () => {
+    if (!isOwnProfile) return
+    setSocialLinksDraft(visibleSocialLinks)
+    setSocialLinkInput('')
+    setSocialLinksMessage(null)
+    setIsSocialLinksModalOpen(true)
+  }
+
+  const closeSocialLinksModal = () => {
+    if (socialLinksSaving) return
+    setIsSocialLinksModalOpen(false)
+    setSocialLinkInput('')
+  }
+
+  const handleAddSocialLink = () => {
+    const normalizedLink = normalizeSocialLinkInput(socialLinkInput)
+
+    if (!normalizedLink) {
+      setSocialLinksMessage('Please enter a valid profile link.')
+      return
+    }
+
+    if (socialLinksDraft.some((link) => link.toLowerCase() === normalizedLink.toLowerCase())) {
+      setSocialLinksMessage('This link is already added.')
+      return
+    }
+
+    if (socialLinksDraft.length >= maxSocialLinks) {
+      setSocialLinksMessage(`You can add up to ${maxSocialLinks} links.`)
+      return
+    }
+
+    setSocialLinksDraft((prev) => [...prev, normalizedLink])
+    setSocialLinkInput('')
+    setSocialLinksMessage(null)
+  }
+
+  const handleRemoveSocialLink = (linkToRemove: string) => {
+    setSocialLinksDraft((prev) => prev.filter((link) => link !== linkToRemove))
+    setSocialLinksMessage(null)
+  }
+
+  const handleSaveSocialLinks = async () => {
+    if (!isOwnProfile) {
+      setSocialLinksMessage('You can only edit your own social links.')
+      return
+    }
+
+    const normalizedLinks = normalizeSocialLinks(socialLinksDraft).slice(0, maxSocialLinks)
+    setSocialLinksSaving(true)
+    setSocialLinksMessage(null)
+
+    const result = await updateMySocialLinksRequest(normalizedLinks)
+    setSocialLinksSaving(false)
+
+    if (!result.ok) {
+      setSocialLinksMessage(result.error ?? 'Could not save social links.')
+      return
+    }
+
+    const persistedLinks = normalizeSocialLinks(result.data?.socialLinks ?? normalizedLinks)
+    setProfileUser((prev) => (prev ? { ...prev, socialLinks: persistedLinks } : prev))
+    setSocialLinksDraft(persistedLinks)
+    setSocialLinksMessage('Social links saved.')
+    setIsSocialLinksModalOpen(false)
   }
 
   const handleSendNote = async () => {
@@ -699,9 +794,9 @@ export default function Profile() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'grid', gap: '12px' }}>
                     {isOwnProfile && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                         <button
                           type="button"
                           aria-label="Edit description"
@@ -711,7 +806,15 @@ export default function Profile() {
                           }}
                           style={{ width: '44px', height: '44px', display: 'grid', placeItems: 'center', padding: 0 }}
                         >
-                          <Pin size={18} />
+                          <Pencil size={18} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Manage social links"
+                          onClick={openSocialLinksModal}
+                          style={{ width: '44px', height: '44px', display: 'grid', placeItems: 'center', padding: 0 }}
+                        >
+                          <Paperclip size={18} />
                         </button>
                       </div>
                     )}
@@ -728,11 +831,59 @@ export default function Profile() {
                     >
                       {descriptionInput?.trim() || 'No description yet.'}
                     </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+                      {visibleSocialLinks.map((link) => {
+                        const platform = detectSocialPlatform(link)
+                        const IconComponent = getSocialPlatformIcon(platform)
+                        return (
+                          <a
+                            key={link}
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={link}
+                            aria-label={`Open ${platform} profile`}
+                            style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '50%',
+                              border: '2px solid black',
+                              background: '#fff7cf',
+                              boxShadow: '3px 3px 0 black',
+                              display: 'grid',
+                              placeItems: 'center',
+                              color: 'black'
+                            }}
+                          >
+                            <IconComponent size={18} />
+                          </a>
+                        )
+                      })}
+                      {isOwnProfile && visibleSocialLinks.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={openSocialLinksModal}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            border: '2px dashed black',
+                            background: '#fff8dc',
+                            padding: '8px 10px',
+                            fontWeight: 800
+                          }}
+                        >
+                          <Paperclip size={16} />
+                          Add social links
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
               {usernameMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{usernameMessage}</div>}
               {descriptionMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{descriptionMessage}</div>}
+              {socialLinksMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{socialLinksMessage}</div>}
               {photoMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{photoMessage}</div>}
               {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
             </div>
@@ -931,6 +1082,151 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {isSocialLinksModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={closeSocialLinksModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 72,
+            padding: '20px'
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(640px, 100%)',
+              border: '4px solid black',
+              boxShadow: '12px 12px 0 black',
+              background: 'var(--retro-paper)',
+              padding: isMobile ? '12px' : '18px',
+              display: 'grid',
+              gap: '14px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0, textTransform: 'uppercase' }}>Social Links</h3>
+              <button type="button" className="neo-btn" onClick={closeSocialLinksModal} disabled={socialLinksSaving}>
+                Close
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                <input
+                  type="text"
+                  value={socialLinkInput}
+                  placeholder="instagram.com/your_username"
+                  onChange={(event) => {
+                    setSocialLinkInput(event.target.value)
+                    setSocialLinksMessage(null)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      handleAddSocialLink()
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                />
+                <button type="button" className="neo-btn" onClick={handleAddSocialLink} style={{ minWidth: '112px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Plus size={16} />
+                    Add
+                  </span>
+                </button>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
+                Paste any profile link and we will automatically show the right icon.
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
+                {socialLinksDraft.length}/{maxSocialLinks} links
+              </div>
+            </div>
+
+            <div
+              style={{
+                border: '3px solid black',
+                background: 'white',
+                minHeight: '120px',
+                maxHeight: '260px',
+                overflowY: 'auto',
+                padding: '10px',
+                display: 'grid',
+                gap: '8px'
+              }}
+            >
+              {socialLinksDraft.length === 0 ? (
+                <div style={{ fontWeight: 700, opacity: 0.8 }}>
+                  No links yet. Add Instagram, Facebook, TikTok, YouTube, LinkedIn, or any website profile.
+                </div>
+              ) : (
+                socialLinksDraft.map((link) => {
+                  const platform = detectSocialPlatform(link)
+                  const IconComponent = getSocialPlatformIcon(platform)
+                  return (
+                    <div
+                      key={link}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '40px 1fr auto',
+                        gap: '8px',
+                        alignItems: 'center',
+                        border: '2px solid black',
+                        background: '#fff9da',
+                        padding: '6px 8px'
+                      }}
+                    >
+                      <div style={{ width: '32px', height: '32px', border: '2px solid black', borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'white' }}>
+                        <IconComponent size={16} />
+                      </div>
+                      <a href={link} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: 'black', overflowWrap: 'anywhere' }}>
+                        {link}
+                      </a>
+                      <button
+                        type="button"
+                        className="neo-btn"
+                        onClick={() => handleRemoveSocialLink(link)}
+                        style={{ minWidth: 'auto', padding: '6px', lineHeight: 0 }}
+                        aria-label="Remove link"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {socialLinksMessage && (
+              <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>
+                {socialLinksMessage}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+              <button type="button" className="neo-btn" onClick={closeSocialLinksModal} disabled={socialLinksSaving}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={handleSaveSocialLinks}
+                disabled={socialLinksSaving}
+                style={{ minWidth: '110px' }}
+              >
+                {socialLinksSaving ? 'Saving...' : 'Save Links'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isBookOpen && (
         <div
@@ -1256,6 +1552,95 @@ export default function Profile() {
       />
     </PortalLayout>
   )
+}
+
+type SocialPlatform =
+  | 'instagram'
+  | 'facebook'
+  | 'twitter'
+  | 'youtube'
+  | 'linkedin'
+  | 'github'
+  | 'telegram'
+  | 'tiktok'
+  | 'website'
+
+function normalizeSocialLinks(links: string[] | undefined | null): string[] {
+  if (!Array.isArray(links)) return []
+
+  const normalized: string[] = []
+  for (const link of links) {
+    const normalizedLink = normalizeSocialLinkInput(link)
+    if (!normalizedLink) continue
+
+    if (normalized.some((existing) => existing.toLowerCase() === normalizedLink.toLowerCase())) {
+      continue
+    }
+
+    normalized.push(normalizedLink)
+  }
+
+  return normalized
+}
+
+function normalizeSocialLinkInput(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const parsed = new URL(withScheme)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
+function detectSocialPlatform(link: string): SocialPlatform {
+  const normalizedLink = normalizeSocialLinkInput(link)
+  if (!normalizedLink) return 'website'
+
+  try {
+    const hostname = new URL(normalizedLink).hostname.toLowerCase().replace(/^www\./, '')
+
+    if (hostname.includes('instagram.')) return 'instagram'
+    if (hostname.includes('facebook.')) return 'facebook'
+    if (hostname === 'x.com' || hostname.endsWith('.x.com') || hostname.includes('twitter.')) return 'twitter'
+    if (hostname.includes('youtube.') || hostname === 'youtu.be') return 'youtube'
+    if (hostname.includes('linkedin.')) return 'linkedin'
+    if (hostname.includes('github.')) return 'github'
+    if (hostname === 't.me' || hostname.includes('telegram.')) return 'telegram'
+    if (hostname.includes('tiktok.')) return 'tiktok'
+
+    return 'website'
+  } catch {
+    return 'website'
+  }
+}
+
+function getSocialPlatformIcon(platform: SocialPlatform) {
+  switch (platform) {
+    case 'instagram':
+      return Camera
+    case 'facebook':
+      return Users
+    case 'twitter':
+      return MessageCircle
+    case 'youtube':
+      return Video
+    case 'linkedin':
+      return Briefcase
+    case 'github':
+      return Code
+    case 'telegram':
+      return Send
+    case 'tiktok':
+      return Music2
+    default:
+      return Globe
+  }
 }
 
 function formatNoteDate(value: string): string {

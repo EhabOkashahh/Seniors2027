@@ -15,6 +15,8 @@ public class User
     public string? PhotoUrl { get; set; }
     [MaxLength(1000)]
     public string? Description { get; set; }
+    [MaxLength(4000)]
+    public string? SocialLinksJson { get; set; }
     [Required]
     [MaxLength(320)]
     public string Email { get; set; } = string.Empty;
