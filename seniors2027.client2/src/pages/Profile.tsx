@@ -1157,7 +1157,7 @@ export default function Profile() {
                 </button>
               </div>
               <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
-                Paste any profile link and we will automatically show the right icon.
+                Paste any profile link or email address and we will automatically show the right icon.
               </div>
               <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
                 {socialLinksDraft.length}/{maxSocialLinks} links
@@ -1623,6 +1623,11 @@ function normalizeSocialLinkInput(value: string): string | null {
   const trimmed = value.trim()
   if (!trimmed) return null
 
+  const emailAddress = extractEmailAddress(trimmed)
+  if (emailAddress) {
+    return buildGmailComposeUrl(emailAddress)
+  }
+
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
 
   try {
@@ -1632,6 +1637,24 @@ function normalizeSocialLinkInput(value: string): string | null {
   } catch {
     return null
   }
+}
+
+function extractEmailAddress(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const mailtoMatch = /^mailto:(.+)$/i.exec(trimmed)
+  const rawEmail = (mailtoMatch ? mailtoMatch[1] : trimmed).split('?')[0].trim().toLowerCase()
+  if (!rawEmail) return null
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(rawEmail)) return null
+
+  return rawEmail
+}
+
+function buildGmailComposeUrl(email: string): string {
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`
 }
 
 function detectSocialPlatform(link: string): SocialPlatform {
