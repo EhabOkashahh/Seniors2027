@@ -5,7 +5,8 @@ namespace Seniors2027.API.Services;
 public enum ImageUploadPurpose
 {
     Standard = 0,
-    DailyHighlight = 1
+    DailyHighlight = 1,
+    MemoryBoard = 2
 }
 
 public interface IImageUploadProcessor

@@ -62,6 +62,7 @@ public class MemoryBoardController(
             storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
                 photo,
                 Request,
+                ImageUploadPurpose.MemoryBoard,
                 cancellationToken: HttpContext.RequestAborted);
         }
         catch (InvalidOperationException ex)

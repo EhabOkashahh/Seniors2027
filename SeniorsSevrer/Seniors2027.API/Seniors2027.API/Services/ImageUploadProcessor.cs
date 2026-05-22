@@ -16,8 +16,12 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         OutputWebpQuality: 65);
     private static readonly ImageProcessingProfile DailyHighlightProfile = new(
         MaxUploadSizeBytes: 5 * 1024 * 1024,
-        MaxImageDimension: 480,
-        OutputWebpQuality: 60);
+        MaxImageDimension: 1440,
+        OutputWebpQuality: 86);
+    private static readonly ImageProcessingProfile MemoryBoardProfile = new(
+        MaxUploadSizeBytes: 5 * 1024 * 1024,
+        MaxImageDimension: 1600,
+        OutputWebpQuality: 88);
 
     private readonly IWebHostEnvironment _environment;
 
@@ -47,7 +51,8 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
 
         if (photo.Length > profile.MaxUploadSizeBytes)
         {
-            throw new InvalidOperationException("Photo size must be <= 5 MB.");
+            var sizeLimitMb = Math.Max(1, profile.MaxUploadSizeBytes / (1024 * 1024));
+            throw new InvalidOperationException($"Photo size must be <= {sizeLimitMb} MB.");
         }
 
         var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
@@ -107,6 +112,7 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         purpose switch
         {
             ImageUploadPurpose.DailyHighlight => DailyHighlightProfile,
+            ImageUploadPurpose.MemoryBoard => MemoryBoardProfile,
             _ => StandardProfile
         };
 
