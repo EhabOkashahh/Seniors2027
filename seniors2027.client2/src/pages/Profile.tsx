@@ -921,7 +921,7 @@ export default function Profile() {
                       {descriptionInput?.trim() || 'No description yet.'}
                     </p>
                     {isOwnProfile && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '8px', marginTop: 'auto' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: 'auto' }}>
                         <button
                           type="button"
                           aria-label="Edit description"
@@ -932,21 +932,6 @@ export default function Profile() {
                           style={{ width: '44px', height: '44px', display: 'grid', placeItems: 'center', padding: 0 }}
                         >
                           <Pencil size={18} />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Manage social links"
-                          onClick={openSocialLinksModal}
-                          style={{
-                            width: '44px',
-                            height: '44px',
-                            display: 'grid',
-                            placeItems: 'center',
-                            padding: 0,
-                            background: 'var(--retro-yellow)'
-                          }}
-                        >
-                          <Paperclip size={18} />
                         </button>
                       </div>
                     )}
@@ -964,8 +949,27 @@ export default function Profile() {
                 }}
               >
                 <div style={{ display: 'grid', gap: '8px' }}>
-                  <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
-                    SOCIAL LINKS
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
+                      SOCIAL LINKS
+                    </div>
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        aria-label="Manage social links"
+                        onClick={openSocialLinksModal}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          display: 'grid',
+                          placeItems: 'center',
+                          padding: 0,
+                          background: 'var(--retro-yellow)'
+                        }}
+                      >
+                        <Paperclip size={15} />
+                      </button>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
                     {visibleSocialLinks.map((link) => {

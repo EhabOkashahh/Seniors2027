@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Seniors2027.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4192a195585a96fa733903da6d6f1f9f4069af96")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b8ff874acfcbe6f6a033cb280e26ed7413df01c2")]
 [assembly: System.Reflection.AssemblyProductAttribute("Seniors2027.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Seniors2027.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
