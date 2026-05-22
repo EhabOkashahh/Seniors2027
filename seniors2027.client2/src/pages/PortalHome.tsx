@@ -19,6 +19,7 @@ import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import Logo from '../assets/Logo.png'
 import NoteAsset from '../assets/Asset1.svg'
+import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import {
   deleteDailyHighlightRequest,
   getPortalAnnouncementsRequest,
@@ -90,6 +91,9 @@ export default function PortalHome() {
   const [monthlyDumpFlipDirection, setMonthlyDumpFlipDirection] = useState<'next' | 'prev'>('next')
   const [isMonthlyBookIntroRunning, setIsMonthlyBookIntroRunning] = useState(false)
   const [showLogoFireworks, setShowLogoFireworks] = useState(false)
+  useGlobalToastMessage(portalContentMessage, setPortalContentMessage)
+  useGlobalToastMessage(highlightsMessage, setHighlightsMessage)
+  useGlobalToastMessage(monthlyDumpMessage, setMonthlyDumpMessage)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const highlightsRef = useRef<DailyHighlight[]>([])
   const activeIndexRef = useRef(0)
@@ -858,11 +862,6 @@ export default function PortalHome() {
                         )}
                       </div>
                     </div>
-                    {monthlyDumpMessage && (
-                      <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.82 }}>
-                        {monthlyDumpMessage}
-                      </div>
-                    )}
                   </>
                 )}
               </div>
@@ -1019,9 +1018,6 @@ export default function PortalHome() {
                     </motion.div>
                   ))
                 )}
-                {portalContentMessage && (
-                  <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.82 }}>{portalContentMessage}</div>
-                )}
               </div>
             </motion.div>
 
@@ -1173,9 +1169,6 @@ export default function PortalHome() {
                       </div>
                     </motion.div>
                   ))
-                )}
-                {portalContentMessage && (
-                  <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.82 }}>{portalContentMessage}</div>
                 )}
               </div>
             </motion.div>
@@ -1350,9 +1343,6 @@ export default function PortalHome() {
                   )}
                 </div>
 
-                {highlightsMessage && (
-                  <div style={{ fontWeight: 800, fontSize: '0.82rem' }}>{highlightsMessage}</div>
-                )}
               </div>
             </motion.div>
           </motion.div>
@@ -1484,11 +1474,6 @@ export default function PortalHome() {
               </button>
             </div>
 
-            {monthlyDumpMessage && (
-              <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.84 }}>
-                {monthlyDumpMessage}
-              </div>
-            )}
           </motion.div>
         </div>
       )}

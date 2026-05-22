@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { pushGlobalToast } from '../../lib/globalToast'
 
 const MOBILE_BREAKPOINT = 640
 const MOBILE_CROP_SIZE = 220
@@ -72,6 +73,11 @@ export default function ImageCropEditorModal({
     if (clamped.x !== offsetX) setOffsetX(clamped.x)
     if (clamped.y !== offsetY) setOffsetY(clamped.y)
   }, [cropSize, imageSize, offsetX, offsetY, zoom])
+
+  useEffect(() => {
+    if (!error) return
+    pushGlobalToast(error, 'error')
+  }, [error])
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!imageSize || isBusy) return

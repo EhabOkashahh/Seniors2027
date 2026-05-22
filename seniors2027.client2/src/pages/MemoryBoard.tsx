@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Trash2, Upload, X } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
+import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import {
   deleteMyMemoryBoardPhotoRequest,
   getMeRequest,
@@ -28,6 +29,7 @@ export default function MemoryBoard() {
   const [viewerIndex, setViewerIndex] = useState(0)
   const [deleteActionId, setDeleteActionId] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  useGlobalToastMessage(message, setMessage)
 
   const loadPhotos = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -249,7 +251,6 @@ export default function MemoryBoard() {
               </div>
 
               <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.75 }}>Scroll down for the newest photos.</div>
-              {message && <div style={{ fontWeight: 800 }}>{message}</div>}
             </div>
           </div>
 

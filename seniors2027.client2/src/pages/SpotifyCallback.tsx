@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { exchangeSpotifyCodeRequest } from '../lib/authApi'
+import { pushGlobalToast } from '../lib/globalToast'
 
 export default function SpotifyCallback() {
   const [searchParams] = useSearchParams()
@@ -30,6 +31,11 @@ export default function SpotifyCallback() {
 
     processCallback()
   }, [searchParams, navigate])
+
+  useEffect(() => {
+    if (!error) return
+    pushGlobalToast(error, 'error')
+  }, [error])
 
   if (error) {
     return (

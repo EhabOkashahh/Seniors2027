@@ -8,6 +8,7 @@ import Profile from './pages/Profile'
 import AdminJoinRequests from './pages/AdminJoinRequests'
 import MemoryBoard from './pages/MemoryBoard'
 import SpotifyCallback from './pages/SpotifyCallback'
+import GlobalToastHost from './components/GlobalToastHost'
 import { getAuthToken, getRoleFromToken, getStoredRole } from './lib/session'
 
 const hasAuthToken = () => Boolean(getAuthToken())
@@ -106,6 +107,7 @@ function App() {
         <Route path="/admin/join-requests" element={<Navigate to="/admin" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <GlobalToastHost />
     </Router>
   )
 }

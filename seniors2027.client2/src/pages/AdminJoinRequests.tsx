@@ -19,6 +19,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
+import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import {
   createAdminAnnouncementRequest,
   createAdminEventRequest,
@@ -91,6 +92,10 @@ export default function AdminJoinRequests() {
   const [memoryBoardLoading, setMemoryBoardLoading] = useState(false)
   const [memoryBoardActionId, setMemoryBoardActionId] = useState<number | null>(null)
   const [memoryBoardMessage, setMemoryBoardMessage] = useState<string | null>(null)
+  useGlobalToastMessage(requestsMessage, setRequestsMessage)
+  useGlobalToastMessage(usersMessage, setUsersMessage)
+  useGlobalToastMessage(announcementsMessage, setAnnouncementsMessage)
+  useGlobalToastMessage(memoryBoardMessage, setMemoryBoardMessage)
 
   const announcementPhotoInputRef = useRef<HTMLInputElement>(null)
   const eventPhotoInputRef = useRef<HTMLInputElement>(null)
@@ -577,7 +582,6 @@ export default function AdminJoinRequests() {
                       {loading ? 'Refreshing...' : 'Refresh'}
                     </button>
                   </div>
-                  {requestsMessage && <div style={{ fontWeight: 800 }}>{requestsMessage}</div>}
                 </div>
               </div>
 
@@ -689,7 +693,6 @@ export default function AdminJoinRequests() {
                     <Search size={20} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
                   </div>
 
-                  {usersMessage && <div style={{ fontWeight: 800 }}>{usersMessage}</div>}
                 </div>
               </div>
 
@@ -871,7 +874,6 @@ export default function AdminJoinRequests() {
                   <p style={{ margin: 0, fontWeight: 700, opacity: 0.78 }}>
                     Review new uploads and delete any Memoryboard photo directly from this section.
                   </p>
-                  {memoryBoardMessage && <div style={{ fontWeight: 800 }}>{memoryBoardMessage}</div>}
                 </div>
               </div>
 
@@ -1032,7 +1034,6 @@ export default function AdminJoinRequests() {
                       {announcementsLoading || eventsLoading ? 'Refreshing...' : 'Refresh'}
                     </button>
                   </div>
-                  {announcementsMessage && <div style={{ fontWeight: 800 }}>{announcementsMessage}</div>}
                 </div>
               </div>
 

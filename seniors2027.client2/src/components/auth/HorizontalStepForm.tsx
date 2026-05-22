@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import { motion } from 'framer-motion'
 import StepProgress from './StepProgress'
+import { pushGlobalToast } from '../../lib/globalToast'
 
 export type StepRenderControls = {
   goNext: () => void
@@ -254,6 +255,11 @@ export default function HorizontalStepForm({
     setError(null)
     handledActiveStepKeyRef.current = activeStepKey
   }, [activeStepKey, steps])
+
+  useEffect(() => {
+    if (!error) return
+    pushGlobalToast(error, 'error')
+  }, [error])
 
   return (
     <motion.section
