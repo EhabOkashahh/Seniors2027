@@ -142,9 +142,6 @@ export default function MemoryBoard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'grid', gap: '4px' }}>
                   <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.02em' }}>Memoryboard</h1>
-                  <p style={{ margin: 0, fontWeight: 700, opacity: 0.76 }}>
-                    Photos are ordered by EXIF date from oldest to newest.
-                  </p>
                 </div>
                 <button
                   type="button"
