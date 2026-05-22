@@ -7,16 +7,7 @@ import {
   Pencil,
   Paperclip,
   Plus,
-  X,
-  Camera,
-  Users,
-  MessageCircle,
-  Video,
-  Briefcase,
-  Code,
-  Music2,
-  Globe,
-  Send
+  X
 } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
@@ -831,55 +822,68 @@ export default function Profile() {
                     >
                       {descriptionInput?.trim() || 'No description yet.'}
                     </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-                      {visibleSocialLinks.map((link) => {
-                        const platform = detectSocialPlatform(link)
-                        const IconComponent = getSocialPlatformIcon(platform)
-                        return (
-                          <a
-                            key={link}
-                            href={link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={link}
-                            aria-label={`Open ${platform} profile`}
-                            style={{
-                              width: '40px',
-                              height: '40px',
-                              borderRadius: '50%',
-                              border: '2px solid black',
-                              background: '#fff7cf',
-                              boxShadow: '3px 3px 0 black',
-                              display: 'grid',
-                              placeItems: 'center',
-                              color: 'black'
-                            }}
-                          >
-                            <IconComponent size={18} />
-                          </a>
-                        )
-                      })}
-                      {isOwnProfile && visibleSocialLinks.length === 0 && (
-                        <button
-                          type="button"
-                          onClick={openSocialLinksModal}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            border: '2px dashed black',
-                            background: '#fff8dc',
-                            padding: '8px 10px',
-                            fontWeight: 800
-                          }}
-                        >
-                          <Paperclip size={16} />
-                          Add social links
-                        </button>
-                      )}
-                    </div>
                   </div>
                 )}
+              </div>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
+                  SOCIAL LINKS
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+                  {visibleSocialLinks.map((link) => {
+                    const platform = detectSocialPlatform(link)
+                    const faviconUrl = getWebsiteFaviconUrl(link)
+                    return (
+                      <a
+                        key={link}
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={link}
+                        aria-label={`Open ${platform} profile`}
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          border: '2px solid black',
+                          background: '#fff7cf',
+                          boxShadow: '3px 3px 0 black',
+                          display: 'grid',
+                          placeItems: 'center',
+                          color: 'black',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <img
+                          src={faviconUrl ?? '/favicon.svg'}
+                          alt={`${platform} icon`}
+                          onError={(event) => {
+                            event.currentTarget.src = '/favicon.svg'
+                          }}
+                          style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                        />
+                      </a>
+                    )
+                  })}
+                  {isOwnProfile && visibleSocialLinks.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={openSocialLinksModal}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        border: '2px dashed black',
+                        background: '#fff8dc',
+                        padding: '8px 10px',
+                        fontWeight: 800
+                      }}
+                    >
+                      <Paperclip size={16} />
+                      Add social links
+                    </button>
+                  )}
+                </div>
               </div>
               {usernameMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{usernameMessage}</div>}
               {descriptionMessage && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>{descriptionMessage}</div>}
@@ -1169,7 +1173,7 @@ export default function Profile() {
               ) : (
                 socialLinksDraft.map((link) => {
                   const platform = detectSocialPlatform(link)
-                  const IconComponent = getSocialPlatformIcon(platform)
+                  const faviconUrl = getWebsiteFaviconUrl(link)
                   return (
                     <div
                       key={link}
@@ -1184,7 +1188,14 @@ export default function Profile() {
                       }}
                     >
                       <div style={{ width: '32px', height: '32px', border: '2px solid black', borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'white' }}>
-                        <IconComponent size={16} />
+                        <img
+                          src={faviconUrl ?? '/favicon.svg'}
+                          alt={`${platform} icon`}
+                          onError={(event) => {
+                            event.currentTarget.src = '/favicon.svg'
+                          }}
+                          style={{ width: '18px', height: '18px', objectFit: 'contain' }}
+                        />
                       </div>
                       <a href={link} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: 'black', overflowWrap: 'anywhere' }}>
                         {link}
@@ -1620,26 +1631,29 @@ function detectSocialPlatform(link: string): SocialPlatform {
   }
 }
 
-function getSocialPlatformIcon(platform: SocialPlatform) {
-  switch (platform) {
-    case 'instagram':
-      return Camera
-    case 'facebook':
-      return Users
-    case 'twitter':
-      return MessageCircle
-    case 'youtube':
-      return Video
-    case 'linkedin':
-      return Briefcase
-    case 'github':
-      return Code
-    case 'telegram':
-      return Send
-    case 'tiktok':
-      return Music2
-    default:
-      return Globe
+function getWebsiteFaviconUrl(link: string): string | null {
+  const normalizedLink = normalizeSocialLinkInput(link)
+  if (!normalizedLink) return null
+
+  try {
+    const url = new URL(normalizedLink)
+    const platform = detectSocialPlatform(normalizedLink)
+
+    const preferredDomains: Partial<Record<SocialPlatform, string>> = {
+      instagram: 'instagram.com',
+      facebook: 'facebook.com',
+      twitter: 'x.com',
+      youtube: 'youtube.com',
+      linkedin: 'linkedin.com',
+      github: 'github.com',
+      telegram: 'telegram.org',
+      tiktok: 'tiktok.com'
+    }
+
+    const domain = preferredDomains[platform] ?? url.hostname.toLowerCase().replace(/^www\./, '')
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`
+  } catch {
+    return null
   }
 }
 
