@@ -949,27 +949,8 @@ export default function Profile() {
                 }}
               >
                 <div style={{ display: 'grid', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
-                      SOCIAL LINKS
-                    </div>
-                    {isOwnProfile && (
-                      <button
-                        type="button"
-                        aria-label="Manage social links"
-                        onClick={openSocialLinksModal}
-                        style={{
-                          width: '30px',
-                          height: '30px',
-                          display: 'grid',
-                          placeItems: 'center',
-                          padding: 0,
-                          background: 'var(--retro-yellow)'
-                        }}
-                      >
-                        <Paperclip size={12} />
-                      </button>
-                    )}
+                  <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
+                    SOCIAL LINKS
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
                     {visibleSocialLinks.map((link) => {
@@ -1015,6 +996,23 @@ export default function Profile() {
                         </a>
                       )
                     })}
+                    {isOwnProfile && visibleSocialLinks.length > 0 && (
+                      <button
+                        type="button"
+                        aria-label="Manage social links"
+                        onClick={openSocialLinksModal}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          display: 'grid',
+                          placeItems: 'center',
+                          padding: 0,
+                          background: 'var(--retro-yellow)'
+                        }}
+                      >
+                        <Paperclip size={15} />
+                      </button>
+                    )}
                     {isOwnProfile && visibleSocialLinks.length === 0 && (
                         <button
                           type="button"
