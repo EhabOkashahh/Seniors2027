@@ -165,10 +165,7 @@ export default function MemoryBoard() {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                <div style={{ fontWeight: 900, fontSize: '0.85rem' }}>Approved photos: {sortedPhotos.length}</div>
-                <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.75 }}>Scroll down for the newest photos.</div>
-              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.75 }}>Scroll down for the newest photos.</div>
               {message && <div style={{ fontWeight: 800 }}>{message}</div>}
             </div>
           </div>
