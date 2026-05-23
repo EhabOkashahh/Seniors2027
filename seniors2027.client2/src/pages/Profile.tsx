@@ -1035,6 +1035,31 @@ export default function Profile() {
                 </div>
 
                 <div style={{ display: 'grid', gap: '8px', justifyItems: isTablet ? 'start' : 'end' }}>
+                  {sharedSongEmbedUrl && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: isTablet ? 'flex-start' : 'flex-end',
+                        width: '100%'
+                      }}
+                    >
+                      <iframe
+                        title={`${displayName} favorite song`}
+                        src={sharedSongEmbedUrl}
+                        width="100%"
+                        height="132"
+                        loading="lazy"
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                        style={{
+                          border: 0,
+                          borderRadius: '12px',
+                          width: '100%',
+                          maxWidth: '280px'
+                        }}
+                      />
+                    </div>
+                  )}
+
                   {isOwnProfile && (
                     <button
                       type="button"
@@ -1065,31 +1090,6 @@ export default function Profile() {
                       />
                       <Heart size={11} fill="currentColor" />
                     </button>
-                  )}
-
-                  {sharedSongEmbedUrl && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: isTablet ? 'flex-start' : 'flex-end',
-                        width: '100%'
-                      }}
-                    >
-                      <iframe
-                        title={`${displayName} favorite song`}
-                        src={sharedSongEmbedUrl}
-                        width="100%"
-                        height="132"
-                        loading="lazy"
-                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                        style={{
-                          border: 0,
-                          borderRadius: '12px',
-                          width: '100%',
-                          maxWidth: '280px'
-                        }}
-                      />
-                    </div>
                   )}
                 </div>
               </div>
