@@ -126,7 +126,7 @@ public class NoteService : INoteService
 
         if (!requesterIsAdmin && !requesterIsSender && !requesterIsRecipient)
         {
-            throw new InvalidOperationException("You can only delete notes you sent or received.");
+            throw new InvalidOperationException("You can delete notes you sent and notes sent to your profile.");
         }
 
         var sender = await _context.Users.FirstOrDefaultAsync(u => u.Id == note.SenderId);

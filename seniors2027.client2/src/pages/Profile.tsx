@@ -722,7 +722,7 @@ export default function Profile() {
     setDeletingNoteIds((prev) => prev.filter((id) => id !== noteId))
 
     if (!result.ok) {
-      setNoteMessage(result.error ?? 'Could not delete note.')
+      setNoteMessage(normalizeDeleteNoteErrorMessage(result.error))
       return
     }
 
@@ -2349,6 +2349,21 @@ function formatAdminDate(value: string | undefined): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString()
+}
+
+function normalizeDeleteNoteErrorMessage(error: string | undefined): string {
+  if (!error) return 'Could not delete note.'
+
+  const normalized = error.trim().toLowerCase()
+  if (
+    normalized.includes('you can only delete notes you sent') ||
+    normalized.includes('you can delete the notes you added') ||
+    normalized.includes('only delete notes you sent')
+  ) {
+    return 'You can delete notes you sent and notes sent to your profile.'
+  }
+
+  return error
 }
 
 function formatNoteDate(value: string): string {
