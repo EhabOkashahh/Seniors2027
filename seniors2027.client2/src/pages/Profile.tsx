@@ -941,97 +941,15 @@ export default function Profile() {
                 style={{
                   display: 'grid',
                   gap: '12px',
-                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(220px, 300px) minmax(0, 1fr)',
+                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(220px, 300px)',
                   alignItems: 'start'
                 }}
               >
                 <div style={{ display: 'grid', gap: '8px', justifyItems: 'start' }}>
-                  {isOwnProfile && (
-                    <button
-                      type="button"
-                      aria-label={sharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
-                      title={sharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
-                      onClick={openFavoriteSongModal}
-                      style={{
-                        height: '34px',
-                        minWidth: '48px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px',
-                        padding: '0 10px',
-                        border: '2px solid black',
-                        borderRadius: '999px',
-                        background: 'linear-gradient(135deg, #1ed760 0%, #1db954 100%)',
-                        boxShadow: '3px 3px 0 black',
-                        color: '#0a0a0a',
-                        fontWeight: 900
-                      }}
-                    >
-                      <img
-                        src="https://cdn.simpleicons.org/spotify/000000"
-                        alt=""
-                        aria-hidden="true"
-                        style={{ width: '15px', height: '15px', objectFit: 'contain' }}
-                      />
-                      <Heart size={11} fill="currentColor" />
-                    </button>
-                  )}
-
-                  {sharedSongEmbedUrl && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '6px',
-                        width: '100%'
-                      }}
-                    >
-                      <iframe
-                        title={`${displayName} favorite song`}
-                        src={sharedSongEmbedUrl}
-                        width="100%"
-                        height="132"
-                        loading="lazy"
-                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                        style={{
-                          border: 0,
-                          borderRadius: '12px',
-                          width: '100%',
-                          maxWidth: '280px'
-                        }}
-                      />
-                      {isOwnProfile && (
-                        <button
-                          type="button"
-                          aria-label="Edit shared song"
-                          title="Edit shared song"
-                          onClick={openFavoriteSongModal}
-                          style={{
-                            width: '30px',
-                            height: '30px',
-                            flex: '0 0 30px',
-                            display: 'grid',
-                            placeItems: 'center',
-                            padding: 0,
-                            border: '2px solid black',
-                            borderRadius: '10px',
-                            background: '#f7f7f7',
-                            boxShadow: '2px 2px 0 black'
-                          }}
-                        >
-                          <Pencil size={13} />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'grid', gap: '8px', justifyItems: isTablet ? 'start' : 'end' }}>
                   <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
                     SOCIAL LINKS
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: isTablet ? 'flex-start' : 'flex-end', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-start', gap: '10px' }}>
                     {visibleSocialLinks.map((link) => {
                       const platform = detectSocialPlatform(link)
                       const brandIconUrl = getSocialPlatformIconUrl(platform)
@@ -1114,6 +1032,65 @@ export default function Profile() {
                       </button>
                     )}
                   </div>
+                </div>
+
+                <div style={{ display: 'grid', gap: '8px', justifyItems: isTablet ? 'start' : 'end' }}>
+                  {isOwnProfile && (
+                    <button
+                      type="button"
+                      aria-label={sharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
+                      title={sharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
+                      onClick={openFavoriteSongModal}
+                      style={{
+                        height: '34px',
+                        minWidth: '48px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        padding: '0 10px',
+                        border: '2px solid black',
+                        borderRadius: '999px',
+                        background: 'linear-gradient(135deg, #1ed760 0%, #1db954 100%)',
+                        boxShadow: '3px 3px 0 black',
+                        color: '#0a0a0a',
+                        fontWeight: 900
+                      }}
+                    >
+                      <img
+                        src="https://cdn.simpleicons.org/spotify/000000"
+                        alt=""
+                        aria-hidden="true"
+                        style={{ width: '15px', height: '15px', objectFit: 'contain' }}
+                      />
+                      <Heart size={11} fill="currentColor" />
+                    </button>
+                  )}
+
+                  {sharedSongEmbedUrl && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: isTablet ? 'flex-start' : 'flex-end',
+                        width: '100%'
+                      }}
+                    >
+                      <iframe
+                        title={`${displayName} favorite song`}
+                        src={sharedSongEmbedUrl}
+                        width="100%"
+                        height="132"
+                        loading="lazy"
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                        style={{
+                          border: 0,
+                          borderRadius: '12px',
+                          width: '100%',
+                          maxWidth: '280px'
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
               {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
