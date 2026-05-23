@@ -1038,9 +1038,8 @@ export default function Profile() {
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '8px',
-                    alignItems: isTablet ? 'flex-start' : 'flex-end',
-                    minHeight: sharedSongEmbedUrl ? '174px' : undefined
+                    gap: '4px',
+                    alignItems: isTablet ? 'flex-start' : 'flex-end'
                   }}
                 >
                   {sharedSongEmbedUrl && (
@@ -1088,8 +1087,7 @@ export default function Profile() {
                         background: 'linear-gradient(135deg, #1ed760 0%, #1db954 100%)',
                         boxShadow: '3px 3px 0 black',
                         color: '#0a0a0a',
-                        fontWeight: 900,
-                        marginTop: 'auto'
+                        fontWeight: 900
                       }}
                     >
                       <img
