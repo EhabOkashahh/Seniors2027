@@ -1034,13 +1034,22 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gap: '8px', justifyItems: isTablet ? 'start' : 'end' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    alignItems: isTablet ? 'flex-start' : 'flex-end',
+                    minHeight: sharedSongEmbedUrl ? '174px' : undefined
+                  }}
+                >
                   {sharedSongEmbedUrl && (
                     <div
                       style={{
                         display: 'flex',
                         justifyContent: isTablet ? 'flex-start' : 'flex-end',
-                        width: '100%'
+                        width: '100%',
+                        order: -1
                       }}
                     >
                       <iframe
@@ -1079,7 +1088,8 @@ export default function Profile() {
                         background: 'linear-gradient(135deg, #1ed760 0%, #1db954 100%)',
                         boxShadow: '3px 3px 0 black',
                         color: '#0a0a0a',
-                        fontWeight: 900
+                        fontWeight: 900,
+                        marginTop: 'auto'
                       }}
                     >
                       <img
