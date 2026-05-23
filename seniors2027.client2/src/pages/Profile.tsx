@@ -304,6 +304,7 @@ export default function Profile() {
   const profilePoints = Math.max(0, profileUser?.points ?? 0)
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
   const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
+  const sharedSongPlaybackUrl = sharedSongEmbedUrl ? buildSpotifyEmbedPlaybackUrl(sharedSongEmbedUrl) : null
   const maxSocialLinks = 8
   const galleryPageSize = 4
   const galleryTotalPages = Math.max(1, Math.ceil(galleryPhotos.length / galleryPageSize))
@@ -941,7 +942,7 @@ export default function Profile() {
                 style={{
                   display: 'grid',
                   gap: '12px',
-                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(220px, 300px)',
+                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(240px, 340px)',
                   alignItems: 'start'
                 }}
               >
@@ -1041,13 +1042,13 @@ export default function Profile() {
                     alignItems: isTablet ? 'flex-start' : 'flex-end',
                     justifySelf: isTablet ? 'start' : 'end',
                     width: '100%',
-                    maxWidth: '280px'
+                    maxWidth: '320px'
                   }}
                 >
                   {sharedSongEmbedUrl && (
                     <iframe
                       title={`${displayName} favorite song`}
-                      src={sharedSongEmbedUrl}
+                      src={sharedSongPlaybackUrl ?? sharedSongEmbedUrl}
                       width="100%"
                       height="80"
                       loading="lazy"
@@ -1057,7 +1058,7 @@ export default function Profile() {
                         border: 0,
                         borderRadius: '12px',
                         width: '100%',
-                        maxWidth: '280px'
+                        maxWidth: '320px'
                       }}
                     />
                   )}
@@ -2122,6 +2123,19 @@ function getWebsiteFaviconUrl(link: string): string | null {
     return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`
   } catch {
     return null
+  }
+}
+
+function buildSpotifyEmbedPlaybackUrl(embedUrl: string): string {
+  try {
+    const url = new URL(embedUrl)
+    const host = url.hostname.toLowerCase()
+    if (!host.includes('spotify.com')) return embedUrl
+
+    url.searchParams.set('autoplay', '1')
+    return url.toString()
+  } catch {
+    return embedUrl
   }
 }
 
