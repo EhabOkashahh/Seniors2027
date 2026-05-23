@@ -104,6 +104,7 @@ export default function Profile() {
   const [adminTargetUserLoading, setAdminTargetUserLoading] = useState(false)
   const [adminAccountActionRunning, setAdminAccountActionRunning] = useState(false)
   const [adminAccountMessage, setAdminAccountMessage] = useState<string | null>(null)
+  const notesPreviewCount = 6
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
   const isAdmin = me?.role === 'Admin'
@@ -246,7 +247,7 @@ export default function Profile() {
     setLatestNotesLoading(true)
     setLatestNotesError(null)
     const [latestResult, totalResult] = await Promise.all([
-      getLatestReceivedNotesRequest(userId, 3),
+      getLatestReceivedNotesRequest(userId, notesPreviewCount),
       getReceivedNotesPageRequest(userId, 1, 1)
     ])
 
@@ -267,7 +268,7 @@ export default function Profile() {
 
   useEffect(() => {
     void fetchLatestNotes()
-  }, [userId])
+  }, [notesPreviewCount, userId])
 
   useEffect(() => {
     if (!isBookOpen || userId === null) return
@@ -1345,13 +1346,20 @@ export default function Profile() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: '6px' }}>
-                <strong style={{ fontSize: '1rem' }}>Latest 3 Notes</strong>
-                <span style={{ fontWeight: 900, fontSize: '0.8rem' }}>OPEN BOOK</span>
+                <strong style={{ fontSize: '1rem' }}>Latest {notesPreviewCount} Notes</strong>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {receivedNotesTotalCount > 0 && (
+                    <span style={{ fontWeight: 900, fontSize: '0.78rem', border: '2px solid black', padding: '2px 8px', background: '#fff7c7' }}>
+                      TOTAL: {receivedNotesTotalCount}
+                    </span>
+                  )}
+                  <span style={{ fontWeight: 900, fontSize: '0.8rem' }}>OPEN BOOK</span>
+                </div>
               </div>
               {!latestNotesLoading && receivedNotesTotalCount > 0 && (
                 <div style={{ fontWeight: 900, fontSize: '0.8rem', opacity: 0.8 }}>
                   Showing {latestNotes.length} of {receivedNotesTotalCount} notes
-                  {hasMoreNotesInBook ? ' - more notes inside the book.' : '.'}
+                  {hasMoreNotesInBook ? ` - ${receivedNotesTotalCount - latestNotes.length} more note${receivedNotesTotalCount - latestNotes.length === 1 ? '' : 's'} inside the Notes Book.` : '.'}
                 </div>
               )}
 
@@ -1360,47 +1368,55 @@ export default function Profile() {
               ) : latestNotes.length === 0 ? (
                 <p style={{ margin: 0, fontWeight: 700 }}>No notes yet.</p>
               ) : (
-                latestNotes.map((note) => (
-                  <div key={note.id} style={{ border: '2px solid black', background: 'white', padding: '10px', display: 'grid', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <img
-                        src={note.sender.photoUrl || '/favicon.svg'}
-                        alt={note.sender.username}
-                        style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
-                      />
-                      <div style={{ fontWeight: 900, fontSize: '0.9rem' }}>{note.sender.username}</div>
-                      <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.7 }}>{formatNoteDate(note.createdAt)}</div>
-                    </div>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontWeight: 700,
-                        lineHeight: 1.4,
-                        whiteSpace: 'pre-wrap',
-                        overflowWrap: 'anywhere',
-                        wordBreak: 'break-word'
-                      }}
-                    >
-                      {note.content}
-                    </p>
-                    {canDeleteNote(note) && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          className="neo-btn"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            void handleDeleteNote(note.id)
-                          }}
-                          disabled={deletingNoteIds.includes(note.id)}
-                          style={{ minWidth: '92px', padding: '7px 10px', background: '#ff8f8f' }}
-                        >
-                          {deletingNoteIds.includes(note.id) ? 'Deleting...' : 'Delete'}
-                        </button>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+                    gap: '10px'
+                  }}
+                >
+                  {latestNotes.map((note) => (
+                    <div key={note.id} style={{ border: '2px solid black', background: 'white', padding: '10px', display: 'grid', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <img
+                          src={note.sender.photoUrl || '/favicon.svg'}
+                          alt={note.sender.username}
+                          style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
+                        />
+                        <div style={{ fontWeight: 900, fontSize: '0.9rem' }}>{note.sender.username}</div>
+                        <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.7 }}>{formatNoteDate(note.createdAt)}</div>
                       </div>
-                    )}
-                  </div>
-                ))
+                      <p
+                        style={{
+                          margin: 0,
+                          fontWeight: 700,
+                          lineHeight: 1.4,
+                          whiteSpace: 'pre-wrap',
+                          overflowWrap: 'anywhere',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {note.content}
+                      </p>
+                      {canDeleteNote(note) && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              void handleDeleteNote(note.id)
+                            }}
+                            disabled={deletingNoteIds.includes(note.id)}
+                            style={{ minWidth: '92px', padding: '7px 10px', background: '#ff8f8f' }}
+                          >
+                            {deletingNoteIds.includes(note.id) ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </button>
           </div>
