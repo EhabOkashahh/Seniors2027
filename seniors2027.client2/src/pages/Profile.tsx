@@ -45,7 +45,7 @@ export default function Profile() {
   const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
-  const [isTablet, setIsTablet] = useState(() => window.innerWidth <= 980)
+  const [isTablet, setIsTablet] = useState(() => window.innerWidth <= 1120)
 
   const [profileUser, setProfileUser] = useState<User | null>(null)
   const [me, setMe] = useState<MeUser | null>(null)
@@ -118,7 +118,7 @@ export default function Profile() {
   useEffect(() => {
     const onResize = () => {
       setIsMobile(window.innerWidth <= 760)
-      setIsTablet(window.innerWidth <= 980)
+      setIsTablet(window.innerWidth <= 1120)
     }
 
     window.addEventListener('resize', onResize)
@@ -747,7 +747,14 @@ export default function Profile() {
               padding: isMobile ? '14px' : '20px'
             }}
           >
-            <div style={{ position: 'relative', alignSelf: 'start' }}>
+            <div
+              style={{
+                position: 'relative',
+                alignSelf: 'start',
+                width: isTablet ? 'min(100%, 360px)' : '100%',
+                marginInline: isTablet ? 'auto' : undefined
+              }}
+            >
               <GenderCapAvatar
                 src={displayPhoto}
                 alt={displayName}
@@ -931,7 +938,7 @@ export default function Profile() {
                   <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
                     SOCIAL LINKS
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: isTablet ? 'center' : 'flex-start', gap: '10px' }}>
                     {visibleSocialLinks.map((link) => {
                       const platform = detectSocialPlatform(link)
                       const brandIconUrl = getSocialPlatformIconUrl(platform)
@@ -950,6 +957,7 @@ export default function Profile() {
                           style={{
                             width: '40px',
                             height: '40px',
+                            flex: '0 0 40px',
                             borderRadius: '50%',
                             border: '2px solid black',
                             background: theme.background,
@@ -983,6 +991,7 @@ export default function Profile() {
                         style={{
                           width: '36px',
                           height: '36px',
+                          flex: '0 0 36px',
                           display: 'grid',
                           placeItems: 'center',
                           padding: 0,
