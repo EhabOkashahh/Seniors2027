@@ -1656,8 +1656,13 @@ export default function PortalHome() {
               background: '#fff',
               border: '4px solid black',
               boxShadow: '10px 10px 0 black',
-              padding: '14px',
-              cursor: 'default'
+              padding: '12px',
+              cursor: 'default',
+              maxHeight: 'calc(100vh - 40px)',
+              overflow: 'hidden',
+              display: 'grid',
+              gridTemplateRows: 'auto minmax(0, 1fr)',
+              gap: '8px'
             }}
             onClick={(event) => event.stopPropagation()}
           >
@@ -1666,11 +1671,13 @@ export default function PortalHome() {
               <div style={{ fontWeight: 800, fontSize: '0.82rem', opacity: 0.75 }}>Click blue background to close</div>
             </div>
 
+            <div style={{ minHeight: 0, overflowY: 'auto', paddingRight: '2px' }}>
             <div
               style={{
+                position: 'relative',
                 border: '3px solid black',
                 background: '#111',
-                aspectRatio: '1 / 1',
+                aspectRatio: '4 / 3',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
@@ -1692,6 +1699,33 @@ export default function PortalHome() {
                   transformOrigin: flipDirection === 'next' ? 'right center' : 'left center'
                 }}
               />
+              {current && currentUserId !== null && (current.userId === currentUserId || isAdmin) && (
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    void handleDeleteCurrentHighlight()
+                  }}
+                  disabled={deletingHighlight}
+                  aria-label="Delete photo"
+                  title="Delete photo"
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    minWidth: 'auto',
+                    width: '34px',
+                    height: '34px',
+                    padding: 0,
+                    background: '#ff6b6b',
+                    display: 'grid',
+                    placeItems: 'center'
+                  }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
 
             <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1711,28 +1745,25 @@ export default function PortalHome() {
 
             <div
               style={{
-                marginTop: '10px',
-                border: '2px solid black',
-                background: '#fff8ef',
-                padding: '8px',
+                marginTop: '8px',
+                padding: 0,
                 display: 'grid',
-                gap: '8px'
+                gap: '6px'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                <div style={{ fontWeight: 900, fontSize: '0.76rem', letterSpacing: '0.03em' }}>REACT TO THIS PHOTO</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="neo-btn"
                   onClick={() => setIsHighlightReactionsOpen(true)}
                   disabled={!current || currentReactions.length === 0}
-                  style={{ minWidth: 'auto', padding: '6px 8px', fontSize: '0.73rem' }}
+                  style={{ minWidth: 'auto', padding: '5px 8px', fontSize: '0.72rem' }}
                 >
                   Who reacted ({currentReactions.length})
                 </button>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="neo-btn"
@@ -1740,8 +1771,8 @@ export default function PortalHome() {
                   disabled={!current || isReactingCurrent}
                   style={{
                     minWidth: 'auto',
-                    padding: '7px 10px',
-                    fontSize: '0.8rem',
+                    padding: '6px 8px',
+                    fontSize: '0.76rem',
                     background: currentUserReaction === 'Love' ? '#ffd6df' : '#fff'
                   }}
                 >
@@ -1754,8 +1785,8 @@ export default function PortalHome() {
                   disabled={!current || isReactingCurrent}
                   style={{
                     minWidth: 'auto',
-                    padding: '7px 10px',
-                    fontSize: '0.8rem',
+                    padding: '6px 8px',
+                    fontSize: '0.76rem',
                     background: currentUserReaction === 'Ahaha' ? '#ffeab0' : '#fff'
                   }}
                 >
@@ -1793,24 +1824,8 @@ export default function PortalHome() {
                 <ChevronRight size={16} />
               </button>
             </div>
+            </div>
 
-            {current && currentUserId !== null && (current.userId === currentUserId || isAdmin) && (
-              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  className="neo-btn"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    void handleDeleteCurrentHighlight()
-                  }}
-                  disabled={deletingHighlight}
-                  style={{ padding: '8px 10px', minWidth: 'auto', background: '#ff6b6b' }}
-                >
-                  <Trash2 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  {deletingHighlight ? 'Deleting...' : 'Delete'}
-                </button>
-              </div>
-            )}
           </motion.div>
         </div>
       )}
