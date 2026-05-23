@@ -19,33 +19,6 @@ public class AuthService(
     private const int LoginOtpLifetimeMinutes = 20;
     private const int MaxSocialLinksCount = 8;
     private static readonly TimeSpan PendingApprovalOtpLifetime = TimeSpan.FromHours(6);
-    // public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
-    // {
-    //     var existingUser = _unitOfWork.Repository<User>().Find(u => u.Username.ToLower() == registerDto.Username.ToLower()).FirstOrDefault();
-    //     if (existingUser != null)
-    //     {
-    //         throw new Exception("Username is already taken");
-    //     }
-
-    //     var user = new User
-    //     {
-    //         Username = registerDto.Username.Trim(),
-    //         PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
-    //         Gender = registerDto.Gender,
-    //         PhotoUrl = string.IsNullOrWhiteSpace(registerDto.PhotoUrl) ? "/favicon.svg" : registerDto.PhotoUrl
-    //     };
-
-    //     await _unitOfWork.Repository<User>().AddAsync(user);
-    //     await _unitOfWork.CompleteAsync();
-
-    //     return new AuthResponseDto
-    //     {
-    //         Username = user.Username,
-    //         Token = _jwtService.CreateToken(user),
-    //         PhotoUrl = user.PhotoUrl,
-    //         Description = user.Description
-    //     };
-    // }
 
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IJwtService _jwtService = jwtService;

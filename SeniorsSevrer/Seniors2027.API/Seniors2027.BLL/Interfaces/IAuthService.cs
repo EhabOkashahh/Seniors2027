@@ -5,7 +5,6 @@ namespace Seniors2027.BLL.Interfaces;
 
 public interface IAuthService
 {
-    // Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto);
     Task<LoginStartResponseDto> LoginAsync(LoginDto loginDto);
     Task<AuthResponseDto> VerifyOtpAsync(VerifyOtpDto verifyOtpDto);
     Task<bool> IsUsernameTakenAsync(string username, int? excludeUserId = null);

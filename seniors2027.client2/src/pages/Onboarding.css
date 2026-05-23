@@ -278,11 +278,6 @@
   gap: 12px;
 }
 
-.senior-password-step {
-  display: grid;
-  gap: 14px;
-}
-
 .senior-preview {
   display: grid;
   justify-items: center;

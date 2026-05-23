@@ -11,13 +11,6 @@ export type ApiResult<T> = {
   error?: string
 }
 
-type RegisterPayload = {
-  username: string
-  password: string
-  gender: string
-  photoUrl?: string | null
-}
-
 type LoginPayload = {
   email: string
 }
@@ -28,31 +21,6 @@ type VerifyOtpPayload = {
 }
 
 export type AuthResultStatus = 'Authenticated' | 'PendingApproval'
-
-export async function registerRequest(payload: RegisterPayload): Promise<ApiResult<{ token?: string }>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: payload.username,
-        password: payload.password,
-        gender: payload.gender,
-        photoUrl: payload.photoUrl ?? null
-      })
-    })
-
-    if (!response.ok) {
-      const message = await safeError(response)
-      return { ok: false, error: message }
-    }
-
-    const data = (await response.json()) as { token?: string }
-    return { ok: true, data }
-  } catch {
-    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
-  }
-}
 
 export async function checkEmailExistsRequest(email: string): Promise<ApiResult<{ exists: boolean }>> {
   try {

@@ -151,20 +151,6 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
         return Ok(new { exists });
     }
 
-    // [HttpPost("register")]
-    // public async Task<ActionResult<AuthResponseDto>> Register(RegisterDto registerDto) 
-    // {
-    //     try
-    //     {
-    //         var result = await _authService.RegisterAsync(registerDto);
-    //         return Ok(result);
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         return BadRequest(ex.Message);
-    //     }
-    // }
-
     [HttpPost("upload-photo")]
     public async Task<ActionResult> UploadPhoto([FromForm] IFormFile photo)
     {

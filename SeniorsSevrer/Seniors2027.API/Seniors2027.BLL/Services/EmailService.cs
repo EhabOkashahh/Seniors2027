@@ -1,36 +1,35 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using MailKit.Net.Smtp;
+using System.Net;
+using System.Net.Mail;
 using Microsoft.Extensions.Configuration;
-using MimeKit;
 using Seniors2027.BLL.Interfaces;
 
-namespace Seniors2027.BLL.Services
+namespace Seniors2027.BLL.Services;
+
+public class EmailService(IConfiguration config) : IEmailService
 {
-    public class EmailService(IConfiguration _config) : IEmailService
+    private const int OtpExpiryMinutes = 20;
+    private readonly IConfiguration _config = config;
+
+    public async Task SendOtpEmailAsync(string toEmail, string otp)
     {
-        private const int OtpExpiryMinutes = 20;
-
-        public async Task SendOtpEmailAsync(string toEmail, string otp)
+        try
         {
-            try
+            var fromEmail = GetRequiredSetting("EmailSetting:FromEmail");
+            var smtpHost = GetRequiredSetting("EmailSetting:SmtpHost");
+            var smtpPortRaw = GetRequiredSetting("EmailSetting:SmtpPort");
+            var emailPassword = Environment.GetEnvironmentVariable("EMAIL_PASSWORD");
+
+            if (!int.TryParse(smtpPortRaw, out var smtpPort))
             {
-                var message = new MimeMessage();
+                throw new InvalidOperationException("EmailSetting:SmtpPort must be a valid integer.");
+            }
 
-                message.From.Add(new MailboxAddress(
-                    "School OTP System",
-                    _config["EmailSetting:FromEmail"]
-                ));
+            if (string.IsNullOrWhiteSpace(emailPassword))
+            {
+                throw new InvalidOperationException("EMAIL_PASSWORD environment variable is missing.");
+            }
 
-                message.To.Add(MailboxAddress.Parse(toEmail));
-
-                message.Subject = "Your OTP Verification Code";
-
-                message.Body = new TextPart("html")
-                {
-                    Text = $@"
+            var htmlBody = $@"
                     <div style='margin:0;padding:24px 12px;background:#f8f2df;font-family:Arial,sans-serif;color:#101010;'>
                       <div style='max-width:620px;margin:0 auto;background:#fffdf6;border:4px solid #101010;border-radius:14px;box-shadow:10px 10px 0 #101010;overflow:hidden;'>
                         <div style='padding:20px 20px 8px 20px;text-align:center;'>
@@ -51,30 +50,39 @@ namespace Seniors2027.BLL.Services
                           <p style='margin:8px 0 0 0;font-size:13px;opacity:0.85;'>If this was not you, ignore this email.</p>
                         </div>
                       </div>
-                    </div>
-                "
-                };
+                    </div>";
 
-                using var smtp = new SmtpClient();
-                await smtp.ConnectAsync(
-                _config["EmailSetting:SmtpHost"],
-                int.Parse(_config["EmailSetting:SmtpPort"])
-                );
-
-                await smtp.AuthenticateAsync(
-                    _config["EmailSetting:FromEmail"],
-                    Environment.GetEnvironmentVariable("EMAIL_PASSWORD")
-                );
-
-                await smtp.SendAsync(message);
-
-                await smtp.DisconnectAsync(true);
-            }
-            catch (Exception ex)
+            using var message = new MailMessage(fromEmail, toEmail)
             {
-                throw new Exception($"Faild Sending an email {ex}");
-            }
-            
-        }   
+                Subject = "Your OTP Verification Code",
+                Body = htmlBody,
+                IsBodyHtml = true
+            };
+
+            using var smtp = new SmtpClient(smtpHost, smtpPort)
+            {
+                EnableSsl = true,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(fromEmail, emailPassword),
+                DeliveryMethod = SmtpDeliveryMethod.Network
+            };
+
+            await smtp.SendMailAsync(message);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed sending email. {ex.Message}", ex);
+        }
+    }
+
+    private string GetRequiredSetting(string key)
+    {
+        var value = _config[key];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"Missing required configuration value: {key}");
+        }
+
+        return value;
     }
 }

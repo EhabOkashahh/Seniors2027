@@ -4,7 +4,7 @@ type RetroInputProps = {
   value: string
   onChange: (value: string) => void
   placeholder: string
-  type?: 'text' | 'email' | 'password'
+  type?: 'text' | 'email'
   invalid?: boolean
 }
 

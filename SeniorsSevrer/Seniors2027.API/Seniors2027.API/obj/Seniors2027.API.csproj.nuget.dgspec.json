@@ -156,14 +156,6 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
-            "BCrypt.Net-Next": {
-              "target": "Package",
-              "version": "[4.1.0, )"
-            },
-            "MailKit": {
-              "target": "Package",
-              "version": "[4.16.0, )"
-            },
             "Microsoft.IdentityModel.Tokens": {
               "target": "Package",
               "version": "[8.18.0, )"
