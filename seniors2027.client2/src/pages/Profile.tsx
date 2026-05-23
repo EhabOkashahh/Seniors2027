@@ -1941,6 +1941,7 @@ type SocialPlatform =
   | 'facebook'
   | 'twitter'
   | 'youtube'
+  | 'spotify'
   | 'linkedin'
   | 'github'
   | 'telegram'
@@ -2017,6 +2018,7 @@ function detectSocialPlatform(link: string): SocialPlatform {
     if (hostname.includes('facebook.')) return 'facebook'
     if (hostname === 'x.com' || hostname.endsWith('.x.com') || hostname.includes('twitter.')) return 'twitter'
     if (hostname.includes('youtube.') || hostname === 'youtu.be') return 'youtube'
+    if (hostname.includes('spotify.')) return 'spotify'
     if (hostname.includes('linkedin.')) return 'linkedin'
     if (hostname.includes('github.')) return 'github'
     if (hostname === 't.me' || hostname.includes('telegram.')) return 'telegram'
@@ -2041,6 +2043,8 @@ function getSocialPlatformTheme(platform: SocialPlatform): { background: string 
       return { background: '#111111' }
     case 'youtube':
       return { background: '#ff0000' }
+    case 'spotify':
+      return { background: '#1db954' }
     case 'linkedin':
       return { background: '#0a66c2' }
     case 'github':
@@ -2070,6 +2074,8 @@ function getSocialPlatformIconUrl(platform: SocialPlatform): string | null {
       return 'https://cdn.simpleicons.org/x/ffffff'
     case 'youtube':
       return 'https://cdn.simpleicons.org/youtube/ffffff'
+    case 'spotify':
+      return 'https://cdn.simpleicons.org/spotify/000000'
     case 'linkedin':
       return getLocalPlatformFallbackIconUrl('linkedin')
     case 'github':
@@ -2100,6 +2106,7 @@ function getLocalPlatformFallbackIconUrl(platform: SocialPlatform): string {
     facebook: 'f',
     twitter: 'X',
     youtube: 'YT',
+    spotify: 'SP',
     linkedin: 'in',
     github: 'GH',
     telegram: 'TG',
@@ -2128,6 +2135,7 @@ function getWebsiteFaviconUrl(link: string): string | null {
       facebook: 'facebook.com',
       twitter: 'x.com',
       youtube: 'youtube.com',
+      spotify: 'spotify.com',
       linkedin: 'linkedin.com',
       github: 'github.com',
       telegram: 'telegram.org',
