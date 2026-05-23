@@ -295,7 +295,7 @@ export default function MemoryBoard() {
               </div>
 
               <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.75 }}>
-                {MEMORYBOARD_PAGE_SIZE} photos per page ({MEMORYBOARD_PAGE_ROWS} rows x {MEMORYBOARD_PAGE_COLUMNS} columns). Use the arrows to flip pages.
+                Bring your funniest shots, your cozy moments, and the memories you never want to lose. Let&apos;s share memories.
               </div>
             </div>
           </div>

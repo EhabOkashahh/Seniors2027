@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import {
   Image as ImageIcon,
+  Award,
   BookOpen,
   GripVertical,
   Pencil,
@@ -378,6 +379,7 @@ export default function Profile() {
 
   const displayName = profileUser?.username ?? 'Senior'
   const displayPhoto = profileUser?.photoUrl || '/favicon.svg'
+  const profilePoints = Math.max(0, profileUser?.points ?? 0)
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
   const maxSocialLinks = 8
   const galleryPageSize = 4
@@ -935,6 +937,23 @@ export default function Profile() {
                   )}
                 </div>
               )}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: 'fit-content',
+                  border: '3px solid black',
+                  boxShadow: '4px 4px 0 black',
+                  background: '#fff2b2',
+                  padding: '8px 12px',
+                  fontWeight: 900,
+                  letterSpacing: '0.02em'
+                }}
+              >
+                <Award size={16} />
+                <span>POINTS: {profilePoints}</span>
+              </div>
               <div
                 style={{
                   border: '3px solid black',
