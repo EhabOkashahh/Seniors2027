@@ -188,7 +188,7 @@ export default function Profile() {
   useEffect(() => {
     let cancelled = false
 
-    if (!isAdmin || isOwnProfile || userId === null) {
+    if (!isAdmin || userId === null) {
       setAdminTargetUser(null)
       return () => {
         cancelled = true
@@ -213,7 +213,7 @@ export default function Profile() {
     return () => {
       cancelled = true
     }
-  }, [isAdmin, isOwnProfile, userId])
+  }, [isAdmin, userId])
 
   const fetchLatestNotes = async () => {
     if (userId === null) return
@@ -344,6 +344,7 @@ export default function Profile() {
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
   const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
   const sharedSongPlaybackUrl = sharedSongEmbedUrl ? buildSpotifyEmbedPlaybackUrl(sharedSongEmbedUrl) : null
+  const showAdminUserDetails = Boolean(isAdmin && profileUser)
   const showAdminProfileActions = Boolean(isAdmin && !isOwnProfile && profileUser)
   const isTargetLocked = adminTargetUser?.isLocked === true
   const maxSocialLinks = 8
@@ -961,6 +962,40 @@ export default function Profile() {
                 <Award size={16} />
                 <span>POINTS: {profilePoints}</span>
               </div>
+              {showAdminUserDetails && (
+                <div
+                  style={{
+                    border: '3px solid black',
+                    boxShadow: '6px 6px 0 black',
+                    background: '#fffdf6',
+                    padding: '12px',
+                    display: 'grid',
+                    gap: '6px'
+                  }}
+                >
+                  <div style={{ fontWeight: 900, fontSize: '0.82rem', letterSpacing: '0.04em' }}>
+                    ADMIN USER DETAILS
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    Email: {adminTargetUser?.email ?? 'Loading...'}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    User ID: {profileUser?.id ?? '-'}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    Role: {adminTargetUser?.role ?? 'Loading...'}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    Gender: {adminTargetUser?.gender ?? profileUser?.gender ?? 'Loading...'}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    Status: {adminTargetUser ? (adminTargetUser.isLocked ? 'Locked' : 'Active') : 'Loading...'}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    Created: {formatAdminDate(adminTargetUser?.createdAt)}
+                  </div>
+                </div>
+              )}
               {showAdminProfileActions && (
                 <div
                   style={{
@@ -2257,6 +2292,13 @@ function buildSpotifyEmbedPlaybackUrl(embedUrl: string): string {
   } catch {
     return embedUrl
   }
+}
+
+function formatAdminDate(value: string | undefined): string {
+  if (!value) return 'Loading...'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
 }
 
 function formatNoteDate(value: string): string {
