@@ -21,7 +21,8 @@ public class UsersController : ControllerBase
     public async Task<ActionResult> GetUsers(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] int? excludeUserId = null)
     {
         pageNumber = pageNumber < 1 ? 1 : pageNumber;
         pageSize = pageSize < 1 ? 10 : Math.Min(pageSize, 100);
@@ -29,6 +30,13 @@ public class UsersController : ControllerBase
         var query = _context.Users
             .AsNoTracking()
             .AsQueryable();
+
+        query = query.Where(u => !string.IsNullOrEmpty(u.Username));
+
+        if (excludeUserId.HasValue && excludeUserId.Value > 0)
+        {
+            query = query.Where(u => u.Id != excludeUserId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {

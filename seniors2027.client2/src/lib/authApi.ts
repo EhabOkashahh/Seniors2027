@@ -252,7 +252,8 @@ export type PortalEventItem = {
 export async function getUsersRequest(
   pageNumber: number = 1,
   pageSize: number = 10,
-  search: string = ''
+  search: string = '',
+  excludeUserId?: number | null
 ): Promise<ApiResult<DirectoryUser[]>> {
   try {
     const params = new URLSearchParams({
@@ -261,6 +262,9 @@ export async function getUsersRequest(
     })
 
     if (search.trim()) params.set('search', search.trim())
+    if (excludeUserId && Number.isInteger(excludeUserId) && excludeUserId > 0) {
+      params.set('excludeUserId', String(excludeUserId))
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/users?${params.toString()}`)
 

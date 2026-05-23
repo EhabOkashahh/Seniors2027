@@ -6,7 +6,7 @@ import { getMeRequest, getUsersRequest, type DirectoryUser } from '../lib/authAp
 import { Search } from 'lucide-react'
 
 const PAGE_SIZE = 20
-const FETCH_SIZE = PAGE_SIZE + 2
+const FETCH_SIZE = PAGE_SIZE + 1
 
 export default function Directory() {
   const navigate = useNavigate()
@@ -54,11 +54,10 @@ export default function Directory() {
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true)
-      const result = await getUsersRequest(pageNumber, FETCH_SIZE, debouncedSearch)
+      const result = await getUsersRequest(pageNumber, FETCH_SIZE, debouncedSearch, myUserId)
       if (result.ok && result.data) {
-        const filtered = myUserId ? result.data.filter((u) => u.id !== myUserId && u.username && u.username.trim() !== '') : result.data.filter((u) => u.username && u.username.trim() !== '')
-        setHasNextPage(filtered.length > PAGE_SIZE)
-        setUsers(filtered.slice(0, PAGE_SIZE))
+        setHasNextPage(result.data.length > PAGE_SIZE)
+        setUsers(result.data.slice(0, PAGE_SIZE))
       } else {
         setUsers([])
         setHasNextPage(false)
