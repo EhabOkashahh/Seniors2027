@@ -1393,60 +1393,6 @@ export default function PortalHome() {
                         </div>
                       </div>
 
-                      <div
-                        style={{
-                          marginTop: '10px',
-                          border: '2px solid black',
-                          background: '#fff8ef',
-                          padding: '8px',
-                          display: 'grid',
-                          gap: '8px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                          <div style={{ fontWeight: 900, fontSize: '0.76rem', letterSpacing: '0.03em' }}>REACT TO THIS HIGHLIGHT</div>
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            onClick={() => setIsHighlightReactionsOpen(true)}
-                            disabled={!current || currentReactions.length === 0}
-                            style={{ minWidth: 'auto', padding: '6px 8px', fontSize: '0.73rem' }}
-                          >
-                            Who reacted ({currentReactions.length})
-                          </button>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            onClick={() => void handleReactToCurrentHighlight('Love')}
-                            disabled={!current || isReactingCurrent}
-                            style={{
-                              minWidth: 'auto',
-                              padding: '7px 10px',
-                              fontSize: '0.8rem',
-                              background: currentUserReaction === 'Love' ? '#ffd6df' : '#fff'
-                            }}
-                          >
-                            ❤️ Love ({loveReactions.length})
-                          </button>
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            onClick={() => void handleReactToCurrentHighlight('Ahaha')}
-                            disabled={!current || isReactingCurrent}
-                            style={{
-                              minWidth: 'auto',
-                              padding: '7px 10px',
-                              fontSize: '0.8rem',
-                              background: currentUserReaction === 'Ahaha' ? '#ffeab0' : '#fff'
-                            }}
-                          >
-                            😂 Ahaha ({ahahaReactions.length})
-                          </button>
-                        </div>
-                      </div>
                     </>
                   )}
                 </div>
@@ -1760,6 +1706,61 @@ export default function PortalHome() {
               <div style={{ fontWeight: 900, fontSize: '0.88rem' }}>{current?.user.username}</div>
               <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.75 }}>
                 {formatDate(current?.createdAt)}
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: '10px',
+                border: '2px solid black',
+                background: '#fff8ef',
+                padding: '8px',
+                display: 'grid',
+                gap: '8px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ fontWeight: 900, fontSize: '0.76rem', letterSpacing: '0.03em' }}>REACT TO THIS PHOTO</div>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={() => setIsHighlightReactionsOpen(true)}
+                  disabled={!current || currentReactions.length === 0}
+                  style={{ minWidth: 'auto', padding: '6px 8px', fontSize: '0.73rem' }}
+                >
+                  Who reacted ({currentReactions.length})
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={() => void handleReactToCurrentHighlight('Love')}
+                  disabled={!current || isReactingCurrent}
+                  style={{
+                    minWidth: 'auto',
+                    padding: '7px 10px',
+                    fontSize: '0.8rem',
+                    background: currentUserReaction === 'Love' ? '#ffd6df' : '#fff'
+                  }}
+                >
+                  ❤️ Love ({loveReactions.length})
+                </button>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={() => void handleReactToCurrentHighlight('Ahaha')}
+                  disabled={!current || isReactingCurrent}
+                  style={{
+                    minWidth: 'auto',
+                    padding: '7px 10px',
+                    fontSize: '0.8rem',
+                    background: currentUserReaction === 'Ahaha' ? '#ffeab0' : '#fff'
+                  }}
+                >
+                  😂 Ahaha ({ahahaReactions.length})
+                </button>
               </div>
             </div>
 
