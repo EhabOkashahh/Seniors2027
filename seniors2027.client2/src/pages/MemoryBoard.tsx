@@ -20,11 +20,11 @@ const MEMORYBOARD_PAGE_SIZE = MEMORYBOARD_PAGE_ROWS * MEMORYBOARD_PAGE_COLUMNS
 const MEMORYBOARD_CARD_GAP_PX = 10
 const MEMORYBOARD_EDGE_SAFE_INSET_PX = 14
 const MEMORYBOARD_MAX_ROTATION_DEGREES = 7.6
-const MEMORYBOARD_MAX_X_OFFSET_PX = 14
-const MEMORYBOARD_MAX_Y_OFFSET_PX = 10
+const MEMORYBOARD_MAX_X_OFFSET_PX = 11
+const MEMORYBOARD_MAX_Y_OFFSET_PX = 8
 const MEMORYBOARD_MAX_PIN_OFFSET_PX = 4
-const MEMORYBOARD_EDGE_PULL_X_PX = 7
-const MEMORYBOARD_EDGE_PULL_Y_PX = 5
+const MEMORYBOARD_EDGE_PULL_X_PX = 10
+const MEMORYBOARD_EDGE_PULL_Y_PX = 7
 
 export default function MemoryBoard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -408,7 +408,16 @@ export default function MemoryBoard() {
                           willChange: 'transform, opacity, filter, clip-path'
                         }}
                       >
-                        <div style={{ overflow: 'hidden', padding: '2px' }}>
+                        <div
+                          style={{
+                            overflow: 'hidden',
+                            padding: '4px',
+                            borderRadius: '8px',
+                            isolation: 'isolate',
+                            contain: 'layout paint',
+                            position: 'relative'
+                          }}
+                        >
                           <div
                             style={{
                               display: 'grid',
@@ -802,7 +811,7 @@ function getMemoryCardPose(photo: MemoryBoardPhoto, indexOnPage: number): Memory
     offsetX: Number(edgePulledOffsetX.toFixed(2)),
     offsetY: Number(edgePulledOffsetY.toFixed(2)),
     pinOffsetX: Number((((pinOffsetRand * 2) - 1) * MEMORYBOARD_MAX_PIN_OFFSET_PX).toFixed(2)),
-    scale: Number((0.95 + scaleRand * 0.08).toFixed(3)),
+    scale: Number((0.94 + scaleRand * 0.06).toFixed(3)),
     zIndex: Math.floor(zIndexRand * 8) + 1
   }
 }
