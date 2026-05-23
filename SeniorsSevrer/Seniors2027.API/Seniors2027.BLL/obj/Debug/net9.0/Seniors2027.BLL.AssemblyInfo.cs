@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Seniors2027.BLL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bc45c866bdbb8b5b6b9d445470be4370f4ca0649")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+529ec62ccdc8db9aa39c759aecd6168c0dab637d")]
 [assembly: System.Reflection.AssemblyProductAttribute("Seniors2027.BLL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Seniors2027.BLL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

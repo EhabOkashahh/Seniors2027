@@ -31,8 +31,6 @@ public class UsersController : ControllerBase
             .AsNoTracking()
             .AsQueryable();
 
-        query = query.Where(u => !string.IsNullOrEmpty(u.Username));
-
         if (excludeUserId.HasValue && excludeUserId.Value > 0)
         {
             query = query.Where(u => u.Id != excludeUserId.Value);
@@ -41,7 +39,9 @@ public class UsersController : ControllerBase
         if (!string.IsNullOrWhiteSpace(search))
         {
             var normalized = search.Trim();
-            query = query.Where(u => u.Username.Contains(normalized));
+            query = query.Where(u =>
+                (u.Username != null && u.Username.Contains(normalized)) ||
+                u.Email.Contains(normalized));
         }
 
         var users = await query
@@ -52,12 +52,23 @@ public class UsersController : ControllerBase
             {
                 u.Id,
                 u.Username,
+                u.Email,
                 u.Points,
                 PhotoUrl = u.PhotoUrl != null && u.PhotoUrl.StartsWith("data:") ? null : u.PhotoUrl
             })
             .ToListAsync();
 
-        return Ok(users);
+        var mappedUsers = users
+            .Select(u => new
+            {
+                u.Id,
+                Username = BuildDirectoryUsername(u.Username, u.Email, u.Id),
+                u.Points,
+                u.PhotoUrl
+            })
+            .ToList();
+
+        return Ok(mappedUsers);
     }
 
     [HttpGet("{id:int}")]
@@ -131,5 +142,26 @@ public class UsersController : ControllerBase
     {
         return string.Equals(scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
             || string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildDirectoryUsername(string? username, string? email, int userId)
+    {
+        if (!string.IsNullOrWhiteSpace(username)) return username.Trim();
+
+        var candidateEmail = email?.Trim();
+        if (!string.IsNullOrWhiteSpace(candidateEmail))
+        {
+            var atIndex = candidateEmail.IndexOf('@');
+            if (atIndex > 0)
+            {
+                var prefix = candidateEmail[..atIndex].Trim();
+                if (!string.IsNullOrWhiteSpace(prefix))
+                {
+                    return prefix;
+                }
+            }
+        }
+
+        return $"Senior {userId}";
     }
 }
