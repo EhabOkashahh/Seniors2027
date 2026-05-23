@@ -15,9 +15,12 @@ import {
 const MEMORYBOARD_SYNC_INTERVAL_MS = 15000
 const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
 const MEMORYBOARD_PAGE_ROWS = 3
-const MEMORYBOARD_PAGE_COLUMNS = 7
+const MEMORYBOARD_PAGE_COLUMNS = 6
 const MEMORYBOARD_PAGE_SIZE = MEMORYBOARD_PAGE_ROWS * MEMORYBOARD_PAGE_COLUMNS
-const MEMORYBOARD_MAX_ROTATION_DEGREES = 4.2
+const MEMORYBOARD_MAX_ROTATION_DEGREES = 6.4
+const MEMORYBOARD_MAX_X_OFFSET_PX = 6
+const MEMORYBOARD_MAX_Y_OFFSET_PX = 5
+const MEMORYBOARD_MAX_PIN_OFFSET_PX = 3
 
 export default function MemoryBoard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -288,7 +291,7 @@ export default function MemoryBoard() {
               </div>
 
               <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.75 }}>
-                21 photos per page (3 rows x 7 columns). Use the arrows to flip pages.
+                {MEMORYBOARD_PAGE_SIZE} photos per page ({MEMORYBOARD_PAGE_ROWS} rows x {MEMORYBOARD_PAGE_COLUMNS} columns). Use the arrows to flip pages.
               </div>
             </div>
           </div>
@@ -401,19 +404,18 @@ export default function MemoryBoard() {
                           willChange: 'transform, opacity, filter, clip-path'
                         }}
                       >
-                        <div style={{ overflowX: 'auto', paddingBottom: '4px' }}>
+                        <div style={{ overflow: 'hidden', padding: '4px 2px' }}>
                           <div
                             style={{
                               display: 'grid',
                               gridTemplateRows: `repeat(${MEMORYBOARD_PAGE_ROWS}, minmax(0, 1fr))`,
-                              gridTemplateColumns: `repeat(${MEMORYBOARD_PAGE_COLUMNS}, minmax(${isMobile ? 108 : 124}px, 1fr))`,
-                              gap: '12px',
-                              minWidth: `${MEMORYBOARD_PAGE_COLUMNS * (isMobile ? 108 : 124)}px`
+                              gridTemplateColumns: `repeat(${MEMORYBOARD_PAGE_COLUMNS}, minmax(0, 1fr))`,
+                              gap: '14px'
                             }}
                           >
                             {boardPagePhotos.map((item, index) => {
                               const absoluteIndex = boardPageStartIndex + index
-                              const rotation = getMemoryCardRotation(item)
+                              const pose = getMemoryCardPose(item)
                               const pinColor = PHOTO_PIN_COLORS[(item.id + absoluteIndex) % PHOTO_PIN_COLORS.length]
                               const isOwnedByMe = myUserId !== null && item.userId === myUserId
                               const canDeletePhoto = isAdmin || isOwnedByMe
@@ -422,15 +424,15 @@ export default function MemoryBoard() {
                               return (
                                 <motion.div
                                   key={item.id}
-                                  initial={{ opacity: 0, y: 14, scale: 0.96 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  initial={{ opacity: 0, scale: 0.96, filter: 'blur(2px)' }}
+                                  animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
                                   transition={{
                                     duration: 0.28,
                                     delay: Math.min(index * 0.018, 0.22),
                                     ease: [0.22, 1, 0.36, 1]
                                   }}
-                                  whileHover={{ y: -3, rotate: rotation + 0.6, scale: 1.03 }}
-                                  whileTap={{ scale: 0.98 }}
+                                  whileHover={{ boxShadow: '6px 6px 0 black', filter: 'brightness(1.02)' }}
+                                  whileTap={{ scale: 0.995 }}
                                   onClick={() => openViewerAt(absoluteIndex)}
                                   style={{
                                     border: '2px solid black',
@@ -439,7 +441,8 @@ export default function MemoryBoard() {
                                     padding: '6px',
                                     display: 'grid',
                                     gap: '6px',
-                                    transform: `rotate(${rotation}deg)`,
+                                    transform: `translate(${pose.offsetX}px, ${pose.offsetY}px) rotate(${pose.rotation}deg)`,
+                                    transformOrigin: 'center 16px',
                                     cursor: 'pointer'
                                   }}
                                 >
@@ -449,7 +452,8 @@ export default function MemoryBoard() {
                                       height: '10px',
                                       border: '2px solid black',
                                       background: pinColor,
-                                      margin: '0 auto'
+                                      margin: '0 auto',
+                                      transform: `translateX(${pose.pinOffsetX}px)`
                                     }}
                                   />
                                   <img
@@ -756,15 +760,28 @@ function formatShortDate(value: string): string {
   })
 }
 
-function getMemoryCardRotation(photo: MemoryBoardPhoto): number {
+type MemoryCardPose = {
+  rotation: number
+  offsetX: number
+  offsetY: number
+  pinOffsetX: number
+}
+
+function getMemoryCardPose(photo: MemoryBoardPhoto): MemoryCardPose {
   const dateSeed = Date.parse(photo.exifTakenAtUtc ?? photo.sortDateUtc ?? photo.createdAt)
   const safeDateSeed = Number.isNaN(dateSeed) ? 0 : dateSeed
   const baseSeed = `${photo.id}:${photo.userId}:${safeDateSeed}:${photo.photoUrl.length}`
-  const randA = seededUnitRandom(baseSeed)
-  const randB = seededUnitRandom(`pin-${baseSeed}`)
-  const mixed = randA * 0.72 + randB * 0.28
-  const degrees = (mixed * 2 - 1) * MEMORYBOARD_MAX_ROTATION_DEGREES
-  return Number(degrees.toFixed(2))
+  const rotationRand = seededUnitRandom(`rot-${baseSeed}`)
+  const offsetXRand = seededUnitRandom(`x-${baseSeed}`)
+  const offsetYRand = seededUnitRandom(`y-${baseSeed}`)
+  const pinOffsetRand = seededUnitRandom(`pin-${baseSeed}`)
+
+  return {
+    rotation: Number((((rotationRand * 2) - 1) * MEMORYBOARD_MAX_ROTATION_DEGREES).toFixed(2)),
+    offsetX: Number((((offsetXRand * 2) - 1) * MEMORYBOARD_MAX_X_OFFSET_PX).toFixed(2)),
+    offsetY: Number((((offsetYRand * 2) - 1) * MEMORYBOARD_MAX_Y_OFFSET_PX).toFixed(2)),
+    pinOffsetX: Number((((pinOffsetRand * 2) - 1) * MEMORYBOARD_MAX_PIN_OFFSET_PX).toFixed(2))
+  }
 }
 
 function seededUnitRandom(seedText: string): number {
