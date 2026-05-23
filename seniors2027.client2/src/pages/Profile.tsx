@@ -1036,36 +1036,30 @@ export default function Profile() {
 
                 <div
                   style={{
-                    display: 'flex',
+                    display: 'inline-flex',
                     flexDirection: 'column',
-                    gap: '4px',
-                    alignItems: isTablet ? 'flex-start' : 'flex-end'
+                    alignItems: isTablet ? 'flex-start' : 'flex-end',
+                    justifySelf: isTablet ? 'start' : 'end',
+                    width: '100%',
+                    maxWidth: '280px'
                   }}
                 >
                   {sharedSongEmbedUrl && (
-                    <div
+                    <iframe
+                      title={`${displayName} favorite song`}
+                      src={sharedSongEmbedUrl}
+                      width="100%"
+                      height="80"
+                      loading="lazy"
+                      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                       style={{
-                        display: 'flex',
-                        justifyContent: isTablet ? 'flex-start' : 'flex-end',
+                        display: 'block',
+                        border: 0,
+                        borderRadius: '12px',
                         width: '100%',
-                        order: -1
+                        maxWidth: '280px'
                       }}
-                    >
-                      <iframe
-                        title={`${displayName} favorite song`}
-                        src={sharedSongEmbedUrl}
-                        width="100%"
-                        height="132"
-                        loading="lazy"
-                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                        style={{
-                          border: 0,
-                          borderRadius: '12px',
-                          width: '100%',
-                          maxWidth: '280px'
-                        }}
-                      />
-                    </div>
+                    />
                   )}
 
                   {isOwnProfile && (
@@ -1087,7 +1081,10 @@ export default function Profile() {
                         background: 'linear-gradient(135deg, #1ed760 0%, #1db954 100%)',
                         boxShadow: '3px 3px 0 black',
                         color: '#0a0a0a',
-                        fontWeight: 900
+                        fontWeight: 900,
+                        margin: 0,
+                        marginTop: sharedSongEmbedUrl ? '1px' : 0,
+                        alignSelf: isTablet ? 'flex-start' : 'flex-end'
                       }}
                     >
                       <img
