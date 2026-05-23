@@ -29,6 +29,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
                 u.PhotoUrl,
                 u.Description,
                 u.SocialLinksJson,
+                u.Points,
                 u.Role
             })
             .FirstOrDefault();
@@ -41,6 +42,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
             photoUrl = string.IsNullOrWhiteSpace(user.PhotoUrl) ? null : user.PhotoUrl,
             description = string.IsNullOrWhiteSpace(user.Description) ? null : user.Description,
             socialLinks = ParseSocialLinks(user.SocialLinksJson),
+            points = user.Points,
             role = user.Role
         });
     }

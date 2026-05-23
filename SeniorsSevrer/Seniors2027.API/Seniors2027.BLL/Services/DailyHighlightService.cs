@@ -8,6 +8,7 @@ namespace Seniors2027.BLL.Services;
 
 public class DailyHighlightService : IDailyHighlightService
 {
+    private const int HighlightPointsAward = 2;
     private readonly AppDbContext _context;
 
     public DailyHighlightService(AppDbContext context)
@@ -18,10 +19,7 @@ public class DailyHighlightService : IDailyHighlightService
     public async Task<DailyHighlightDto> AddHighlightAsync(int userId, string photoUrl)
     {
         var user = await _context.Users
-            .AsNoTracking()
-            .Where(u => u.Id == userId)
-            .Select(u => new { u.Id, u.Username, u.PhotoUrl })
-            .FirstOrDefaultAsync()
+            .FirstOrDefaultAsync(u => u.Id == userId)
             ?? throw new InvalidOperationException("User not found.");
 
         var now = DateTime.UtcNow;
@@ -42,6 +40,7 @@ public class DailyHighlightService : IDailyHighlightService
         };
 
         await _context.DailyHighlights.AddAsync(highlight);
+        user.Points += HighlightPointsAward;
         await _context.SaveChangesAsync();
 
         return new DailyHighlightDto
@@ -124,6 +123,7 @@ public class DailyHighlightService : IDailyHighlightService
 
         if (highlight == null) return null;
         if (!requesterIsAdmin && highlight.UserId != requesterUserId) return null;
+        var shouldRevertPoints = DateTime.UtcNow < highlight.ExpiresAt;
 
         var deletedDto = new DailyHighlightDto
         {
@@ -140,6 +140,11 @@ public class DailyHighlightService : IDailyHighlightService
                 PhotoUrl = highlight.User.PhotoUrl
             }
         };
+
+        if (shouldRevertPoints)
+        {
+            highlight.User.Points = Math.Max(0, highlight.User.Points - HighlightPointsAward);
+        }
 
         _context.DailyHighlights.Remove(highlight);
         _context.GalleryPhotos.Remove(highlight.GalleryPhoto);

@@ -31,6 +31,8 @@ public class User
     [Required]
     public bool IsLocked { get; set; } = false;
     public DateTime? LockedAtUtc { get; set; }
+    [Required]
+    public int Points { get; set; } = 0;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<Note> SentNotes { get; set; } = new List<Note>();
     public ICollection<Note> ReceivedNotes { get; set; } = new List<Note>();

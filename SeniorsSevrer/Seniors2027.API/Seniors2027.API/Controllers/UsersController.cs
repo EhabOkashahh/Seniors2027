@@ -44,6 +44,7 @@ public class UsersController : ControllerBase
             {
                 u.Id,
                 u.Username,
+                u.Points,
                 PhotoUrl = u.PhotoUrl != null && u.PhotoUrl.StartsWith("data:") ? null : u.PhotoUrl
             })
             .ToListAsync();
@@ -64,6 +65,7 @@ public class UsersController : ControllerBase
                 u.PhotoUrl,
                 u.Description,
                 u.SocialLinksJson,
+                u.Points,
                 u.Gender
             })
             .FirstOrDefaultAsync();
@@ -77,6 +79,7 @@ public class UsersController : ControllerBase
             user.PhotoUrl,
             user.Description,
             socialLinks = ParseSocialLinks(user.SocialLinksJson),
+            user.Points,
             user.Gender
         });
     }

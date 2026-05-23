@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.Email).IsUnique();
             entity.Property(e => e.Role).HasConversion<int>();
             entity.Property(e => e.IsLocked).HasDefaultValue(false);
+            entity.Property(e => e.Points).HasDefaultValue(0);
         });
 
         modelBuilder.Entity<Note>(entity =>

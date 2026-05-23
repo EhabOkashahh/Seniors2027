@@ -147,12 +147,14 @@ export async function verifyOtpRequest(payload: VerifyOtpPayload): Promise<
 export type DirectoryUser = {
   id: number
   username: string
+  points?: number
   photoUrl?: string | null
 }
 
 export type User = {
   id: number
   username: string
+  points?: number
   photoUrl?: string | null
   description?: string | null
   socialLinks?: string[]
@@ -162,6 +164,7 @@ export type User = {
 export type MeUser = {
   id: number
   username: string
+  points?: number
   photoUrl?: string | null
   description?: string | null
   socialLinks?: string[]

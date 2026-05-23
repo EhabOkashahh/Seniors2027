@@ -8,6 +8,7 @@ namespace Seniors2027.BLL.Services;
 
 public class NoteService : INoteService
 {
+    private const int NotePointsAward = 1;
     private readonly AppDbContext _context;
 
     public NoteService(AppDbContext context)
@@ -20,10 +21,7 @@ public class NoteService : INoteService
         if (senderId == dto.RecipientId) throw new InvalidOperationException("You cannot send a note to yourself.");
 
         var sender = await _context.Users
-            .AsNoTracking()
-            .Where(u => u.Id == senderId)
-            .Select(u => new { u.Id, u.Username, u.PhotoUrl })
-            .FirstOrDefaultAsync()
+            .FirstOrDefaultAsync(u => u.Id == senderId)
             ?? throw new InvalidOperationException("Sender not found.");
 
         var recipientExists = await _context.Users.AnyAsync(u => u.Id == dto.RecipientId);
@@ -38,6 +36,7 @@ public class NoteService : INoteService
         };
 
         await _context.Notes.AddAsync(note);
+        sender.Points += NotePointsAward;
         await _context.SaveChangesAsync();
 
         return new NoteDto
@@ -125,6 +124,12 @@ public class NoteService : INoteService
         if (!requesterIsAdmin && note.SenderId != requesterUserId)
         {
             throw new InvalidOperationException("You can only delete notes you sent.");
+        }
+
+        var sender = await _context.Users.FirstOrDefaultAsync(u => u.Id == note.SenderId);
+        if (sender != null)
+        {
+            sender.Points = Math.Max(0, sender.Points - NotePointsAward);
         }
 
         _context.Notes.Remove(note);
