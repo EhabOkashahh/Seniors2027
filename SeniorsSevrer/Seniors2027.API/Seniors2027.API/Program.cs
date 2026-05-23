@@ -27,12 +27,9 @@ bool IsAllowedClientOrigin(string? origin)
 
     if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
 
-    var host = uri.Host;
     return uri.Scheme == Uri.UriSchemeHttps &&
-           (host.Equals("seniors2027.vercel.app", StringComparison.OrdinalIgnoreCase) ||
-            host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase) ||
-            host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase) ||
-            host.Equals("vercel.app", StringComparison.OrdinalIgnoreCase));
+           (uri.Host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase));
 }
 
 // Add services to the container.
@@ -147,7 +144,7 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = context =>
     {
         context.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
-        context.Context.Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin";
+        context.Context.Response.Headers["Cross-Origin-Resource-Policy"] = "*";
     }
 });
 
