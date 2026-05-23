@@ -147,6 +147,7 @@ export type SpotifyNowPlaying = {
   albumName?: string | null
   albumImageUrl?: string | null
   spotifyTrackUrl?: string | null
+  errorMessage?: string | null
 }
 
 export type JoinRequestStatus = 'Pending' | 'Accepted' | 'Declined'

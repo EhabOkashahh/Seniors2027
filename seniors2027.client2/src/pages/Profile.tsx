@@ -1110,7 +1110,7 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {(isOwnProfile || spotifyNowPlaying?.isPlaying) && (
+                {(isOwnProfile || Boolean(spotifyNowPlaying?.isConnected)) && (
                   <div style={{ display: 'grid', gap: '8px', alignContent: 'start' }}>
                     <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
                       SPOTIFY
@@ -1151,7 +1151,7 @@ export default function Profile() {
                             {spotifyActionLoading ? 'Connecting...' : 'Connect Spotify'}
                           </button>
                         </>
-                      ) : spotifyNowPlaying?.isPlaying ? (
+                      ) : spotifyNowPlaying?.trackName ? (
                         <div style={{ display: 'grid', gap: '8px' }}>
                           <div
                             style={{
@@ -1177,7 +1177,7 @@ export default function Profile() {
                             <div style={{ display: 'grid', gap: '4px' }}>
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 900, fontSize: '0.72rem', opacity: 0.84 }}>
                                 <Music2 size={13} />
-                                NOW PLAYING
+                                {spotifyNowPlaying.isPlaying ? 'NOW PLAYING' : 'LAST TRACK'}
                               </div>
                               <div style={{ fontWeight: 900, fontSize: '0.9rem', lineHeight: 1.25 }}>
                                 {spotifyNowPlaying.trackName ?? 'Unknown track'}
@@ -1190,15 +1190,26 @@ export default function Profile() {
                                   Album: {spotifyNowPlaying.albumName}
                                 </div>
                               )}
+                              {!spotifyNowPlaying.isPlaying && (
+                                <div style={{ fontWeight: 700, fontSize: '0.72rem', opacity: 0.7 }}>
+                                  Not playing right now.
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
                       ) : (
-                        isOwnProfile && (
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
-                            Not playing any song right now.
-                          </div>
-                        )
+                        <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
+                          {isOwnProfile
+                            ? 'Not playing any song right now.'
+                            : 'No Spotify activity to show right now.'}
+                        </div>
+                      )}
+
+                      {spotifyNowPlaying?.errorMessage && (
+                        <div style={{ fontWeight: 700, fontSize: '0.72rem', opacity: 0.7 }}>
+                          {spotifyNowPlaying.errorMessage}
+                        </div>
                       )}
 
                       {isOwnProfile && spotifyNowPlaying?.isConnected && (

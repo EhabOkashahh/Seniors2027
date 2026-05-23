@@ -123,11 +123,6 @@ public class SpotifyController(
         if (user == null) return NotFound();
 
         var status = await ResolveNowPlayingAsync(user, HttpContext.RequestAborted);
-        if (!status.IsPlaying)
-        {
-            return Ok(null);
-        }
-
         return Ok(status);
     }
 
@@ -162,7 +157,8 @@ public class SpotifyController(
                 return new SpotifyNowPlayingDto
                 {
                     IsConnected = isConnected,
-                    IsPlaying = false
+                    IsPlaying = false,
+                    ErrorMessage = refreshResult.ErrorMessage
                 };
             }
 
@@ -199,7 +195,8 @@ public class SpotifyController(
                 return new SpotifyNowPlayingDto
                 {
                     IsConnected = isConnected,
-                    IsPlaying = false
+                    IsPlaying = false,
+                    ErrorMessage = refreshResult.ErrorMessage
                 };
             }
 
@@ -216,24 +213,26 @@ public class SpotifyController(
             await _context.SaveChangesAsync(cancellationToken);
         }
 
-        if (!nowPlayingResult.IsSuccess || !nowPlayingResult.IsPlaying || string.IsNullOrWhiteSpace(nowPlayingResult.TrackName))
+        if (!nowPlayingResult.IsSuccess)
         {
             return new SpotifyNowPlayingDto
             {
                 IsConnected = isConnected,
-                IsPlaying = false
+                IsPlaying = false,
+                ErrorMessage = nowPlayingResult.ErrorMessage
             };
         }
 
         return new SpotifyNowPlayingDto
         {
             IsConnected = isConnected,
-            IsPlaying = true,
+            IsPlaying = nowPlayingResult.IsPlaying,
             TrackName = nowPlayingResult.TrackName,
             Artists = nowPlayingResult.Artists,
             AlbumName = nowPlayingResult.AlbumName,
             AlbumImageUrl = nowPlayingResult.AlbumImageUrl,
-            SpotifyTrackUrl = nowPlayingResult.SpotifyTrackUrl
+            SpotifyTrackUrl = nowPlayingResult.SpotifyTrackUrl,
+            ErrorMessage = nowPlayingResult.ErrorMessage
         };
     }
 
@@ -337,6 +336,7 @@ public sealed class SpotifyNowPlayingDto
     public string? AlbumName { get; set; }
     public string? AlbumImageUrl { get; set; }
     public string? SpotifyTrackUrl { get; set; }
+    public string? ErrorMessage { get; set; }
 
     public static SpotifyNowPlayingDto Disconnected() => new()
     {
