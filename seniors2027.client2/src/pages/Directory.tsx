@@ -1,21 +1,25 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import PortalLayout from '../components/PortalLayout'
 import { getMeRequest, getUsersRequest, type DirectoryUser } from '../lib/authApi'
 import { Search } from 'lucide-react'
 
 const PAGE_SIZE = 20
+const DIRECTORY_STATE_STORAGE_KEY = 'directory:lastQuery'
 
 export default function Directory() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const persistedDirectoryState = resolveDirectoryState(searchParams)
+  const isFirstSearchSyncRef = useRef(true)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 480)
   const [users, setUsers] = useState<DirectoryUser[]>([])
   const [myUserId, setMyUserId] = useState<number | null>(null)
-  const [searchInput, setSearchInput] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [pageNumber, setPageNumber] = useState(1)
+  const [searchInput, setSearchInput] = useState(persistedDirectoryState.search)
+  const [debouncedSearch, setDebouncedSearch] = useState(persistedDirectoryState.search)
+  const [pageNumber, setPageNumber] = useState(persistedDirectoryState.page)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -47,8 +51,38 @@ export default function Directory() {
   }, [searchInput])
 
   useEffect(() => {
+    if (isFirstSearchSyncRef.current) {
+      isFirstSearchSyncRef.current = false
+      return
+    }
     setPageNumber(1)
   }, [debouncedSearch])
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams)
+    if (pageNumber > 1) nextParams.set('page', String(pageNumber))
+    else nextParams.delete('page')
+    if (debouncedSearch) nextParams.set('search', debouncedSearch)
+    else nextParams.delete('search')
+
+    const nextQuery = nextParams.toString()
+    const currentQuery = searchParams.toString()
+    if (nextQuery !== currentQuery) {
+      setSearchParams(nextParams, { replace: true })
+    }
+
+    const persistedStateParams = new URLSearchParams()
+    if (pageNumber > 1) persistedStateParams.set('page', String(pageNumber))
+    if (debouncedSearch) persistedStateParams.set('search', debouncedSearch)
+    const persistedStateQuery = persistedStateParams.toString()
+
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(
+        DIRECTORY_STATE_STORAGE_KEY,
+        persistedStateQuery ? `?${persistedStateQuery}` : ''
+      )
+    }
+  }, [debouncedSearch, pageNumber, searchParams, setSearchParams])
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -243,4 +277,40 @@ export default function Directory() {
       </motion.div>
     </PortalLayout>
   )
+}
+
+function resolveDirectoryState(searchParams: URLSearchParams): { page: number; search: string } {
+  const hasUrlState = searchParams.has('page') || searchParams.has('search')
+  if (hasUrlState) {
+    return {
+      page: parseDirectoryPage(searchParams.get('page')),
+      search: parseDirectorySearch(searchParams.get('search'))
+    }
+  }
+
+  if (typeof window === 'undefined') {
+    return { page: 1, search: '' }
+  }
+
+  const savedQuery = window.sessionStorage.getItem(DIRECTORY_STATE_STORAGE_KEY) ?? ''
+  if (!savedQuery.trim()) {
+    return { page: 1, search: '' }
+  }
+
+  const savedParams = new URLSearchParams(savedQuery.startsWith('?') ? savedQuery.slice(1) : savedQuery)
+  return {
+    page: parseDirectoryPage(savedParams.get('page')),
+    search: parseDirectorySearch(savedParams.get('search'))
+  }
+}
+
+function parseDirectoryPage(value: string | null): number {
+  if (!value) return 1
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed < 1) return 1
+  return parsed
+}
+
+function parseDirectorySearch(value: string | null): string {
+  return value?.trim() ?? ''
 }

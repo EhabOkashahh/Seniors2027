@@ -10,6 +10,8 @@ interface PortalLayoutProps {
   children: React.ReactNode
 }
 
+const DIRECTORY_STATE_STORAGE_KEY = 'directory:lastQuery'
+
 export default function PortalLayout({ children }: PortalLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -38,6 +40,16 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
   ]
 
   const handleNavigate = (path: string) => {
+    if (path === '/directory' && typeof window !== 'undefined') {
+      const savedDirectoryQuery = window.sessionStorage.getItem(DIRECTORY_STATE_STORAGE_KEY)?.trim() ?? ''
+      const normalizedQuery = savedDirectoryQuery
+        ? (savedDirectoryQuery.startsWith('?') ? savedDirectoryQuery : `?${savedDirectoryQuery}`)
+        : ''
+      navigate(`${path}${normalizedQuery}`)
+      setIsMenuOpen(false)
+      return
+    }
+
     navigate(path)
     setIsMenuOpen(false)
   }
