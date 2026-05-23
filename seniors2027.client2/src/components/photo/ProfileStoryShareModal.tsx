@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Download, Share2 } from 'lucide-react'
 import storyTemplateUrl from '../../assets/senior-story-template.png'
-import rocketBrushFontUrl from '../../assets/rocket-brush.otf'
+import { API_BASE_URL } from '../../lib/authApi'
 import { pushGlobalToast } from '../../lib/globalToast'
 
 const MOBILE_BREAKPOINT = 760
@@ -29,7 +29,7 @@ const TEMPLATE = {
   }
 } as const
 
-const STORY_FONT_FAMILY = '"RocketBrush"'
+const STORY_FONT_FAMILY = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive'
 
 type ImageSize = {
   width: number
@@ -85,6 +85,7 @@ export default function ProfileStoryShareModal({
   const normalizedName = normalizeStoryName(nameDraft)
   const previewNameFontSize = Math.max(20, TEMPLATE.name.baseSize * previewScale)
   const previewNameTop = (TEMPLATE.name.baselineY - TEMPLATE.name.baseSize * 0.88) * previewScale
+  const resolvedPhotoUrl = useMemo(() => resolveStoryPhotoUrl(sourceUrl), [sourceUrl])
 
   useEffect(() => {
     const onResize = () => {
@@ -96,8 +97,6 @@ export default function ProfileStoryShareModal({
 
   useEffect(() => {
     if (!open) return
-
-    void ensureRocketBrushFontLoaded()
 
     setNameDraft(normalizeStoryName(initialName))
     setZoom(1)
@@ -154,12 +153,12 @@ export default function ProfileStoryShareModal({
   }
 
   const handleDownload = async () => {
-    if (!sourceUrl || !hasPhoto || isPreparing) return
+    if (!resolvedPhotoUrl || !hasPhoto || isPreparing) return
 
     setIsPreparing(true)
     try {
       const file = await buildStoryFile({
-        sourceUrl,
+        sourceUrl: resolvedPhotoUrl,
         name: normalizedName,
         zoom,
         offsetX,
@@ -176,12 +175,12 @@ export default function ProfileStoryShareModal({
   }
 
   const handleShareToInstagram = async () => {
-    if (!sourceUrl || !hasPhoto || isPreparing) return
+    if (!resolvedPhotoUrl || !hasPhoto || isPreparing) return
 
     setIsPreparing(true)
     try {
       const file = await buildStoryFile({
-        sourceUrl,
+        sourceUrl: resolvedPhotoUrl,
         name: normalizedName,
         zoom,
         offsetX,
@@ -209,13 +208,13 @@ export default function ProfileStoryShareModal({
       openInstagramStoryFlow()
       pushGlobalToast('Story image downloaded. Instagram Story camera opened if available.')
     } catch {
-      pushGlobalToast('Could not open Instagram Story directly. Downloaded image is ready for manual story upload.', 'error')
+      pushGlobalToast('Could not prepare your story image. Please try again.', 'error')
     } finally {
       setIsPreparing(false)
     }
   }
 
-  if (!open || !sourceUrl) return null
+  if (!open || !sourceUrl || !resolvedPhotoUrl) return null
   if (typeof document === 'undefined') return null
 
   return createPortal(
@@ -287,9 +286,8 @@ export default function ProfileStoryShareModal({
                 }}
               >
                 <img
-                  src={sourceUrl}
+                  src={resolvedPhotoUrl}
                   alt="Story photo preview"
-                  crossOrigin="anonymous"
                   onLoad={(event) => {
                     const image = event.currentTarget
                     setImageSize({
@@ -470,15 +468,6 @@ function openInstagramStoryFlow(): void {
   }, 1200)
 }
 
-async function ensureRocketBrushFontLoaded(): Promise<void> {
-  if (typeof document === 'undefined' || !('fonts' in document)) return
-  if (document.fonts.check('16px "RocketBrush"')) return
-
-  const font = new FontFace('RocketBrush', `url(${rocketBrushFontUrl}) format("opentype")`)
-  await font.load()
-  document.fonts.add(font)
-}
-
 async function buildStoryFile(args: {
   sourceUrl: string
   name: string
@@ -487,8 +476,6 @@ async function buildStoryFile(args: {
   offsetY: number
 }): Promise<File> {
   const { sourceUrl, name, zoom, offsetX, offsetY } = args
-
-  await ensureRocketBrushFontLoaded()
 
   const templateLoaded = await loadImageFromUrl(storyTemplateUrl)
   const photoLoaded = await loadPhotoImage(sourceUrl)
@@ -611,6 +598,44 @@ async function loadPhotoImage(sourceUrl: string): Promise<{
   cleanup?: () => void
 }> {
   return loadImageFromUrl(sourceUrl, 'anonymous')
+}
+
+function resolveStoryPhotoUrl(sourceUrl: string | null): string | null {
+  if (!sourceUrl) return null
+  const trimmed = sourceUrl.trim()
+  if (!trimmed) return null
+
+  const fileName = extractSeniorsPhotoFileName(trimmed)
+  if (!fileName) return trimmed
+
+  return `${API_BASE_URL}/api/media/seniors-photo/${encodeURIComponent(fileName)}`
+}
+
+function extractSeniorsPhotoFileName(urlValue: string): string | null {
+  const marker = '/seniorsphotos/'
+
+  try {
+    const absolute = new URL(urlValue)
+    const normalizedPath = absolute.pathname.toLowerCase()
+    const markerIndex = normalizedPath.lastIndexOf(marker)
+    if (markerIndex < 0) return null
+
+    const rawFileName = absolute.pathname.slice(markerIndex + marker.length)
+    const fileName = rawFileName.split('/').filter(Boolean).at(-1)?.trim() ?? ''
+    if (!fileName) return null
+    if (fileName.includes('..')) return null
+    return fileName
+  } catch {
+    const normalized = urlValue.toLowerCase()
+    const markerIndex = normalized.lastIndexOf(marker)
+    if (markerIndex < 0) return null
+
+    const rawFileName = urlValue.slice(markerIndex + marker.length)
+    const fileName = rawFileName.split('?')[0].split('#')[0].split('/').filter(Boolean).at(-1)?.trim() ?? ''
+    if (!fileName) return null
+    if (fileName.includes('..')) return null
+    return fileName
+  }
 }
 
 async function loadImageFromUrl(
