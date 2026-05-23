@@ -17,6 +17,7 @@ const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
 const MEMORYBOARD_PAGE_ROWS = 3
 const MEMORYBOARD_PAGE_COLUMNS = 7
 const MEMORYBOARD_PAGE_SIZE = MEMORYBOARD_PAGE_ROWS * MEMORYBOARD_PAGE_COLUMNS
+const MEMORYBOARD_MAX_ROTATION_DEGREES = 4.2
 
 export default function MemoryBoard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -412,7 +413,7 @@ export default function MemoryBoard() {
                           >
                             {boardPagePhotos.map((item, index) => {
                               const absoluteIndex = boardPageStartIndex + index
-                              const rotation = ((item.id * 7 + absoluteIndex * 3) % 7) - 3
+                              const rotation = getMemoryCardRotation(item)
                               const pinColor = PHOTO_PIN_COLORS[(item.id + absoluteIndex) % PHOTO_PIN_COLORS.length]
                               const isOwnedByMe = myUserId !== null && item.userId === myUserId
                               const canDeletePhoto = isAdmin || isOwnedByMe
@@ -753,4 +754,26 @@ function formatShortDate(value: string): string {
     month: 'short',
     day: 'numeric'
   })
+}
+
+function getMemoryCardRotation(photo: MemoryBoardPhoto): number {
+  const dateSeed = Date.parse(photo.exifTakenAtUtc ?? photo.sortDateUtc ?? photo.createdAt)
+  const safeDateSeed = Number.isNaN(dateSeed) ? 0 : dateSeed
+  const baseSeed = `${photo.id}:${photo.userId}:${safeDateSeed}:${photo.photoUrl.length}`
+  const randA = seededUnitRandom(baseSeed)
+  const randB = seededUnitRandom(`pin-${baseSeed}`)
+  const mixed = randA * 0.72 + randB * 0.28
+  const degrees = (mixed * 2 - 1) * MEMORYBOARD_MAX_ROTATION_DEGREES
+  return Number(degrees.toFixed(2))
+}
+
+function seededUnitRandom(seedText: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < seedText.length; i += 1) {
+    hash ^= seedText.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  const normalized = ((hash >>> 0) % 10000) / 10000
+  return normalized
 }
