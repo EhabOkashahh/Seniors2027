@@ -17,10 +17,14 @@ const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
 const MEMORYBOARD_PAGE_ROWS = 3
 const MEMORYBOARD_PAGE_COLUMNS = 6
 const MEMORYBOARD_PAGE_SIZE = MEMORYBOARD_PAGE_ROWS * MEMORYBOARD_PAGE_COLUMNS
-const MEMORYBOARD_MAX_ROTATION_DEGREES = 8.2
-const MEMORYBOARD_MAX_X_OFFSET_PX = 18
-const MEMORYBOARD_MAX_Y_OFFSET_PX = 14
+const MEMORYBOARD_CARD_GAP_PX = 10
+const MEMORYBOARD_EDGE_SAFE_INSET_PX = 14
+const MEMORYBOARD_MAX_ROTATION_DEGREES = 7.6
+const MEMORYBOARD_MAX_X_OFFSET_PX = 14
+const MEMORYBOARD_MAX_Y_OFFSET_PX = 10
 const MEMORYBOARD_MAX_PIN_OFFSET_PX = 4
+const MEMORYBOARD_EDGE_PULL_X_PX = 7
+const MEMORYBOARD_EDGE_PULL_Y_PX = 5
 
 export default function MemoryBoard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -366,7 +370,7 @@ export default function MemoryBoard() {
                     </div>
                   </div>
 
-                  <div style={{ overflow: 'hidden' }}>
+                  <div style={{ overflow: 'hidden', padding: `${MEMORYBOARD_EDGE_SAFE_INSET_PX}px` }}>
                     <AnimatePresence mode="wait" initial={false} custom={pageFlipDirection}>
                       <motion.div
                         key={`memoryboard-page-${boardPage}`}
@@ -404,18 +408,18 @@ export default function MemoryBoard() {
                           willChange: 'transform, opacity, filter, clip-path'
                         }}
                       >
-                        <div style={{ overflow: 'hidden', padding: '4px 2px' }}>
+                        <div style={{ overflow: 'hidden', padding: '2px' }}>
                           <div
                             style={{
                               display: 'grid',
                               gridTemplateRows: `repeat(${MEMORYBOARD_PAGE_ROWS}, minmax(0, 1fr))`,
                               gridTemplateColumns: `repeat(${MEMORYBOARD_PAGE_COLUMNS}, minmax(0, 1fr))`,
-                              gap: '14px'
+                              gap: `${MEMORYBOARD_CARD_GAP_PX}px`
                             }}
                           >
                             {boardPagePhotos.map((item, index) => {
                               const absoluteIndex = boardPageStartIndex + index
-                              const pose = getMemoryCardPose(item)
+                              const pose = getMemoryCardPose(item, index)
                               const pinColor = PHOTO_PIN_COLORS[(item.id + absoluteIndex) % PHOTO_PIN_COLORS.length]
                               const isOwnedByMe = myUserId !== null && item.userId === myUserId
                               const canDeletePhoto = isAdmin || isOwnedByMe
@@ -768,7 +772,7 @@ type MemoryCardPose = {
   zIndex: number
 }
 
-function getMemoryCardPose(photo: MemoryBoardPhoto): MemoryCardPose {
+function getMemoryCardPose(photo: MemoryBoardPhoto, indexOnPage: number): MemoryCardPose {
   const dateSeed = Date.parse(photo.exifTakenAtUtc ?? photo.sortDateUtc ?? photo.createdAt)
   const safeDateSeed = Number.isNaN(dateSeed) ? 0 : dateSeed
   const baseSeed = `${photo.id}:${photo.userId}:${safeDateSeed}:${photo.photoUrl.length}`
@@ -778,15 +782,35 @@ function getMemoryCardPose(photo: MemoryBoardPhoto): MemoryCardPose {
   const pinOffsetRand = seededUnitRandom(`pin-${baseSeed}`)
   const scaleRand = seededUnitRandom(`scale-${baseSeed}`)
   const zIndexRand = seededUnitRandom(`z-${baseSeed}`)
+  const row = Math.floor(indexOnPage / MEMORYBOARD_PAGE_COLUMNS)
+  const col = indexOnPage % MEMORYBOARD_PAGE_COLUMNS
+
+  const horizontalEdgeWeight = getEdgeWeight(col, MEMORYBOARD_PAGE_COLUMNS)
+  const verticalEdgeWeight = getEdgeWeight(row, MEMORYBOARD_PAGE_ROWS)
+  const horizontalDirectionToCenter = col <= (MEMORYBOARD_PAGE_COLUMNS - 1) / 2 ? 1 : -1
+  const verticalDirectionToCenter = row <= (MEMORYBOARD_PAGE_ROWS - 1) / 2 ? 1 : -1
+
+  const randomOffsetX = ((offsetXRand * 2) - 1) * MEMORYBOARD_MAX_X_OFFSET_PX
+  const randomOffsetY = ((offsetYRand * 2) - 1) * MEMORYBOARD_MAX_Y_OFFSET_PX
+  const edgePulledOffsetX =
+    randomOffsetX * (1 - horizontalEdgeWeight * 0.58) + (horizontalDirectionToCenter * MEMORYBOARD_EDGE_PULL_X_PX * horizontalEdgeWeight)
+  const edgePulledOffsetY =
+    randomOffsetY * (1 - verticalEdgeWeight * 0.52) + (verticalDirectionToCenter * MEMORYBOARD_EDGE_PULL_Y_PX * verticalEdgeWeight)
 
   return {
     rotation: Number((((rotationRand * 2) - 1) * MEMORYBOARD_MAX_ROTATION_DEGREES).toFixed(2)),
-    offsetX: Number((((offsetXRand * 2) - 1) * MEMORYBOARD_MAX_X_OFFSET_PX).toFixed(2)),
-    offsetY: Number((((offsetYRand * 2) - 1) * MEMORYBOARD_MAX_Y_OFFSET_PX).toFixed(2)),
+    offsetX: Number(edgePulledOffsetX.toFixed(2)),
+    offsetY: Number(edgePulledOffsetY.toFixed(2)),
     pinOffsetX: Number((((pinOffsetRand * 2) - 1) * MEMORYBOARD_MAX_PIN_OFFSET_PX).toFixed(2)),
     scale: Number((0.95 + scaleRand * 0.08).toFixed(3)),
     zIndex: Math.floor(zIndexRand * 8) + 1
   }
+}
+
+function getEdgeWeight(position: number, size: number): number {
+  if (position === 0 || position === size - 1) return 1
+  if (position === 1 || position === size - 2) return 0.45
+  return 0
 }
 
 function seededUnitRandom(seedText: string): number {
