@@ -21,7 +21,7 @@ const TEMPLATE = {
   },
   name: {
     centerX: 541,
-    baselineY: 1390,
+    baselineY: 1372,
     maxWidth: 500,
     baseSize: 94,
     minSize: 46,
@@ -29,7 +29,7 @@ const TEMPLATE = {
   }
 } as const
 
-const STORY_FONT_FAMILY = '"RocketBrush", "Brush Script MT", "Segoe Script", cursive'
+const STORY_FONT_FAMILY = '"RocketBrush"'
 
 type ImageSize = {
   width: number
@@ -83,6 +83,8 @@ export default function ProfileStoryShareModal({
   const renderedPreviewImageWidth = imageSize ? imageSize.width * renderScale * previewScale : 0
   const renderedPreviewImageHeight = imageSize ? imageSize.height * renderScale * previewScale : 0
   const normalizedName = normalizeStoryName(nameDraft)
+  const previewNameFontSize = Math.max(20, TEMPLATE.name.baseSize * previewScale)
+  const previewNameTop = (TEMPLATE.name.baselineY - TEMPLATE.name.baseSize * 0.88) * previewScale
 
   useEffect(() => {
     const onResize = () => {
@@ -194,7 +196,7 @@ export default function ProfileStoryShareModal({
         const shareData: ShareData = {
           files: [file],
           title: 'Seniors 2027 Story',
-          text: '#SHAL_SENIOR_STORY_2027'
+          text: 'Share to Instagram Story'
         }
 
         if (!nav.canShare || nav.canShare({ files: [file] })) {
@@ -204,10 +206,10 @@ export default function ProfileStoryShareModal({
       }
 
       triggerFileDownload(file)
-      window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer')
-      pushGlobalToast('Story image downloaded. Open Instagram and upload it from your gallery.')
+      openInstagramStoryFlow()
+      pushGlobalToast('Story image downloaded. Instagram Story camera opened if available.')
     } catch {
-      pushGlobalToast('Instagram share is not available here. Download the image and upload it manually.', 'error')
+      pushGlobalToast('Could not open Instagram Story directly. Downloaded image is ready for manual story upload.', 'error')
     } finally {
       setIsPreparing(false)
     }
@@ -287,6 +289,7 @@ export default function ProfileStoryShareModal({
                 <img
                   src={sourceUrl}
                   alt="Story photo preview"
+                  crossOrigin="anonymous"
                   onLoad={(event) => {
                     const image = event.currentTarget
                     setImageSize({
@@ -327,13 +330,13 @@ export default function ProfileStoryShareModal({
                 style={{
                   position: 'absolute',
                   left: '50%',
-                  top: `${TEMPLATE.name.baselineY * previewScale}px`,
+                  top: `${previewNameTop}px`,
                   transform: 'translateX(-50%)',
                   width: `${TEMPLATE.name.maxWidth * previewScale}px`,
                   maxWidth: '100%',
                   textAlign: 'center',
                   fontFamily: STORY_FONT_FAMILY,
-                  fontSize: `${Math.max(20, TEMPLATE.name.baseSize * previewScale)}px`,
+                  fontSize: `${previewNameFontSize}px`,
                   color: TEMPLATE.name.color,
                   letterSpacing: '0.01em',
                   textTransform: 'uppercase',
@@ -393,7 +396,7 @@ export default function ProfileStoryShareModal({
                 style={{ background: 'linear-gradient(135deg, #fdc468 0%, #df4996 45%, #8a3ab9 100%)', color: 'white' }}
               >
                 <Share2 size={16} />
-                <span>{isPreparing ? 'Preparing...' : 'Share to Instagram'}</span>
+                <span>{isPreparing ? 'Preparing...' : 'Share to Instagram Story'}</span>
               </button>
             </div>
           </div>
@@ -440,6 +443,31 @@ function triggerFileDownload(file: File): void {
   link.download = file.name
   link.click()
   setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+}
+
+function openInstagramStoryFlow(): void {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  if (!isMobile) {
+    window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer')
+    return
+  }
+
+  let didHide = false
+  const handleVisibility = () => {
+    if (document.visibilityState === 'hidden') {
+      didHide = true
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibility)
+  window.location.href = 'instagram://story-camera'
+
+  window.setTimeout(() => {
+    document.removeEventListener('visibilitychange', handleVisibility)
+    if (!didHide) {
+      window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer')
+    }
+  }, 1200)
 }
 
 async function ensureRocketBrushFontLoaded(): Promise<void> {
@@ -582,25 +610,7 @@ async function loadPhotoImage(sourceUrl: string): Promise<{
   image: HTMLImageElement
   cleanup?: () => void
 }> {
-  try {
-    const response = await fetch(sourceUrl, { credentials: 'include' })
-    if (!response.ok) {
-      throw new Error('Photo fetch failed.')
-    }
-
-    const blob = await response.blob()
-    const objectUrl = URL.createObjectURL(blob)
-    const image = await loadImageFromUrl(objectUrl)
-    return {
-      image: image.image,
-      cleanup: () => {
-        image.cleanup?.()
-        URL.revokeObjectURL(objectUrl)
-      }
-    }
-  } catch {
-    return loadImageFromUrl(sourceUrl, 'anonymous')
-  }
+  return loadImageFromUrl(sourceUrl, 'anonymous')
 }
 
 async function loadImageFromUrl(

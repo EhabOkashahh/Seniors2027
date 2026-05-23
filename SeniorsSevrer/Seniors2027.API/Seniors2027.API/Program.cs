@@ -15,6 +15,23 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+bool IsAllowedClientOrigin(string? origin)
+{
+    if (string.IsNullOrWhiteSpace(origin)) return false;
+
+    if (origin.Equals("http://localhost:5173", StringComparison.OrdinalIgnoreCase) ||
+        origin.Equals("http://localhost:5174", StringComparison.OrdinalIgnoreCase))
+    {
+        return true;
+    }
+
+    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+
+    return uri.Scheme == Uri.UriSchemeHttps &&
+           (uri.Host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase));
+}
+
 // Add services to the container.
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
@@ -78,22 +95,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.SetIsOriginAllowed(origin =>
-              {
-                  if (string.IsNullOrWhiteSpace(origin)) return false;
-
-                  if (origin.Equals("http://localhost:5173", StringComparison.OrdinalIgnoreCase) ||
-                      origin.Equals("http://localhost:5174", StringComparison.OrdinalIgnoreCase))
-                  {
-                      return true;
-                  }
-
-                  if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
-
-                  return uri.Scheme == Uri.UriSchemeHttps &&
-                         (uri.Host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase) ||
-                          uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase));
-              })
+        policy.SetIsOriginAllowed(IsAllowedClientOrigin)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -130,6 +132,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowReactApp");
 
 var photosDirectory = Path.Combine(app.Environment.ContentRootPath, "SeniorsPhotos");
 Directory.CreateDirectory(photosDirectory);
@@ -137,10 +140,13 @@ await LegacyPhotoNormalizer.NormalizeToWebpAsync(photosDirectory);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(photosDirectory),
-    RequestPath = "/SeniorsPhotos"
+    RequestPath = "/SeniorsPhotos",
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+        context.Context.Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin";
+    }
 });
-
-app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
 app.UseMiddleware<AccountLockMiddleware>();
