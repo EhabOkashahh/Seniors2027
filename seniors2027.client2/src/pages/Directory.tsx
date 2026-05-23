@@ -136,11 +136,12 @@ export default function Directory() {
                   key={user.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ duration: 0.22, delay: index * 0.03, ease: 'easeOut' }}
                   whileHover={{ 
                     y: -8, 
                     x: -4,
-                    boxShadow: '12px 12px 0px black' 
+                    boxShadow: '12px 12px 0px black',
+                    transition: { duration: 0.14, delay: 0, ease: 'easeOut' }
                   }}
                   onClick={() => navigate(`/profile/${user.id}`)}
                   style={{
@@ -149,7 +150,6 @@ export default function Directory() {
                     boxShadow: '6px 6px 0px black',
                     cursor: 'pointer',
                     overflow: 'hidden',
-                    transition: 'box-shadow 0.2s',
                     display: 'flex',
                     flexDirection: 'column',
                     height: '100%'
