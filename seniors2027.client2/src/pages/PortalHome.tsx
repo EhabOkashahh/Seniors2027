@@ -1671,7 +1671,7 @@ export default function PortalHome() {
               <div style={{ fontWeight: 800, fontSize: '0.82rem', opacity: 0.75 }}>Click blue background to close</div>
             </div>
 
-            <div style={{ minHeight: 0, overflowY: 'auto', paddingRight: '2px' }}>
+            <div style={{ minHeight: 0, overflowY: 'hidden', paddingRight: 0 }}>
             <div
               style={{
                 position: 'relative',
