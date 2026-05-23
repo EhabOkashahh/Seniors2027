@@ -137,6 +137,8 @@ export default function MemoryBoard() {
   const totalBoardPages = Math.max(1, Math.ceil(sortedPhotos.length / MEMORYBOARD_PAGE_SIZE))
   const boardPageStartIndex = boardPage * MEMORYBOARD_PAGE_SIZE
   const boardPagePhotos = sortedPhotos.slice(boardPageStartIndex, boardPageStartIndex + MEMORYBOARD_PAGE_SIZE)
+  const isFirstBoardPage = boardPage === 0
+  const isLastBoardPage = boardPage >= totalBoardPages - 1
 
   useEffect(() => {
     setBoardPage((prev) => Math.min(prev, totalBoardPages - 1))
@@ -328,9 +330,15 @@ export default function MemoryBoard() {
                       <button
                         type="button"
                         className="neo-btn"
-                        disabled={boardPage === 0}
+                        disabled={isFirstBoardPage}
                         onClick={goToPreviousBoardPage}
-                        style={{ minWidth: 'auto', padding: '6px 10px' }}
+                        style={{
+                          minWidth: 'auto',
+                          padding: '6px 10px',
+                          opacity: isFirstBoardPage ? 0.42 : 1,
+                          cursor: isFirstBoardPage ? 'not-allowed' : 'pointer',
+                          pointerEvents: isFirstBoardPage ? 'none' : 'auto'
+                        }}
                       >
                         <ChevronLeft size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                         Prev
@@ -338,9 +346,15 @@ export default function MemoryBoard() {
                       <button
                         type="button"
                         className="neo-btn"
-                        disabled={boardPage >= totalBoardPages - 1}
+                        disabled={isLastBoardPage}
                         onClick={goToNextBoardPage}
-                        style={{ minWidth: 'auto', padding: '6px 10px' }}
+                        style={{
+                          minWidth: 'auto',
+                          padding: '6px 10px',
+                          opacity: isLastBoardPage ? 0.42 : 1,
+                          cursor: isLastBoardPage ? 'not-allowed' : 'pointer',
+                          pointerEvents: isLastBoardPage ? 'none' : 'auto'
+                        }}
                       >
                         Next
                         <ChevronRight size={14} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
@@ -348,36 +362,42 @@ export default function MemoryBoard() {
                     </div>
                   </div>
 
-                  <div style={{ perspective: '1800px' }}>
+                  <div style={{ overflow: 'hidden' }}>
                     <AnimatePresence mode="wait" initial={false} custom={pageFlipDirection}>
                       <motion.div
                         key={`memoryboard-page-${boardPage}`}
                         custom={pageFlipDirection}
                         initial={{
                           opacity: 0,
-                          rotateY: pageFlipDirection > 0 ? -72 : 72,
-                          x: pageFlipDirection > 0 ? 44 : -44,
-                          scale: 0.97,
-                          filter: 'blur(2px) brightness(0.88)'
+                          x: pageFlipDirection > 0 ? 72 : -72,
+                          y: 10,
+                          scale: 0.99,
+                          filter: 'blur(5px)',
+                          clipPath: pageFlipDirection > 0
+                            ? 'inset(0 100% 0 0 round 14px)'
+                            : 'inset(0 0 0 100% round 14px)'
                         }}
                         animate={{
                           opacity: 1,
-                          rotateY: 0,
                           x: 0,
+                          y: 0,
                           scale: 1,
-                          filter: 'blur(0px) brightness(1)'
+                          filter: 'blur(0px)',
+                          clipPath: 'inset(0 0% 0 0 round 14px)'
                         }}
                         exit={{
                           opacity: 0,
-                          rotateY: pageFlipDirection > 0 ? 70 : -70,
-                          x: pageFlipDirection > 0 ? -36 : 36,
-                          scale: 0.97,
-                          filter: 'blur(1px) brightness(0.9)'
+                          x: pageFlipDirection > 0 ? -56 : 56,
+                          y: -6,
+                          scale: 0.995,
+                          filter: 'blur(4px)',
+                          clipPath: pageFlipDirection > 0
+                            ? 'inset(0 0 0 100% round 14px)'
+                            : 'inset(0 100% 0 0 round 14px)'
                         }}
-                        transition={{ duration: 0.44, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
                         style={{
-                          transformStyle: 'preserve-3d',
-                          transformOrigin: pageFlipDirection > 0 ? 'left center' : 'right center'
+                          willChange: 'transform, opacity, filter, clip-path'
                         }}
                       >
                         <div style={{ overflowX: 'auto', paddingBottom: '4px' }}>
@@ -401,8 +421,15 @@ export default function MemoryBoard() {
                               return (
                                 <motion.div
                                   key={item.id}
+                                  initial={{ opacity: 0, y: 14, scale: 0.96 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  transition={{
+                                    duration: 0.28,
+                                    delay: Math.min(index * 0.018, 0.22),
+                                    ease: [0.22, 1, 0.36, 1]
+                                  }}
                                   whileHover={{ y: -3, rotate: rotation + 0.6, scale: 1.03 }}
-                                  transition={{ duration: 0.16 }}
+                                  whileTap={{ scale: 0.98 }}
                                   onClick={() => openViewerAt(absoluteIndex)}
                                   style={{
                                     border: '2px solid black',
