@@ -18,13 +18,13 @@ const MEMORYBOARD_PAGE_ROWS = 3
 const MEMORYBOARD_PAGE_COLUMNS = 6
 const MEMORYBOARD_PAGE_SIZE = MEMORYBOARD_PAGE_ROWS * MEMORYBOARD_PAGE_COLUMNS
 const MEMORYBOARD_CARD_GAP_PX = 10
-const MEMORYBOARD_EDGE_SAFE_INSET_PX = 14
-const MEMORYBOARD_MAX_ROTATION_DEGREES = 7.6
-const MEMORYBOARD_MAX_X_OFFSET_PX = 11
-const MEMORYBOARD_MAX_Y_OFFSET_PX = 8
+const MEMORYBOARD_EDGE_SAFE_INSET_PX = 24
+const MEMORYBOARD_MAX_ROTATION_DEGREES = 6.8
+const MEMORYBOARD_MAX_X_OFFSET_PX = 9
+const MEMORYBOARD_MAX_Y_OFFSET_PX = 7
 const MEMORYBOARD_MAX_PIN_OFFSET_PX = 4
-const MEMORYBOARD_EDGE_PULL_X_PX = 10
-const MEMORYBOARD_EDGE_PULL_Y_PX = 7
+const MEMORYBOARD_EDGE_PULL_X_PX = 14
+const MEMORYBOARD_EDGE_PULL_Y_PX = 10
 
 export default function MemoryBoard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -411,7 +411,7 @@ export default function MemoryBoard() {
                         <div
                           style={{
                             overflow: 'hidden',
-                            padding: '4px',
+                            padding: '10px',
                             borderRadius: '8px',
                             isolation: 'isolate',
                             contain: 'layout paint',
@@ -796,18 +796,21 @@ function getMemoryCardPose(photo: MemoryBoardPhoto, indexOnPage: number): Memory
 
   const horizontalEdgeWeight = getEdgeWeight(col, MEMORYBOARD_PAGE_COLUMNS)
   const verticalEdgeWeight = getEdgeWeight(row, MEMORYBOARD_PAGE_ROWS)
+  const edgeWeight = Math.max(horizontalEdgeWeight, verticalEdgeWeight)
   const horizontalDirectionToCenter = col <= (MEMORYBOARD_PAGE_COLUMNS - 1) / 2 ? 1 : -1
   const verticalDirectionToCenter = row <= (MEMORYBOARD_PAGE_ROWS - 1) / 2 ? 1 : -1
 
   const randomOffsetX = ((offsetXRand * 2) - 1) * MEMORYBOARD_MAX_X_OFFSET_PX
   const randomOffsetY = ((offsetYRand * 2) - 1) * MEMORYBOARD_MAX_Y_OFFSET_PX
   const edgePulledOffsetX =
-    randomOffsetX * (1 - horizontalEdgeWeight * 0.58) + (horizontalDirectionToCenter * MEMORYBOARD_EDGE_PULL_X_PX * horizontalEdgeWeight)
+    randomOffsetX * (1 - horizontalEdgeWeight * 0.74) + (horizontalDirectionToCenter * MEMORYBOARD_EDGE_PULL_X_PX * horizontalEdgeWeight)
   const edgePulledOffsetY =
-    randomOffsetY * (1 - verticalEdgeWeight * 0.52) + (verticalDirectionToCenter * MEMORYBOARD_EDGE_PULL_Y_PX * verticalEdgeWeight)
+    randomOffsetY * (1 - verticalEdgeWeight * 0.72) + (verticalDirectionToCenter * MEMORYBOARD_EDGE_PULL_Y_PX * verticalEdgeWeight)
+  const baseRotation = (((rotationRand * 2) - 1) * MEMORYBOARD_MAX_ROTATION_DEGREES)
+  const edgeSafeRotation = baseRotation * (1 - edgeWeight * 0.46)
 
   return {
-    rotation: Number((((rotationRand * 2) - 1) * MEMORYBOARD_MAX_ROTATION_DEGREES).toFixed(2)),
+    rotation: Number(edgeSafeRotation.toFixed(2)),
     offsetX: Number(edgePulledOffsetX.toFixed(2)),
     offsetY: Number(edgePulledOffsetY.toFixed(2)),
     pinOffsetX: Number((((pinOffsetRand * 2) - 1) * MEMORYBOARD_MAX_PIN_OFFSET_PX).toFixed(2)),
