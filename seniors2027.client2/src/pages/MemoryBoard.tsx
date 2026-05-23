@@ -452,6 +452,7 @@ export default function MemoryBoard() {
                                     padding: '6px',
                                     display: 'grid',
                                     gap: '6px',
+                                    position: 'relative',
                                     transform: `translate(${pose.offsetX}px, ${pose.offsetY}px) rotate(${pose.rotation}deg) scale(${pose.scale})`,
                                     transformOrigin: 'center 16px',
                                     zIndex: pose.zIndex,
@@ -502,10 +503,14 @@ export default function MemoryBoard() {
                                         width: '28px',
                                         height: '28px',
                                         padding: 0,
+                                        position: 'absolute',
+                                        top: '6px',
+                                        right: '6px',
                                         display: 'inline-flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        background: '#ffd0d0'
+                                        background: '#ffd0d0',
+                                        zIndex: 3
                                       }}
                                     >
                                       <Trash2 size={12} />
@@ -610,7 +615,8 @@ export default function MemoryBoard() {
                         background: 'white',
                         padding: '8px',
                         display: 'grid',
-                        gap: '7px'
+                        gap: '7px',
+                        position: 'relative'
                       }}
                     >
                       <img
@@ -640,10 +646,14 @@ export default function MemoryBoard() {
                           width: '28px',
                           height: '28px',
                           padding: 0,
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          background: '#ffd6d6'
+                          background: '#ffd6d6',
+                          zIndex: 2
                         }}
                       >
                         <Trash2 size={12} />
