@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Trash2, Upload, X } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
@@ -14,6 +14,9 @@ import {
 
 const MEMORYBOARD_SYNC_INTERVAL_MS = 15000
 const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
+const MEMORYBOARD_PAGE_ROWS = 3
+const MEMORYBOARD_PAGE_COLUMNS = 7
+const MEMORYBOARD_PAGE_SIZE = MEMORYBOARD_PAGE_ROWS * MEMORYBOARD_PAGE_COLUMNS
 
 export default function MemoryBoard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -28,6 +31,8 @@ export default function MemoryBoard() {
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [isMyUploadsOpen, setIsMyUploadsOpen] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
+  const [boardPage, setBoardPage] = useState(0)
+  const [pageFlipDirection, setPageFlipDirection] = useState<1 | -1>(1)
   const [deleteActionId, setDeleteActionId] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   useGlobalToastMessage(message, setMessage)
@@ -129,6 +134,14 @@ export default function MemoryBoard() {
     })
   }, [photos])
 
+  const totalBoardPages = Math.max(1, Math.ceil(sortedPhotos.length / MEMORYBOARD_PAGE_SIZE))
+  const boardPageStartIndex = boardPage * MEMORYBOARD_PAGE_SIZE
+  const boardPagePhotos = sortedPhotos.slice(boardPageStartIndex, boardPageStartIndex + MEMORYBOARD_PAGE_SIZE)
+
+  useEffect(() => {
+    setBoardPage((prev) => Math.min(prev, totalBoardPages - 1))
+  }, [totalBoardPages])
+
   useEffect(() => {
     if (sortedPhotos.length === 0) {
       setIsViewerOpen(false)
@@ -151,6 +164,20 @@ export default function MemoryBoard() {
   const openViewerAt = (index: number) => {
     setViewerIndex(index)
     setIsViewerOpen(true)
+  }
+
+  const changeBoardPage = (nextPage: number) => {
+    if (nextPage < 0 || nextPage >= totalBoardPages || nextPage === boardPage) return
+    setPageFlipDirection(nextPage > boardPage ? 1 : -1)
+    setBoardPage(nextPage)
+  }
+
+  const goToPreviousBoardPage = () => {
+    changeBoardPage(boardPage - 1)
+  }
+
+  const goToNextBoardPage = () => {
+    changeBoardPage(boardPage + 1)
   }
 
   const goViewerPrevious = () => {
@@ -257,7 +284,9 @@ export default function MemoryBoard() {
                 />
               </div>
 
-              <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.75 }}>Scroll down for the newest photos.</div>
+              <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.75 }}>
+                21 photos per page (3 rows x 7 columns). Use the arrows to flip pages.
+              </div>
             </div>
           </div>
 
@@ -286,85 +315,171 @@ export default function MemoryBoard() {
                     boxShadow: '7px 7px 0 black',
                     background:
                       'radial-gradient(circle at 20% 16%, rgba(255,255,255,0.22), transparent 55%), repeating-linear-gradient(45deg, #d6a472 0px, #d6a472 12px, #cf9b6c 12px, #cf9b6c 24px)',
-                    padding: '14px'
+                    padding: '14px',
+                    display: 'grid',
+                    gap: '12px'
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-                      gap: '12px'
-                    }}
-                  >
-                    {sortedPhotos.map((item, index) => {
-                      const rotation = ((item.id * 7 + index * 3) % 7) - 3
-                      const pinColor = PHOTO_PIN_COLORS[(item.id + index) % PHOTO_PIN_COLORS.length]
-                      const isOwnedByMe = myUserId !== null && item.userId === myUserId
-                      const canDeletePhoto = isAdmin || isOwnedByMe
-                      const isDeleting = deleteActionId === item.id
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ fontWeight: 900, fontSize: '0.75rem', letterSpacing: '0.03em' }}>
+                      PAGE {boardPage + 1} / {totalBoardPages}
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="neo-btn"
+                        disabled={boardPage === 0}
+                        onClick={goToPreviousBoardPage}
+                        style={{ minWidth: 'auto', padding: '6px 10px' }}
+                      >
+                        <ChevronLeft size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                        Prev
+                      </button>
+                      <button
+                        type="button"
+                        className="neo-btn"
+                        disabled={boardPage >= totalBoardPages - 1}
+                        onClick={goToNextBoardPage}
+                        style={{ minWidth: 'auto', padding: '6px 10px' }}
+                      >
+                        Next
+                        <ChevronRight size={14} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
+                      </button>
+                    </div>
+                  </div>
 
-                      return (
-                        <motion.div
-                          key={item.id}
-                          whileHover={{ y: -3, rotate: rotation + 0.6, scale: 1.03 }}
-                          transition={{ duration: 0.16 }}
-                          onClick={() => openViewerAt(index)}
-                          style={{
-                            border: '2px solid black',
-                            boxShadow: '4px 4px 0 black',
-                            background: '#fffdf8',
-                            padding: '6px',
-                            display: 'grid',
-                            gap: '6px',
-                            transform: `rotate(${rotation}deg)`,
-                            cursor: 'pointer'
-                          }}
-                        >
+                  <div style={{ perspective: '1800px' }}>
+                    <AnimatePresence mode="wait" initial={false} custom={pageFlipDirection}>
+                      <motion.div
+                        key={`memoryboard-page-${boardPage}`}
+                        custom={pageFlipDirection}
+                        initial={{
+                          opacity: 0,
+                          rotateY: pageFlipDirection > 0 ? -72 : 72,
+                          x: pageFlipDirection > 0 ? 44 : -44,
+                          scale: 0.97,
+                          filter: 'blur(2px) brightness(0.88)'
+                        }}
+                        animate={{
+                          opacity: 1,
+                          rotateY: 0,
+                          x: 0,
+                          scale: 1,
+                          filter: 'blur(0px) brightness(1)'
+                        }}
+                        exit={{
+                          opacity: 0,
+                          rotateY: pageFlipDirection > 0 ? 70 : -70,
+                          x: pageFlipDirection > 0 ? -36 : 36,
+                          scale: 0.97,
+                          filter: 'blur(1px) brightness(0.9)'
+                        }}
+                        transition={{ duration: 0.44, ease: [0.22, 1, 0.36, 1] }}
+                        style={{
+                          transformStyle: 'preserve-3d',
+                          transformOrigin: pageFlipDirection > 0 ? 'left center' : 'right center'
+                        }}
+                      >
+                        <div style={{ overflowX: 'auto', paddingBottom: '4px' }}>
                           <div
                             style={{
-                              width: '20px',
-                              height: '10px',
-                              border: '2px solid black',
-                              background: pinColor,
-                              margin: '0 auto'
+                              display: 'grid',
+                              gridTemplateRows: `repeat(${MEMORYBOARD_PAGE_ROWS}, minmax(0, 1fr))`,
+                              gridTemplateColumns: `repeat(${MEMORYBOARD_PAGE_COLUMNS}, minmax(${isMobile ? 108 : 124}px, 1fr))`,
+                              gap: '12px',
+                              minWidth: `${MEMORYBOARD_PAGE_COLUMNS * (isMobile ? 108 : 124)}px`
                             }}
-                          />
-                          <img
-                            src={item.photoUrl}
-                            alt={`Memory photo by ${item.username}`}
-                            style={{
-                              width: '100%',
-                              height: '130px',
-                              objectFit: 'cover',
-                              border: '2px solid black',
-                              background: '#eaf1ff'
-                            }}
-                          />
-                          <div style={{ fontWeight: 900, fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.username}
+                          >
+                            {boardPagePhotos.map((item, index) => {
+                              const absoluteIndex = boardPageStartIndex + index
+                              const rotation = ((item.id * 7 + absoluteIndex * 3) % 7) - 3
+                              const pinColor = PHOTO_PIN_COLORS[(item.id + absoluteIndex) % PHOTO_PIN_COLORS.length]
+                              const isOwnedByMe = myUserId !== null && item.userId === myUserId
+                              const canDeletePhoto = isAdmin || isOwnedByMe
+                              const isDeleting = deleteActionId === item.id
+
+                              return (
+                                <motion.div
+                                  key={item.id}
+                                  whileHover={{ y: -3, rotate: rotation + 0.6, scale: 1.03 }}
+                                  transition={{ duration: 0.16 }}
+                                  onClick={() => openViewerAt(absoluteIndex)}
+                                  style={{
+                                    border: '2px solid black',
+                                    boxShadow: '4px 4px 0 black',
+                                    background: '#fffdf8',
+                                    padding: '6px',
+                                    display: 'grid',
+                                    gap: '6px',
+                                    transform: `rotate(${rotation}deg)`,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: '20px',
+                                      height: '10px',
+                                      border: '2px solid black',
+                                      background: pinColor,
+                                      margin: '0 auto'
+                                    }}
+                                  />
+                                  <img
+                                    src={item.photoUrl}
+                                    alt={`Memory photo by ${item.username}`}
+                                    style={{
+                                      width: '100%',
+                                      height: '130px',
+                                      objectFit: 'cover',
+                                      border: '2px solid black',
+                                      background: '#eaf1ff'
+                                    }}
+                                  />
+                                  <div style={{ fontWeight: 900, fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {item.username}
+                                  </div>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.62rem', opacity: 0.8 }}>
+                                    <Clock3 size={11} />
+                                    {formatShortDate(item.exifTakenAtUtc ?? item.createdAt)}
+                                  </div>
+                                  {canDeletePhoto && (
+                                    <button
+                                      type="button"
+                                      className="neo-btn"
+                                      disabled={isDeleting}
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        void handleDeleteMyPhoto(item.id, 'delete')
+                                      }}
+                                      style={{ minWidth: 'auto', width: 'fit-content', padding: '5px 8px', fontSize: '0.62rem', background: '#ffd0d0' }}
+                                    >
+                                      <Trash2 size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                                      {isDeleting ? 'Deleting...' : 'Delete'}
+                                    </button>
+                                  )}
+                                </motion.div>
+                              )
+                            })}
                           </div>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.62rem', opacity: 0.8 }}>
-                            <Clock3 size={11} />
-                            {formatShortDate(item.exifTakenAtUtc ?? item.createdAt)}
-                          </div>
-                          {canDeletePhoto && (
-                            <button
-                              type="button"
-                              className="neo-btn"
-                              disabled={isDeleting}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                void handleDeleteMyPhoto(item.id, 'delete')
-                              }}
-                              style={{ minWidth: 'auto', width: 'fit-content', padding: '5px 8px', fontSize: '0.62rem', background: '#ffd0d0' }}
-                            >
-                              <Trash2 size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                              {isDeleting ? 'Deleting...' : 'Delete'}
-                            </button>
-                          )}
-                        </motion.div>
-                      )
-                    })}
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '8px',
+                      flexWrap: 'wrap',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      opacity: 0.8
+                    }}
+                  >
+                    <div>Showing {boardPagePhotos.length} photos on this page</div>
+                    <div>Total approved photos: {sortedPhotos.length}</div>
                   </div>
                 </div>
               )}
