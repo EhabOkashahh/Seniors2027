@@ -93,6 +93,18 @@ public class AdminController(
         return Ok(users);
     }
 
+    [HttpGet("users/{userId:int}")]
+    public async Task<ActionResult<AdminUserListItemDto>> GetUserById(int userId)
+    {
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null) return NotFound();
+
+        return Ok(MapAdminUserDto(user));
+    }
+
     [HttpPut("users/{userId:int}/lock")]
     public async Task<ActionResult<AdminUserListItemDto>> SetUserLock(int userId, AdminSetUserLockDto dto)
     {

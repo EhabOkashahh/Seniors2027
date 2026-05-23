@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   Heart,
   Image as ImageIcon,
@@ -17,18 +17,22 @@ import GenderCapAvatar from '../components/GenderCapAvatar'
 import ImageCropEditorModal, { type ImageCropResult } from '../components/photo/ImageCropEditorModal'
 import {
   checkMyUsernameAvailabilityRequest,
+  deleteAdminUserRequest,
   deleteGalleryPhotoRequest,
   deleteNoteRequest,
+  getAdminUserByIdRequest,
   getUserGalleryPhotosRequest,
   getLatestReceivedNotesRequest,
   getMeRequest,
   getReceivedNotesPageRequest,
   getUserByIdRequest,
   sendNoteRequest,
+  setAdminUserLockRequest,
   updateMyFavoriteSongRequest,
   updateMyPhotoRequest,
   updateMySocialLinksRequest,
   updateMyUsernameRequest,
+  type AdminUser,
   type GalleryPhoto,
   type MeUser,
   type NoteItem,
@@ -38,6 +42,7 @@ import {
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 
 export default function Profile() {
+  const navigate = useNavigate()
   const { id } = useParams()
   const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
@@ -93,6 +98,9 @@ export default function Profile() {
   const [deletingNoteIds, setDeletingNoteIds] = useState<number[]>([])
   const [deletingGalleryPhotoIds, setDeletingGalleryPhotoIds] = useState<number[]>([])
   const [noteMessage, setNoteMessage] = useState<string | null>(null)
+  const [adminTargetUser, setAdminTargetUser] = useState<AdminUser | null>(null)
+  const [adminAccountActionRunning, setAdminAccountActionRunning] = useState(false)
+  const [adminAccountMessage, setAdminAccountMessage] = useState<string | null>(null)
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
   const isAdmin = me?.role === 'Admin'
@@ -111,6 +119,7 @@ export default function Profile() {
   useGlobalToastMessage(photoMessage, setPhotoMessage)
   useGlobalToastMessage(galleryMessage, setGalleryMessage)
   useGlobalToastMessage(noteMessage, setNoteMessage)
+  useGlobalToastMessage(adminAccountMessage, setAdminAccountMessage)
   useGlobalToastMessage(latestNotesError, setLatestNotesError, 'error')
   useGlobalToastMessage(bookError, setBookError, 'error')
 
@@ -175,6 +184,36 @@ export default function Profile() {
       cancelled = true
     }
   }, [userId])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!isAdmin || isOwnProfile || userId === null) {
+      setAdminTargetUser(null)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setAdminTargetUser(null)
+
+    const run = async () => {
+      const result = await getAdminUserByIdRequest(userId)
+      if (cancelled) return
+
+      if (result.ok && result.data) {
+        setAdminTargetUser(result.data)
+      } else {
+        setAdminTargetUser(null)
+      }
+    }
+
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAdmin, isOwnProfile, userId])
 
   const fetchLatestNotes = async () => {
     if (userId === null) return
@@ -305,6 +344,8 @@ export default function Profile() {
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
   const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
   const sharedSongPlaybackUrl = sharedSongEmbedUrl ? buildSpotifyEmbedPlaybackUrl(sharedSongEmbedUrl) : null
+  const showAdminProfileActions = Boolean(isAdmin && !isOwnProfile && profileUser)
+  const isTargetLocked = adminTargetUser?.isLocked === true
   const maxSocialLinks = 8
   const galleryPageSize = 4
   const galleryTotalPages = Math.max(1, Math.ceil(galleryPhotos.length / galleryPageSize))
@@ -687,6 +728,44 @@ export default function Profile() {
     setGalleryMessage('Gallery photo deleted.')
   }
 
+  const handleAdminLockToggle = async () => {
+    if (!isAdmin || isOwnProfile || userId === null || !adminTargetUser) return
+    if (adminAccountActionRunning) return
+
+    setAdminAccountActionRunning(true)
+    setAdminAccountMessage(null)
+    const result = await setAdminUserLockRequest(userId, !adminTargetUser.isLocked)
+    setAdminAccountActionRunning(false)
+
+    if (!result.ok || !result.data) {
+      setAdminAccountMessage(result.error ?? 'Could not update account lock.')
+      return
+    }
+
+    setAdminTargetUser(result.data)
+    setAdminAccountMessage(result.data.isLocked ? `${result.data.username} has been locked.` : `${result.data.username} has been unlocked.`)
+  }
+
+  const handleAdminDeleteUser = async () => {
+    if (!isAdmin || isOwnProfile || userId === null || !profileUser) return
+    if (adminAccountActionRunning) return
+
+    const confirmed = window.confirm(`Delete ${profileUser.username} permanently?`)
+    if (!confirmed) return
+
+    setAdminAccountActionRunning(true)
+    setAdminAccountMessage(null)
+    const result = await deleteAdminUserRequest(userId)
+    setAdminAccountActionRunning(false)
+
+    if (!result.ok) {
+      setAdminAccountMessage(result.error ?? 'Could not delete user.')
+      return
+    }
+
+    navigate('/directory', { replace: true })
+  }
+
   const handleProfilePhotoSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isOwnProfile) return
 
@@ -881,6 +960,46 @@ export default function Profile() {
                 <Award size={16} />
                 <span>POINTS: {profilePoints}</span>
               </div>
+              {showAdminProfileActions && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '10px'
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="neo-btn"
+                    onClick={() => void handleAdminLockToggle()}
+                    disabled={adminAccountActionRunning || !adminTargetUser}
+                    style={{
+                      minWidth: '120px',
+                      background: isTargetLocked ? '#d9f5ff' : '#fff2b2',
+                      opacity: adminAccountActionRunning || !adminTargetUser ? 0.7 : 1
+                    }}
+                  >
+                    {adminAccountActionRunning
+                      ? 'Saving...'
+                      : isTargetLocked
+                        ? 'Unlock User'
+                        : 'Lock User'}
+                  </button>
+                  <button
+                    type="button"
+                    className="neo-btn"
+                    onClick={() => void handleAdminDeleteUser()}
+                    disabled={adminAccountActionRunning}
+                    style={{
+                      minWidth: '120px',
+                      background: '#ff8f8f',
+                      opacity: adminAccountActionRunning ? 0.7 : 1
+                    }}
+                  >
+                    {adminAccountActionRunning ? 'Working...' : 'Delete User'}
+                  </button>
+                </div>
+              )}
               <div
                 style={{
                   border: '3px solid black',
