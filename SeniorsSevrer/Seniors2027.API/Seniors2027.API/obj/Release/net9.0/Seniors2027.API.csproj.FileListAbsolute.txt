@@ -183,10 +183,7 @@ C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors202
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Seniors2027.API.pdb
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Azure.Core.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Azure.Identity.dll
-C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\BCrypt.Net-Next.dll
-C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\BouncyCastle.Cryptography.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Humanizer.dll
-C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\MailKit.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Microsoft.AspNetCore.OpenApi.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Microsoft.Bcl.AsyncInterfaces.dll
@@ -224,7 +221,6 @@ C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors202
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Microsoft.OpenApi.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Microsoft.SqlServer.Server.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Microsoft.Win32.SystemEvents.dll
-C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\MimeKit.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\Mono.TextTemplating.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\SixLabors.ImageSharp.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Release\net9.0\System.ClientModel.dll

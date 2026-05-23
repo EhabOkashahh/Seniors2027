@@ -18,7 +18,6 @@ public class AuthService(
 {
     private const int LoginOtpLifetimeMinutes = 20;
     private const int MaxSocialLinksCount = 8;
-    private static readonly TimeSpan PendingApprovalOtpLifetime = TimeSpan.FromHours(6);
 
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IJwtService _jwtService = jwtService;
@@ -49,17 +48,7 @@ public class AuthService(
 
         var otp = GenerateOtp();
         await _emailService.SendOtpEmailAsync(email, otp);
-
-        var userOtp = new UserOtp
-        {
-            OtpCode = otp,
-            Email = email,
-            UserId = user?.Id,
-            ExpiryTime = DateTime.UtcNow.AddMinutes(LoginOtpLifetimeMinutes)
-        };
-
-        await _unitOfWork.Repository<UserOtp>().AddAsync(userOtp);
-        await _unitOfWork.CompleteAsync();
+        await StoreOtpAsync(email, user?.Id, otp);
 
         return new LoginStartResponseDto
         {
@@ -91,14 +80,8 @@ public class AuthService(
 
         if (user == null)
         {
-            if (otpRecord.ExpiryTime < DateTime.UtcNow.Add(PendingApprovalOtpLifetime))
-            {
-                otpRecord.ExpiryTime = DateTime.UtcNow.Add(PendingApprovalOtpLifetime);
-                _unitOfWork.Repository<UserOtp>().Update(otpRecord);
-                await _unitOfWork.CompleteAsync();
-            }
-
             await _joinRequestService.EnsurePendingRequestAsync(email);
+            await DeleteOtpsByEmailAsync(email);
             return new AuthResponseDto
             {
                 Status = AuthResultStatus.PendingApproval,
@@ -111,8 +94,6 @@ public class AuthService(
                 ProfileCompletionRequired = false
             };
         }
-
-        await MarkOtpAsUsedAsync(otpRecord);
 
         if (user is { IsLocked: true })
         {
@@ -144,7 +125,7 @@ public class AuthService(
             SocialLinksJson = user.SocialLinksJson
         };
 
-        return new AuthResponseDto
+        var authResponse = new AuthResponseDto
         {
             Status = AuthResultStatus.Authenticated,
             Message = "Authenticated successfully.",
@@ -155,6 +136,9 @@ public class AuthService(
             Description = user.Description,
             ProfileCompletionRequired = IsProfileCompletionRequired(tokenUser)
         };
+
+        await DeleteOtpsByEmailAsync(email);
+        return authResponse;
     }
 
     private UserAuthSnapshot? GetUserAuthSnapshot(string email)
@@ -224,11 +208,42 @@ public class AuthService(
             .FirstOrDefault();
     }
 
-    private async Task MarkOtpAsUsedAsync(UserOtp otpRecord)
+    private async Task StoreOtpAsync(string email, int? userId, string otp)
     {
-        otpRecord.IsUsed = true;
+        var userOtpRepository = _unitOfWork.Repository<UserOtp>();
+        var existingOtps = userOtpRepository
+            .Find(x => x.Email.ToLower() == email)
+            .ToList();
 
-        _unitOfWork.Repository<UserOtp>().Update(otpRecord);
+        foreach (var existingOtp in existingOtps)
+        {
+            userOtpRepository.Remove(existingOtp);
+        }
+
+        var userOtp = new UserOtp
+        {
+            OtpCode = otp,
+            Email = email,
+            UserId = userId,
+            ExpiryTime = DateTime.UtcNow.AddMinutes(LoginOtpLifetimeMinutes)
+        };
+
+        await userOtpRepository.AddAsync(userOtp);
+        await _unitOfWork.CompleteAsync();
+    }
+
+    private async Task DeleteOtpsByEmailAsync(string email)
+    {
+        var userOtpRepository = _unitOfWork.Repository<UserOtp>();
+        var otpRows = userOtpRepository
+            .Find(x => x.Email.ToLower() == email)
+            .ToList();
+
+        foreach (var otpRow in otpRows)
+        {
+            userOtpRepository.Remove(otpRow);
+        }
+
         await _unitOfWork.CompleteAsync();
     }
 
