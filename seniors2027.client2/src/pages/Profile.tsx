@@ -21,6 +21,7 @@ import {
   deleteGalleryPhotoRequest,
   deleteNoteRequest,
   getAdminUserByIdRequest,
+  getAdminUsersRequest,
   getUserGalleryPhotosRequest,
   getLatestReceivedNotesRequest,
   getMeRequest,
@@ -99,6 +100,7 @@ export default function Profile() {
   const [deletingGalleryPhotoIds, setDeletingGalleryPhotoIds] = useState<number[]>([])
   const [noteMessage, setNoteMessage] = useState<string | null>(null)
   const [adminTargetUser, setAdminTargetUser] = useState<AdminUser | null>(null)
+  const [adminTargetUserLoading, setAdminTargetUserLoading] = useState(false)
   const [adminAccountActionRunning, setAdminAccountActionRunning] = useState(false)
   const [adminAccountMessage, setAdminAccountMessage] = useState<string | null>(null)
 
@@ -190,22 +192,44 @@ export default function Profile() {
 
     if (!isAdmin || userId === null) {
       setAdminTargetUser(null)
+      setAdminTargetUserLoading(false)
       return () => {
         cancelled = true
       }
     }
 
     setAdminTargetUser(null)
+    setAdminTargetUserLoading(true)
 
     const run = async () => {
-      const result = await getAdminUserByIdRequest(userId)
+      const directResult = await getAdminUserByIdRequest(userId)
       if (cancelled) return
 
-      if (result.ok && result.data) {
-        setAdminTargetUser(result.data)
-      } else {
-        setAdminTargetUser(null)
+      if (directResult.ok && directResult.data) {
+        setAdminTargetUser(directResult.data)
+        setAdminTargetUserLoading(false)
+        return
       }
+
+      let foundUser: AdminUser | null = null
+      let pageNumber = 1
+      const pageSize = 100
+      const maxPages = 20
+
+      while (!cancelled && pageNumber <= maxPages) {
+        const pageResult = await getAdminUsersRequest(pageNumber, pageSize)
+        if (cancelled) return
+        if (!pageResult.ok || !pageResult.data || pageResult.data.length === 0) break
+
+        foundUser = pageResult.data.find((item) => item.id === userId) ?? null
+        if (foundUser) break
+        if (pageResult.data.length < pageSize) break
+
+        pageNumber += 1
+      }
+
+      setAdminTargetUser(foundUser)
+      setAdminTargetUserLoading(false)
     }
 
     void run()
@@ -977,22 +1001,22 @@ export default function Profile() {
                     ADMIN USER DETAILS
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                    Email: {adminTargetUser?.email ?? 'Loading...'}
+                    Email: {adminTargetUser?.email ?? (adminTargetUserLoading ? 'Loading...' : 'Not available')}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                     User ID: {profileUser?.id ?? '-'}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                    Role: {adminTargetUser?.role ?? 'Loading...'}
+                    Role: {adminTargetUser?.role ?? (adminTargetUserLoading ? 'Loading...' : 'Not available')}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                    Gender: {adminTargetUser?.gender ?? profileUser?.gender ?? 'Loading...'}
+                    Gender: {adminTargetUser?.gender ?? profileUser?.gender ?? (adminTargetUserLoading ? 'Loading...' : 'Not available')}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                    Status: {adminTargetUser ? (adminTargetUser.isLocked ? 'Locked' : 'Active') : 'Loading...'}
+                    Status: {adminTargetUser ? (adminTargetUser.isLocked ? 'Locked' : 'Active') : (adminTargetUserLoading ? 'Loading...' : 'Not available')}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                    Created: {formatAdminDate(adminTargetUser?.createdAt)}
+                    Created: {adminTargetUser?.createdAt ? formatAdminDate(adminTargetUser.createdAt) : (adminTargetUserLoading ? 'Loading...' : 'Not available')}
                   </div>
                 </div>
               )}
