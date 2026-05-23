@@ -10,11 +10,13 @@ import {
   Pencil,
   Paperclip,
   Plus,
+  Share2,
   X
 } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import ImageCropEditorModal, { type ImageCropResult } from '../components/photo/ImageCropEditorModal'
+import ProfileStoryShareModal from '../components/photo/ProfileStoryShareModal'
 import {
   checkMyUsernameAvailabilityRequest,
   deleteGalleryPhotoRequest,
@@ -69,6 +71,8 @@ export default function Profile() {
   const [photoMessage, setPhotoMessage] = useState<string | null>(null)
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false)
   const [photoEditorSourceUrl, setPhotoEditorSourceUrl] = useState<string | null>(null)
+  const [storyShareModalOpen, setStoryShareModalOpen] = useState(false)
+  const [storyShareMessage, setStoryShareMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [galleryLoading, setGalleryLoading] = useState(false)
@@ -109,6 +113,7 @@ export default function Profile() {
   useGlobalToastMessage(socialLinksMessage, setSocialLinksMessage)
   useGlobalToastMessage(favoriteSongMessage, setFavoriteSongMessage)
   useGlobalToastMessage(photoMessage, setPhotoMessage)
+  useGlobalToastMessage(storyShareMessage, setStoryShareMessage)
   useGlobalToastMessage(galleryMessage, setGalleryMessage)
   useGlobalToastMessage(noteMessage, setNoteMessage)
   useGlobalToastMessage(latestNotesError, setLatestNotesError, 'error')
@@ -725,6 +730,21 @@ export default function Profile() {
     handleClosePhotoEditor()
   }
 
+  const openStoryShareModal = () => {
+    if (!isOwnProfile) return
+
+    if (!profileUser?.photoUrl?.trim()) {
+      setStoryShareMessage('Upload your profile photo first, then share your story.')
+      return
+    }
+
+    setStoryShareModalOpen(true)
+  }
+
+  const closeStoryShareModal = () => {
+    setStoryShareModalOpen(false)
+  }
+
   if (userId === null) {
     return <Navigate to="/directory" replace />
   }
@@ -767,28 +787,56 @@ export default function Profile() {
               />
               {isOwnProfile && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => profilePhotoInputRef.current?.click()}
-                    disabled={photoUpdating}
-                    aria-label="Update profile photo"
+                  <div
                     style={{
                       position: 'absolute',
                       right: '10px',
                       bottom: '10px',
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '50%',
-                      border: '3px solid black',
-                      background: 'var(--retro-yellow)',
-                      boxShadow: '4px 4px 0 black',
                       display: 'grid',
-                      placeItems: 'center',
-                      padding: 0
+                      gap: '8px'
                     }}
                   >
-                    <Pencil size={16} />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={openStoryShareModal}
+                      disabled={photoUpdating}
+                      aria-label="Share story card"
+                      title="Share story card"
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        border: '3px solid black',
+                        background: 'linear-gradient(135deg, #fdc468 0%, #df4996 45%, #8a3ab9 100%)',
+                        boxShadow: '4px 4px 0 black',
+                        color: 'white',
+                        display: 'grid',
+                        placeItems: 'center',
+                        padding: 0
+                      }}
+                    >
+                      <Share2 size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => profilePhotoInputRef.current?.click()}
+                      disabled={photoUpdating}
+                      aria-label="Update profile photo"
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        border: '3px solid black',
+                        background: 'var(--retro-yellow)',
+                        boxShadow: '4px 4px 0 black',
+                        display: 'grid',
+                        placeItems: 'center',
+                        padding: 0
+                      }}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  </div>
                   <input
                     type="file"
                     hidden
@@ -1905,6 +1953,13 @@ export default function Profile() {
         isSubmitting={photoUpdating}
         onCancel={handleClosePhotoEditor}
         onConfirm={handleApplyProfilePhoto}
+      />
+
+      <ProfileStoryShareModal
+        open={storyShareModalOpen}
+        sourceUrl={profileUser?.photoUrl ?? null}
+        initialName={displayName}
+        onClose={closeStoryShareModal}
       />
     </PortalLayout>
   )
