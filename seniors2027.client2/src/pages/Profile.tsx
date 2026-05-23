@@ -87,6 +87,7 @@ export default function Profile() {
   const [latestNotes, setLatestNotes] = useState<NoteItem[]>([])
   const [latestNotesLoading, setLatestNotesLoading] = useState(false)
   const [latestNotesError, setLatestNotesError] = useState<string | null>(null)
+  const [receivedNotesTotalCount, setReceivedNotesTotalCount] = useState(0)
 
   const [isBookOpen, setIsBookOpen] = useState(false)
   const [bookPageNumber, setBookPageNumber] = useState(1)
@@ -244,12 +245,22 @@ export default function Profile() {
 
     setLatestNotesLoading(true)
     setLatestNotesError(null)
-    const result = await getLatestReceivedNotesRequest(userId, 3)
-    if (result.ok && result.data) {
-      setLatestNotes(result.data)
+    const [latestResult, totalResult] = await Promise.all([
+      getLatestReceivedNotesRequest(userId, 3),
+      getReceivedNotesPageRequest(userId, 1, 1)
+    ])
+
+    if (latestResult.ok && latestResult.data) {
+      setLatestNotes(latestResult.data)
+      if (totalResult.ok && totalResult.data) {
+        setReceivedNotesTotalCount(totalResult.data.totalCount)
+      } else {
+        setReceivedNotesTotalCount(latestResult.data.length)
+      }
     } else {
       setLatestNotes([])
-      setLatestNotesError(result.error ?? 'Could not load notes.')
+      setReceivedNotesTotalCount(0)
+      setLatestNotesError(latestResult.error ?? 'Could not load notes.')
     }
     setLatestNotesLoading(false)
   }
@@ -371,6 +382,7 @@ export default function Profile() {
   const showAdminUserDetails = Boolean(isAdmin && profileUser)
   const showAdminProfileActions = Boolean(isAdmin && !isOwnProfile && profileUser)
   const isTargetLocked = adminTargetUser?.isLocked === true
+  const hasMoreNotesInBook = receivedNotesTotalCount > latestNotes.length
   const maxSocialLinks = 8
   const galleryPageSize = 4
   const galleryTotalPages = Math.max(1, Math.ceil(galleryPhotos.length / galleryPageSize))
@@ -751,6 +763,14 @@ export default function Profile() {
 
     setGalleryPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
     setGalleryMessage('Gallery photo deleted.')
+  }
+
+  const canDeleteNote = (note: NoteItem): boolean => {
+    if (!me) return false
+    if (me.role === 'Admin') return true
+    if (note.sender.id === me.id) return true
+    if (isOwnProfile) return true
+    return false
   }
 
   const handleAdminLockToggle = async () => {
@@ -1328,6 +1348,12 @@ export default function Profile() {
                 <strong style={{ fontSize: '1rem' }}>Latest 3 Notes</strong>
                 <span style={{ fontWeight: 900, fontSize: '0.8rem' }}>OPEN BOOK</span>
               </div>
+              {!latestNotesLoading && receivedNotesTotalCount > 0 && (
+                <div style={{ fontWeight: 900, fontSize: '0.8rem', opacity: 0.8 }}>
+                  Showing {latestNotes.length} of {receivedNotesTotalCount} notes
+                  {hasMoreNotesInBook ? ' - more notes inside the book.' : '.'}
+                </div>
+              )}
 
               {latestNotesLoading ? (
                 <p style={{ margin: 0, fontWeight: 700 }}>Loading latest notes...</p>
@@ -1357,7 +1383,7 @@ export default function Profile() {
                     >
                       {note.content}
                     </p>
-                    {me && (note.sender.id === me.id || me.role === 'Admin') && (
+                    {canDeleteNote(note) && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button
                           type="button"
@@ -1827,7 +1853,7 @@ export default function Profile() {
                       </p>
                       <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                         <div style={{ fontSize: '0.8rem', opacity: 0.72, fontWeight: 700 }}>{formatNoteDate(note.createdAt)}</div>
-                        {me && (note.sender.id === me.id || me.role === 'Admin') && (
+                        {canDeleteNote(note) && (
                           <button
                             type="button"
                             className="neo-btn"

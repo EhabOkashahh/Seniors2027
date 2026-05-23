@@ -121,9 +121,12 @@ public class NoteService : INoteService
     {
         var note = await _context.Notes.FirstOrDefaultAsync(n => n.Id == noteId);
         if (note == null) return false;
-        if (!requesterIsAdmin && note.SenderId != requesterUserId)
+        var requesterIsSender = note.SenderId == requesterUserId;
+        var requesterIsRecipient = note.RecipientId == requesterUserId;
+
+        if (!requesterIsAdmin && !requesterIsSender && !requesterIsRecipient)
         {
-            throw new InvalidOperationException("You can only delete notes you sent.");
+            throw new InvalidOperationException("You can only delete notes you sent or received.");
         }
 
         var sender = await _context.Users.FirstOrDefaultAsync(u => u.Id == note.SenderId);
