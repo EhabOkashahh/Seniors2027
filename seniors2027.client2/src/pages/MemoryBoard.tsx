@@ -17,10 +17,10 @@ const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
 const MEMORYBOARD_PAGE_ROWS = 3
 const MEMORYBOARD_PAGE_COLUMNS = 6
 const MEMORYBOARD_PAGE_SIZE = MEMORYBOARD_PAGE_ROWS * MEMORYBOARD_PAGE_COLUMNS
-const MEMORYBOARD_MAX_ROTATION_DEGREES = 6.4
-const MEMORYBOARD_MAX_X_OFFSET_PX = 6
-const MEMORYBOARD_MAX_Y_OFFSET_PX = 5
-const MEMORYBOARD_MAX_PIN_OFFSET_PX = 3
+const MEMORYBOARD_MAX_ROTATION_DEGREES = 8.2
+const MEMORYBOARD_MAX_X_OFFSET_PX = 18
+const MEMORYBOARD_MAX_Y_OFFSET_PX = 14
+const MEMORYBOARD_MAX_PIN_OFFSET_PX = 4
 
 export default function MemoryBoard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -424,15 +424,13 @@ export default function MemoryBoard() {
                               return (
                                 <motion.div
                                   key={item.id}
-                                  initial={{ opacity: 0, scale: 0.96, filter: 'blur(2px)' }}
-                                  animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
                                   transition={{
-                                    duration: 0.28,
-                                    delay: Math.min(index * 0.018, 0.22),
+                                    duration: 0.24,
+                                    delay: Math.min(index * 0.012, 0.16),
                                     ease: [0.22, 1, 0.36, 1]
                                   }}
-                                  whileHover={{ boxShadow: '6px 6px 0 black', filter: 'brightness(1.02)' }}
-                                  whileTap={{ scale: 0.995 }}
                                   onClick={() => openViewerAt(absoluteIndex)}
                                   style={{
                                     border: '2px solid black',
@@ -441,8 +439,9 @@ export default function MemoryBoard() {
                                     padding: '6px',
                                     display: 'grid',
                                     gap: '6px',
-                                    transform: `translate(${pose.offsetX}px, ${pose.offsetY}px) rotate(${pose.rotation}deg)`,
+                                    transform: `translate(${pose.offsetX}px, ${pose.offsetY}px) rotate(${pose.rotation}deg) scale(${pose.scale})`,
                                     transformOrigin: 'center 16px',
+                                    zIndex: pose.zIndex,
                                     cursor: 'pointer'
                                   }}
                                 >
@@ -765,6 +764,8 @@ type MemoryCardPose = {
   offsetX: number
   offsetY: number
   pinOffsetX: number
+  scale: number
+  zIndex: number
 }
 
 function getMemoryCardPose(photo: MemoryBoardPhoto): MemoryCardPose {
@@ -775,12 +776,16 @@ function getMemoryCardPose(photo: MemoryBoardPhoto): MemoryCardPose {
   const offsetXRand = seededUnitRandom(`x-${baseSeed}`)
   const offsetYRand = seededUnitRandom(`y-${baseSeed}`)
   const pinOffsetRand = seededUnitRandom(`pin-${baseSeed}`)
+  const scaleRand = seededUnitRandom(`scale-${baseSeed}`)
+  const zIndexRand = seededUnitRandom(`z-${baseSeed}`)
 
   return {
     rotation: Number((((rotationRand * 2) - 1) * MEMORYBOARD_MAX_ROTATION_DEGREES).toFixed(2)),
     offsetX: Number((((offsetXRand * 2) - 1) * MEMORYBOARD_MAX_X_OFFSET_PX).toFixed(2)),
     offsetY: Number((((offsetYRand * 2) - 1) * MEMORYBOARD_MAX_Y_OFFSET_PX).toFixed(2)),
-    pinOffsetX: Number((((pinOffsetRand * 2) - 1) * MEMORYBOARD_MAX_PIN_OFFSET_PX).toFixed(2))
+    pinOffsetX: Number((((pinOffsetRand * 2) - 1) * MEMORYBOARD_MAX_PIN_OFFSET_PX).toFixed(2)),
+    scale: Number((0.95 + scaleRand * 0.08).toFixed(3)),
+    zIndex: Math.floor(zIndexRand * 8) + 1
   }
 }
 
