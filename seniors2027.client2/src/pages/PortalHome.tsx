@@ -29,8 +29,11 @@ import {
   getUserByIdRequest,
   getActiveDailyHighlightsRequest,
   getHighlightsArchiveRequest,
+  toggleDailyHighlightReactionRequest,
   type AnnouncementItem,
   type DailyHighlight,
+  type DailyHighlightReaction,
+  type DailyHighlightReactionType,
   type NoteItem,
   type PortalEventItem,
   uploadDailyHighlightRequest
@@ -78,6 +81,8 @@ export default function PortalHome() {
   const [loadingHighlights, setLoadingHighlights] = useState(true)
   const [uploadingHighlight, setUploadingHighlight] = useState(false)
   const [deletingHighlight, setDeletingHighlight] = useState(false)
+  const [reactingHighlightId, setReactingHighlightId] = useState<number | null>(null)
+  const [isHighlightReactionsOpen, setIsHighlightReactionsOpen] = useState(false)
   const [isArchiveOpen, setIsArchiveOpen] = useState(false)
   const [isArchivePreviewHovered, setIsArchivePreviewHovered] = useState(false)
   const [highlightsMessage, setHighlightsMessage] = useState<string | null>(null)
@@ -376,6 +381,29 @@ export default function PortalHome() {
 
   const current = highlights[activeIndex] ?? null
   const latestPreviewHighlights = highlights.slice(0, 4)
+  const currentReactions = current?.reactions ?? []
+  const loveReactions = currentReactions.filter((reaction) => reaction.type === 'Love')
+  const ahahaReactions = currentReactions.filter((reaction) => reaction.type === 'Ahaha')
+  const currentUserReaction = currentUserId === null
+    ? null
+    : currentReactions.find((reaction) => reaction.userId === currentUserId)?.type ?? null
+  const isReactingCurrent = current !== null && reactingHighlightId === current.id
+
+  useEffect(() => {
+    if (!current) {
+      setIsHighlightReactionsOpen(false)
+    }
+  }, [current])
+
+  const mergeUpdatedHighlight = useCallback((updatedHighlight: DailyHighlight) => {
+    setHighlights((prev) => {
+      const index = prev.findIndex((item) => item.id === updatedHighlight.id)
+      if (index < 0) return prev
+      const next = [...prev]
+      next[index] = updatedHighlight
+      return next
+    })
+  }, [])
 
   const goNext = () => {
     if (highlights.length <= 1) return
@@ -437,6 +465,21 @@ export default function PortalHome() {
       return next
     })
     setHighlightsMessage('Photo deleted from daily highlights and your gallery.')
+  }
+
+  const handleReactToCurrentHighlight = async (type: DailyHighlightReactionType) => {
+    if (!current) return
+
+    setReactingHighlightId(current.id)
+    const result = await toggleDailyHighlightReactionRequest(current.id, type)
+    setReactingHighlightId(null)
+
+    if (!result.ok || !result.data) {
+      setHighlightsMessage(result.error ?? 'Could not save reaction.')
+      return
+    }
+
+    mergeUpdatedHighlight(result.data)
   }
 
   const handleOpenMonthlyDumpBook = async () => {
@@ -1349,6 +1392,61 @@ export default function PortalHome() {
                           {formatDate(current?.createdAt)}
                         </div>
                       </div>
+
+                      <div
+                        style={{
+                          marginTop: '10px',
+                          border: '2px solid black',
+                          background: '#fff8ef',
+                          padding: '8px',
+                          display: 'grid',
+                          gap: '8px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                          <div style={{ fontWeight: 900, fontSize: '0.76rem', letterSpacing: '0.03em' }}>REACT TO THIS HIGHLIGHT</div>
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={() => setIsHighlightReactionsOpen(true)}
+                            disabled={!current || currentReactions.length === 0}
+                            style={{ minWidth: 'auto', padding: '6px 8px', fontSize: '0.73rem' }}
+                          >
+                            Who reacted ({currentReactions.length})
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={() => void handleReactToCurrentHighlight('Love')}
+                            disabled={!current || isReactingCurrent}
+                            style={{
+                              minWidth: 'auto',
+                              padding: '7px 10px',
+                              fontSize: '0.8rem',
+                              background: currentUserReaction === 'Love' ? '#ffd6df' : '#fff'
+                            }}
+                          >
+                            ❤️ Love ({loveReactions.length})
+                          </button>
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={() => void handleReactToCurrentHighlight('Ahaha')}
+                            disabled={!current || isReactingCurrent}
+                            style={{
+                              minWidth: 'auto',
+                              padding: '7px 10px',
+                              fontSize: '0.8rem',
+                              background: currentUserReaction === 'Ahaha' ? '#ffeab0' : '#fff'
+                            }}
+                          >
+                            😂 Ahaha ({ahahaReactions.length})
+                          </button>
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
@@ -1358,6 +1456,107 @@ export default function PortalHome() {
           </motion.div>
         </div>
       </motion.div>
+
+      {isHighlightReactionsOpen && current && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1260,
+            background: 'rgba(0, 0, 0, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setIsHighlightReactionsOpen(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              width: isMobile ? 'min(94vw, 520px)' : 'min(520px, 92vw)',
+              maxHeight: '86vh',
+              overflow: 'hidden',
+              background: '#fff',
+              border: '4px solid black',
+              boxShadow: '10px 10px 0 black',
+              display: 'grid',
+              gridTemplateRows: 'auto minmax(0, 1fr)'
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 12px',
+                borderBottom: '3px solid black',
+                background: '#f3e9ff'
+              }}
+            >
+              <div style={{ fontWeight: 900, letterSpacing: '0.03em' }}>HIGHLIGHT REACTIONS</div>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={() => setIsHighlightReactionsOpen(false)}
+                style={{ minWidth: 'auto', padding: '6px 10px' }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div style={{ padding: '12px', overflowY: 'auto', display: 'grid', gap: '8px' }}>
+              {currentReactions.length === 0 ? (
+                <div
+                  style={{
+                    border: '2px dashed black',
+                    padding: '14px',
+                    background: '#fff8ef',
+                    fontWeight: 800
+                  }}
+                >
+                  No reactions yet.
+                </div>
+              ) : (
+                currentReactions.map((reaction: DailyHighlightReaction) => (
+                  <div
+                    key={`${reaction.id}-${reaction.userId}`}
+                    style={{
+                      border: '2px solid black',
+                      background: '#fff',
+                      padding: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <GenderCapAvatar
+                      src={reaction.user.photoUrl || '/favicon.svg'}
+                      alt={reaction.user.username}
+                      gender={null}
+                      fallbackText={reaction.user.username.charAt(0).toUpperCase()}
+                      containerStyle={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
+                      imageStyle={{ borderRadius: '50%' }}
+                      capScale={0.75}
+                    />
+                    <div style={{ display: 'grid', gap: '2px' }}>
+                      <div style={{ fontWeight: 900, fontSize: '0.84rem' }}>{reaction.user.username}</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.74 }}>{formatDateTime(reaction.createdAt)}</div>
+                    </div>
+                    <div style={{ marginLeft: 'auto', fontWeight: 900, fontSize: '0.92rem' }}>
+                      {reaction.type === 'Love' ? '❤️ Love' : '😂 Ahaha'}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {monthlyDumpOpen && (
         <div

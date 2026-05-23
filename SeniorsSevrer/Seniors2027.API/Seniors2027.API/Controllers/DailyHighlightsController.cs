@@ -1,11 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Seniors2027.API.Extensions;
 using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 
 namespace Seniors2027.API.Controllers;
 
@@ -50,10 +49,7 @@ public class DailyHighlightsController : ControllerBase
     {
         if (photo == null || photo.Length == 0) return BadRequest("Photo is required.");
 
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("nameid")?.Value;
-        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
 
         StoredPhotoInfo storedPhoto;
         try
@@ -90,10 +86,7 @@ public class DailyHighlightsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteHighlight(int id)
     {
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.NameId)?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("nameid")?.Value;
-        if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
         var requesterIsAdmin = User.IsInRole(nameof(UserRole.Admin));
 
         var deleted = await _dailyHighlightService.DeleteHighlightAsync(id, userId, requesterIsAdmin);
@@ -108,6 +101,19 @@ public class DailyHighlightsController : ControllerBase
 
         await _highlightsRealtimeNotifier.NotifyHighlightsUpdatedAsync(HttpContext.RequestAborted);
         return Ok(deleted);
+    }
+
+    [HttpPost("{id:int}/reactions")]
+    public async Task<ActionResult<DailyHighlightDto>> ToggleReaction(int id, [FromBody] ToggleDailyHighlightReactionRequest dto)
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+        if (!Enum.IsDefined(dto.Type)) return BadRequest("Invalid reaction type.");
+
+        var updated = await _dailyHighlightService.ToggleReactionAsync(id, userId, dto.Type);
+        if (updated == null) return NotFound();
+
+        await _highlightsRealtimeNotifier.NotifyHighlightsUpdatedAsync(HttpContext.RequestAborted);
+        return Ok(updated);
     }
 
     private static bool TryGetLocalSeniorsPhotoPath(string? photoUrl, string photosDirectory, out string filePath)
@@ -142,4 +148,9 @@ public class DailyHighlightsController : ControllerBase
             // Keep API response focused on the original request outcome.
         }
     }
+}
+
+public class ToggleDailyHighlightReactionRequest
+{
+    public DailyHighlightReactionType Type { get; set; }
 }

@@ -200,6 +200,22 @@ export type DailyHighlightUser = {
   photoUrl?: string | null
 }
 
+export type DailyHighlightReactionType = 'Love' | 'Ahaha'
+
+export type DailyHighlightReactionUser = {
+  id: number
+  username: string
+  photoUrl?: string | null
+}
+
+export type DailyHighlightReaction = {
+  id: number
+  userId: number
+  type: DailyHighlightReactionType
+  createdAt: string
+  user: DailyHighlightReactionUser
+}
+
 export type DailyHighlight = {
   id: number
   userId: number
@@ -208,6 +224,7 @@ export type DailyHighlight = {
   createdAt: string
   expiresAt: string
   user: DailyHighlightUser
+  reactions: DailyHighlightReaction[]
 }
 
 export type MemoryBoardPhotoStatus = 'Pending' | 'Approved' | 'Rejected'
@@ -689,6 +706,35 @@ export async function deleteDailyHighlightRequest(id: number): Promise<ApiResult
       headers: {
         Authorization: `Bearer ${token}`
       }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as DailyHighlight
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function toggleDailyHighlightReactionRequest(
+  highlightId: number,
+  type: DailyHighlightReactionType
+): Promise<ApiResult<DailyHighlight>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/${highlightId}/reactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ type })
     })
 
     if (!response.ok) {

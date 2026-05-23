@@ -1,4 +1,5 @@
 using Seniors2027.BLL.DTOs;
+using Seniors2027.DAL.Entities;
 
 namespace Seniors2027.BLL.Interfaces;
 
@@ -8,5 +9,6 @@ public interface IDailyHighlightService
     Task<IReadOnlyList<DailyHighlightDto>> GetActiveHighlightsAsync(int maxCount);
     Task<IReadOnlyList<DailyHighlightDto>> GetHighlightsArchiveAsync(int maxCount);
     Task<DailyHighlightDto?> DeleteHighlightAsync(int highlightId, int requesterUserId, bool requesterIsAdmin = false);
+    Task<DailyHighlightDto?> ToggleReactionAsync(int highlightId, int userId, DailyHighlightReactionType type);
     Task<int> CleanupExpiredHighlightsAsync();
 }

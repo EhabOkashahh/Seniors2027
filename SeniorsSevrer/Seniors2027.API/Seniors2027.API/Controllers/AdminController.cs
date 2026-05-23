@@ -166,6 +166,14 @@ public class AdminController(
                 _context.DailyHighlights.RemoveRange(userHighlights);
             }
 
+            var userHighlightReactions = await _context.DailyHighlightReactions
+                .Where(r => r.UserId == userId)
+                .ToListAsync();
+            if (userHighlightReactions.Count > 0)
+            {
+                _context.DailyHighlightReactions.RemoveRange(userHighlightReactions);
+            }
+
             if (userGalleryPhotos.Count > 0)
             {
                 _context.GalleryPhotos.RemoveRange(userGalleryPhotos);

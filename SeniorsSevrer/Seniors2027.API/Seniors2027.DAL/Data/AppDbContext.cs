@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Note> Notes { get; set; }
     public DbSet<GalleryPhoto> GalleryPhotos { get; set; }
     public DbSet<DailyHighlight> DailyHighlights { get; set; }
+    public DbSet<DailyHighlightReaction> DailyHighlightReactions { get; set; }
     public DbSet<UserOtp> UsersOTPs { get; set; }
     public DbSet<JoinRequest> JoinRequests { get; set; }
     public DbSet<Announcement> Announcements { get; set; }
@@ -74,6 +75,23 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => e.ExpiresAt);
             entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<DailyHighlightReaction>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Type).HasConversion<int>();
+            entity.HasOne(e => e.DailyHighlight)
+                .WithMany(h => h.Reactions)
+                .HasForeignKey(e => e.DailyHighlightId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.DailyHighlightReactions)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.DailyHighlightId, e.UserId }).IsUnique();
+            entity.HasIndex(e => new { e.DailyHighlightId, e.Type });
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         modelBuilder.Entity<UserOtp>(entity =>

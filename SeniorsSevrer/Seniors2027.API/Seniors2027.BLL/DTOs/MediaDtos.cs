@@ -16,6 +16,22 @@ public class DailyHighlightUserDto
     public string? PhotoUrl { get; set; }
 }
 
+public class DailyHighlightReactionUserDto
+{
+    public int Id { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
+}
+
+public class DailyHighlightReactionDto
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public DailyHighlightReactionType Type { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DailyHighlightReactionUserDto User { get; set; } = new();
+}
+
 public class DailyHighlightDto
 {
     public int Id { get; set; }
@@ -25,6 +41,7 @@ public class DailyHighlightDto
     public DateTime CreatedAt { get; set; }
     public DateTime ExpiresAt { get; set; }
     public DailyHighlightUserDto User { get; set; } = new();
+    public List<DailyHighlightReactionDto> Reactions { get; set; } = new();
 }
 
 public enum MemoryBoardPhotoDecision
