@@ -31,6 +31,18 @@ builder.Services.AddScoped<IImageUploadProcessor, ImageUploadProcessor>();
 builder.Services.AddScoped<ISpotifyService, SpotifyService>();
 builder.Services.AddScoped<IEmailService, EmailService >();
 builder.Services.AddSingleton<IDailyHighlightsRealtimeNotifier, DailyHighlightsRealtimeNotifier>();
+builder.Services.Configure<SpotifyDevPollingOptions>(builder.Configuration.GetSection("SpotifyDevPolling"));
+builder.Services.PostConfigure<SpotifyDevPollingOptions>(options =>
+{
+    options.ClientId = string.IsNullOrWhiteSpace(options.ClientId)
+        ? builder.Configuration["Spotify:ClientId"]
+        : options.ClientId;
+    options.ClientSecret = string.IsNullOrWhiteSpace(options.ClientSecret)
+        ? builder.Configuration["Spotify:ClientSecret"]
+        : options.ClientSecret;
+});
+builder.Services.AddSingleton<ISpotifyNowPlayingSnapshotStore, SpotifyNowPlayingSnapshotStore>();
+builder.Services.AddHostedService<SpotifyDevCurrentlyPlayingPoller>();
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
 
