@@ -101,7 +101,18 @@ public sealed class SpotifyService : ISpotifyService
     {
         if (string.IsNullOrWhiteSpace(accessToken))
         {
-            return new SpotifyNowPlayingFetchResult(false, true, false, null, null, null, null, null, "Missing Spotify access token.");
+            return new SpotifyNowPlayingFetchResult(
+                IsSuccess: false,
+                Unauthorized: true,
+                IsPlaying: false,
+                TrackName: null,
+                Artists: null,
+                AlbumName: null,
+                AlbumImageUrl: null,
+                SpotifyTrackUrl: null,
+                ErrorMessage: "Missing Spotify access token.",
+                StatusCode: null,
+                RetryAfterSeconds: null);
         }
 
         var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/v1/me/player/currently-playing");
@@ -117,23 +128,67 @@ public sealed class SpotifyService : ISpotifyService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Spotify currently-playing request failed.");
-            return new SpotifyNowPlayingFetchResult(false, false, false, null, null, null, null, null, "Spotify request failed.");
+            return new SpotifyNowPlayingFetchResult(
+                IsSuccess: false,
+                Unauthorized: false,
+                IsPlaying: false,
+                TrackName: null,
+                Artists: null,
+                AlbumName: null,
+                AlbumImageUrl: null,
+                SpotifyTrackUrl: null,
+                ErrorMessage: "Spotify request failed.",
+                StatusCode: null,
+                RetryAfterSeconds: null);
         }
 
         if (response.StatusCode == HttpStatusCode.NoContent)
         {
-            return new SpotifyNowPlayingFetchResult(true, false, false, null, null, null, null, null, null);
+            return new SpotifyNowPlayingFetchResult(
+                IsSuccess: true,
+                Unauthorized: false,
+                IsPlaying: false,
+                TrackName: null,
+                Artists: null,
+                AlbumName: null,
+                AlbumImageUrl: null,
+                SpotifyTrackUrl: null,
+                ErrorMessage: null,
+                StatusCode: response.StatusCode,
+                RetryAfterSeconds: null);
         }
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            return new SpotifyNowPlayingFetchResult(false, true, false, null, null, null, null, null, "Spotify unauthorized.");
+            return new SpotifyNowPlayingFetchResult(
+                IsSuccess: false,
+                Unauthorized: true,
+                IsPlaying: false,
+                TrackName: null,
+                Artists: null,
+                AlbumName: null,
+                AlbumImageUrl: null,
+                SpotifyTrackUrl: null,
+                ErrorMessage: "Spotify unauthorized.",
+                StatusCode: response.StatusCode,
+                RetryAfterSeconds: null);
         }
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            return new SpotifyNowPlayingFetchResult(false, false, false, null, null, null, null, null, ExtractSpotifyErrorMessage(body, response.StatusCode));
+            return new SpotifyNowPlayingFetchResult(
+                IsSuccess: false,
+                Unauthorized: false,
+                IsPlaying: false,
+                TrackName: null,
+                Artists: null,
+                AlbumName: null,
+                AlbumImageUrl: null,
+                SpotifyTrackUrl: null,
+                ErrorMessage: ExtractSpotifyErrorMessage(body, response.StatusCode),
+                StatusCode: response.StatusCode,
+                RetryAfterSeconds: TryReadRetryAfterSeconds(response));
         }
 
         try
@@ -144,7 +199,18 @@ public sealed class SpotifyService : ISpotifyService
             var isPlaying = root.TryGetProperty("is_playing", out var isPlayingNode) && isPlayingNode.ValueKind == JsonValueKind.True;
             if (!root.TryGetProperty("item", out var itemNode) || itemNode.ValueKind != JsonValueKind.Object)
             {
-                return new SpotifyNowPlayingFetchResult(true, false, false, null, null, null, null, null, null);
+                return new SpotifyNowPlayingFetchResult(
+                    IsSuccess: true,
+                    Unauthorized: false,
+                    IsPlaying: false,
+                    TrackName: null,
+                    Artists: null,
+                    AlbumName: null,
+                    AlbumImageUrl: null,
+                    SpotifyTrackUrl: null,
+                    ErrorMessage: null,
+                    StatusCode: response.StatusCode,
+                    RetryAfterSeconds: null);
             }
 
             var trackName = TryReadString(itemNode, "name");
@@ -164,12 +230,25 @@ public sealed class SpotifyService : ISpotifyService
                 albumName,
                 albumImageUrl,
                 trackUrl,
+                null,
+                response.StatusCode,
                 null);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to parse Spotify currently-playing response.");
-            return new SpotifyNowPlayingFetchResult(false, false, false, null, null, null, null, null, "Invalid Spotify response.");
+            return new SpotifyNowPlayingFetchResult(
+                IsSuccess: false,
+                Unauthorized: false,
+                IsPlaying: false,
+                TrackName: null,
+                Artists: null,
+                AlbumName: null,
+                AlbumImageUrl: null,
+                SpotifyTrackUrl: null,
+                ErrorMessage: "Invalid Spotify response.",
+                StatusCode: response.StatusCode,
+                RetryAfterSeconds: null);
         }
     }
 
@@ -349,5 +428,21 @@ public sealed class SpotifyService : ISpotifyService
         }
 
         return $"Spotify request failed ({(int)statusCode}).";
+    }
+
+    private static int? TryReadRetryAfterSeconds(HttpResponseMessage response)
+    {
+        if (response.Headers.RetryAfter?.Delta.HasValue == true)
+        {
+            return Math.Max(0, (int)Math.Ceiling(response.Headers.RetryAfter.Delta.Value.TotalSeconds));
+        }
+
+        if (response.Headers.RetryAfter?.Date.HasValue == true)
+        {
+            var delta = response.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow;
+            return Math.Max(0, (int)Math.Ceiling(delta.TotalSeconds));
+        }
+
+        return null;
     }
 }

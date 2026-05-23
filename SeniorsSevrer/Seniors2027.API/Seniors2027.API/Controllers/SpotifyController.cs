@@ -16,12 +16,16 @@ namespace Seniors2027.API.Controllers;
 public class SpotifyController(
     AppDbContext context,
     ISpotifyService spotifyService,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    ISpotifyTokenProtector tokenProtector,
+    ISpotifyUserNowPlayingCache nowPlayingCache) : ControllerBase
 {
     private static readonly TimeSpan StateTtl = TimeSpan.FromMinutes(10);
     private readonly AppDbContext _context = context;
     private readonly ISpotifyService _spotifyService = spotifyService;
     private readonly IConfiguration _configuration = configuration;
+    private readonly ISpotifyTokenProtector _tokenProtector = tokenProtector;
+    private readonly ISpotifyUserNowPlayingCache _nowPlayingCache = nowPlayingCache;
 
     [HttpGet("connect-url")]
     public ActionResult GetConnectUrl()
@@ -82,8 +86,8 @@ public class SpotifyController(
             return Redirect(BuildFrontendRedirectUrl(userId, "failed", reason));
         }
 
-        user.SpotifyAccessToken = tokenResult.AccessToken;
-        user.SpotifyRefreshToken = tokenResult.RefreshToken;
+        user.SpotifyAccessToken = _tokenProtector.Protect(tokenResult.AccessToken);
+        user.SpotifyRefreshToken = _tokenProtector.Protect(tokenResult.RefreshToken);
         user.SpotifyTokenExpiresAtUtc = tokenResult.ExpiresAtUtc.Value;
         user.SpotifyConnectedAtUtc = DateTime.UtcNow;
         await _context.SaveChangesAsync();
@@ -113,16 +117,46 @@ public class SpotifyController(
         if (user == null) return NotFound();
 
         var status = await ResolveNowPlayingAsync(user, HttpContext.RequestAborted);
+        _nowPlayingCache.Upsert(ToSnapshot(userId, status));
         return Ok(status);
     }
 
     [HttpGet("users/{userId:int}/now-playing")]
     public async Task<ActionResult<SpotifyNowPlayingDto?>> GetUserNowPlaying(int userId)
     {
+        var cached = _nowPlayingCache.GetByUserId(userId);
+        if (cached is not null)
+        {
+            return Ok(ToDto(cached));
+        }
+
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null) return NotFound();
 
         var status = await ResolveNowPlayingAsync(user, HttpContext.RequestAborted);
+        _nowPlayingCache.Upsert(ToSnapshot(userId, status));
+        return Ok(status);
+    }
+
+    [HttpGet("currently-playing")]
+    public async Task<ActionResult<SpotifyNowPlayingDto>> GetCurrentlyPlayingByUser([FromQuery] int userId)
+    {
+        if (userId <= 0)
+        {
+            return BadRequest("Query parameter 'userId' is required.");
+        }
+
+        var cached = _nowPlayingCache.GetByUserId(userId);
+        if (cached is not null)
+        {
+            return Ok(ToDto(cached));
+        }
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return NotFound();
+
+        var status = await ResolveNowPlayingAsync(user, HttpContext.RequestAborted);
+        _nowPlayingCache.Upsert(ToSnapshot(userId, status));
         return Ok(status);
     }
 
@@ -133,18 +167,20 @@ public class SpotifyController(
             return SpotifyNowPlayingDto.Disconnected();
         }
 
-        if (string.IsNullOrWhiteSpace(user.SpotifyRefreshToken))
+        var refreshToken = _tokenProtector.Unprotect(user.SpotifyRefreshToken);
+        if (string.IsNullOrWhiteSpace(refreshToken))
         {
             return SpotifyNowPlayingDto.Disconnected();
         }
 
         var isConnected = true;
         var hasUpdatedUser = false;
-        if (string.IsNullOrWhiteSpace(user.SpotifyAccessToken) ||
+        var accessToken = _tokenProtector.Unprotect(user.SpotifyAccessToken);
+        if (string.IsNullOrWhiteSpace(accessToken) ||
             !user.SpotifyTokenExpiresAtUtc.HasValue ||
             user.SpotifyTokenExpiresAtUtc.Value <= DateTime.UtcNow)
         {
-            var refreshResult = await _spotifyService.RefreshAccessTokenAsync(user.SpotifyRefreshToken, cancellationToken);
+            var refreshResult = await _spotifyService.RefreshAccessTokenAsync(refreshToken, cancellationToken);
             if (!refreshResult.IsSuccess || string.IsNullOrWhiteSpace(refreshResult.AccessToken) || !refreshResult.ExpiresAtUtc.HasValue)
             {
                 if (refreshResult.RequiresReconnect)
@@ -162,14 +198,15 @@ public class SpotifyController(
                 };
             }
 
-            user.SpotifyAccessToken = refreshResult.AccessToken;
+            user.SpotifyAccessToken = _tokenProtector.Protect(refreshResult.AccessToken);
             user.SpotifyTokenExpiresAtUtc = refreshResult.ExpiresAtUtc.Value;
-            user.SpotifyRefreshToken = refreshResult.RefreshToken ?? user.SpotifyRefreshToken;
+            user.SpotifyRefreshToken = _tokenProtector.Protect(refreshResult.RefreshToken ?? refreshToken);
             user.SpotifyConnectedAtUtc ??= DateTime.UtcNow;
             hasUpdatedUser = true;
+            accessToken = refreshResult.AccessToken;
+            refreshToken = refreshResult.RefreshToken ?? refreshToken;
         }
 
-        var accessToken = user.SpotifyAccessToken;
         if (string.IsNullOrWhiteSpace(accessToken))
         {
             return SpotifyNowPlayingDto.Disconnected();
@@ -178,7 +215,7 @@ public class SpotifyController(
         var nowPlayingResult = await _spotifyService.GetCurrentlyPlayingAsync(accessToken, cancellationToken);
         if (nowPlayingResult.Unauthorized)
         {
-            var refreshResult = await _spotifyService.RefreshAccessTokenAsync(user.SpotifyRefreshToken!, cancellationToken);
+            var refreshResult = await _spotifyService.RefreshAccessTokenAsync(refreshToken, cancellationToken);
             if (!refreshResult.IsSuccess || string.IsNullOrWhiteSpace(refreshResult.AccessToken) || !refreshResult.ExpiresAtUtc.HasValue)
             {
                 if (refreshResult.RequiresReconnect)
@@ -200,9 +237,9 @@ public class SpotifyController(
                 };
             }
 
-            user.SpotifyAccessToken = refreshResult.AccessToken;
+            user.SpotifyAccessToken = _tokenProtector.Protect(refreshResult.AccessToken);
             user.SpotifyTokenExpiresAtUtc = refreshResult.ExpiresAtUtc.Value;
-            user.SpotifyRefreshToken = refreshResult.RefreshToken ?? user.SpotifyRefreshToken;
+            user.SpotifyRefreshToken = _tokenProtector.Protect(refreshResult.RefreshToken ?? refreshToken);
             user.SpotifyConnectedAtUtc ??= DateTime.UtcNow;
             hasUpdatedUser = true;
             nowPlayingResult = await _spotifyService.GetCurrentlyPlayingAsync(refreshResult.AccessToken, cancellationToken);
@@ -234,6 +271,37 @@ public class SpotifyController(
             SpotifyTrackUrl = nowPlayingResult.SpotifyTrackUrl,
             ErrorMessage = nowPlayingResult.ErrorMessage
         };
+    }
+
+    private static SpotifyNowPlayingDto ToDto(SpotifyUserNowPlayingSnapshot snapshot)
+    {
+        return new SpotifyNowPlayingDto
+        {
+            IsConnected = snapshot.IsConnected,
+            IsPlaying = snapshot.IsPlaying,
+            TrackName = snapshot.TrackName,
+            Artists = snapshot.Artists,
+            AlbumName = snapshot.AlbumName,
+            AlbumImageUrl = snapshot.AlbumImageUrl,
+            SpotifyTrackUrl = snapshot.SpotifyTrackUrl,
+            ErrorMessage = snapshot.ErrorMessage,
+            LastUpdatedUtc = snapshot.LastUpdatedUtc
+        };
+    }
+
+    private static SpotifyUserNowPlayingSnapshot ToSnapshot(int userId, SpotifyNowPlayingDto dto)
+    {
+        return new SpotifyUserNowPlayingSnapshot(
+            UserId: userId,
+            IsConnected: dto.IsConnected,
+            IsPlaying: dto.IsPlaying,
+            TrackName: dto.TrackName,
+            Artists: dto.Artists,
+            AlbumName: dto.AlbumName,
+            AlbumImageUrl: dto.AlbumImageUrl,
+            SpotifyTrackUrl: dto.SpotifyTrackUrl,
+            LastUpdatedUtc: dto.LastUpdatedUtc ?? DateTime.UtcNow,
+            ErrorMessage: dto.ErrorMessage);
     }
 
     private static void ClearSpotifyTokens(User user)
@@ -337,6 +405,7 @@ public sealed class SpotifyNowPlayingDto
     public string? AlbumImageUrl { get; set; }
     public string? SpotifyTrackUrl { get; set; }
     public string? ErrorMessage { get; set; }
+    public DateTime? LastUpdatedUtc { get; set; }
 
     public static SpotifyNowPlayingDto Disconnected() => new()
     {

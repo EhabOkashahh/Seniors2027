@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace Seniors2027.API.Services;
 
 public interface ISpotifyService
@@ -26,4 +28,6 @@ public sealed record SpotifyNowPlayingFetchResult(
     string? AlbumName,
     string? AlbumImageUrl,
     string? SpotifyTrackUrl,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    HttpStatusCode? StatusCode,
+    int? RetryAfterSeconds);
