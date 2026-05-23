@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Download, Share2 } from 'lucide-react'
 import storyTemplateUrl from '../../assets/senior-story-template.png'
+import rocketBrushFontUrl from '../../assets/rocket-brush.otf'
 import { API_BASE_URL } from '../../lib/authApi'
 import { pushGlobalToast } from '../../lib/globalToast'
 
@@ -29,7 +30,7 @@ const TEMPLATE = {
   }
 } as const
 
-const STORY_FONT_FAMILY = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive'
+const STORY_FONT_FAMILY = '"StoryBrush", "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive'
 
 type ImageSize = {
   width: number
@@ -97,6 +98,8 @@ export default function ProfileStoryShareModal({
 
   useEffect(() => {
     if (!open) return
+
+    void ensureStoryBrushFontLoaded()
 
     setNameDraft(normalizeStoryName(initialName))
     setZoom(1)
@@ -477,6 +480,8 @@ async function buildStoryFile(args: {
 }): Promise<File> {
   const { sourceUrl, name, zoom, offsetX, offsetY } = args
 
+  await ensureStoryBrushFontLoaded()
+
   const templateLoaded = await loadImageFromUrl(storyTemplateUrl)
   const photoLoaded = await loadPhotoImage(sourceUrl)
 
@@ -636,6 +641,15 @@ function extractSeniorsPhotoFileName(urlValue: string): string | null {
     if (fileName.includes('..')) return null
     return fileName
   }
+}
+
+async function ensureStoryBrushFontLoaded(): Promise<void> {
+  if (typeof document === 'undefined' || !('fonts' in document)) return
+  if (document.fonts.check('16px "StoryBrush"')) return
+
+  const font = new FontFace('StoryBrush', `url(${rocketBrushFontUrl}) format("opentype")`)
+  await font.load()
+  document.fonts.add(font)
 }
 
 async function loadImageFromUrl(

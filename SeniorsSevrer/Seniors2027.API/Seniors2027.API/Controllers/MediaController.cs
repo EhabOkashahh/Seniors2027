@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 
 namespace Seniors2027.API.Controllers;
 
 [ApiController]
+[EnableCors("AllowReactApp")]
 [Route("api/[controller]")]
 public class MediaController : ControllerBase
 {
@@ -25,6 +27,8 @@ public class MediaController : ControllerBase
     [HttpGet("seniors-photo/{fileName}")]
     public ActionResult GetSeniorsPhoto([FromRoute] string fileName)
     {
+        ApplyCrossOriginHeaders();
+
         if (string.IsNullOrWhiteSpace(fileName)) return BadRequest("Photo file is required.");
 
         var safeFileName = Path.GetFileName(Uri.UnescapeDataString(fileName).Trim());
@@ -47,5 +51,20 @@ public class MediaController : ControllerBase
         }
 
         return PhysicalFile(filePath, contentType, enableRangeProcessing: true);
+    }
+
+    private void ApplyCrossOriginHeaders()
+    {
+        var origin = Request.Headers.Origin.ToString();
+
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            Response.Headers["Access-Control-Allow-Origin"] = "*";
+            return;
+        }
+
+        Response.Headers["Access-Control-Allow-Origin"] = origin;
+        Response.Headers["Vary"] = "Origin";
+        Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin";
     }
 }
