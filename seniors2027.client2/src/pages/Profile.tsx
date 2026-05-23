@@ -729,12 +729,13 @@ export default function Profile() {
   }
 
   const handleAdminLockToggle = async () => {
-    if (!isAdmin || isOwnProfile || userId === null || !adminTargetUser) return
+    if (!isAdmin || isOwnProfile || userId === null) return
     if (adminAccountActionRunning) return
 
+    const currentLockState = adminTargetUser?.isLocked ?? false
     setAdminAccountActionRunning(true)
     setAdminAccountMessage(null)
-    const result = await setAdminUserLockRequest(userId, !adminTargetUser.isLocked)
+    const result = await setAdminUserLockRequest(userId, !currentLockState)
     setAdminAccountActionRunning(false)
 
     if (!result.ok || !result.data) {
@@ -972,11 +973,11 @@ export default function Profile() {
                     type="button"
                     className="neo-btn"
                     onClick={() => void handleAdminLockToggle()}
-                    disabled={adminAccountActionRunning || !adminTargetUser}
+                    disabled={adminAccountActionRunning}
                     style={{
                       minWidth: '120px',
                       background: isTargetLocked ? '#d9f5ff' : '#fff2b2',
-                      opacity: adminAccountActionRunning || !adminTargetUser ? 0.7 : 1
+                      opacity: adminAccountActionRunning ? 0.7 : 1
                     }}
                   >
                     {adminAccountActionRunning
