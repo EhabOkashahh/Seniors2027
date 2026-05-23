@@ -491,14 +491,24 @@ export default function MemoryBoard() {
                                       type="button"
                                       className="neo-btn"
                                       disabled={isDeleting}
+                                      aria-label={isDeleting ? 'Deleting photo' : 'Delete photo'}
+                                      title={isDeleting ? 'Deleting photo' : 'Delete photo'}
                                       onClick={(event) => {
                                         event.stopPropagation()
                                         void handleDeleteMyPhoto(item.id, 'delete')
                                       }}
-                                      style={{ minWidth: 'auto', width: 'fit-content', padding: '5px 8px', fontSize: '0.62rem', background: '#ffd0d0' }}
+                                      style={{
+                                        minWidth: 'auto',
+                                        width: '28px',
+                                        height: '28px',
+                                        padding: 0,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: '#ffd0d0'
+                                      }}
                                     >
-                                      <Trash2 size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                                      {isDeleting ? 'Deleting...' : 'Delete'}
+                                      <Trash2 size={12} />
                                     </button>
                                   )}
                                 </motion.div>
@@ -622,11 +632,21 @@ export default function MemoryBoard() {
                         type="button"
                         className="neo-btn"
                         disabled={isDeleting}
+                        aria-label={isDeleting ? 'Withdrawing photo' : 'Withdraw photo'}
+                        title={isDeleting ? 'Withdrawing photo' : 'Withdraw photo'}
                         onClick={() => void handleDeleteMyPhoto(photo.id, 'withdraw')}
-                        style={{ minWidth: 'auto', width: 'fit-content', padding: '6px 9px', fontSize: '0.7rem', background: '#ffd6d6' }}
+                        style={{
+                          minWidth: 'auto',
+                          width: '28px',
+                          height: '28px',
+                          padding: 0,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#ffd6d6'
+                        }}
                       >
-                        <Trash2 size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                        {isDeleting ? 'Withdrawing...' : 'Withdraw'}
+                        <Trash2 size={12} />
                       </button>
                     </div>
                   )
