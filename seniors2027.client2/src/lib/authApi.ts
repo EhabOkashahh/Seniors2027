@@ -645,12 +645,13 @@ export async function deleteMyMemoryBoardPhotoRequest(photoId: number): Promise<
   }
 }
 
-export async function getActiveDailyHighlightsRequest(maxCount: number = 50): Promise<ApiResult<DailyHighlight[]>> {
+export async function getActiveDailyHighlightsRequest(maxCount: number = 0): Promise<ApiResult<DailyHighlight[]>> {
   try {
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
-    const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/active?maxCount=${maxCount}`, {
+    const activeHighlightsQuery = maxCount > 0 ? `?maxCount=${maxCount}` : ''
+    const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/active${activeHighlightsQuery}`, {
       headers: {
         Authorization: `Bearer ${token}`
       }

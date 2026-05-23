@@ -31,7 +31,7 @@ public class DailyHighlightsController : ControllerBase
     }
 
     [HttpGet("active")]
-    public async Task<ActionResult<IReadOnlyList<DailyHighlightDto>>> GetActive([FromQuery] int maxCount = 50)
+    public async Task<ActionResult<IReadOnlyList<DailyHighlightDto>>> GetActive([FromQuery] int maxCount = 0)
     {
         var highlights = await _dailyHighlightService.GetActiveHighlightsAsync(maxCount);
         return Ok(highlights);

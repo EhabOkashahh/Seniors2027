@@ -63,14 +63,18 @@ public class DailyHighlightService : IDailyHighlightService
 
     public async Task<IReadOnlyList<DailyHighlightDto>> GetActiveHighlightsAsync(int maxCount)
     {
-        var safeMax = maxCount < 1 ? 30 : Math.Min(maxCount, 200);
         var now = DateTime.UtcNow;
 
-        var highlights = await QueryHighlightsWithRelations()
+        IQueryable<DailyHighlight> query = QueryHighlightsWithRelations()
             .Where(h => h.ExpiresAt > now)
-            .OrderByDescending(h => h.CreatedAt)
-            .Take(safeMax)
-            .ToListAsync();
+            .OrderByDescending(h => h.CreatedAt);
+
+        if (maxCount > 0)
+        {
+            query = query.Take(maxCount);
+        }
+
+        var highlights = await query.ToListAsync();
 
         return highlights.Select(MapToDto).ToList();
     }

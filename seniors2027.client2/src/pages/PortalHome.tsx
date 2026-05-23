@@ -123,7 +123,7 @@ export default function PortalHome() {
       setLoadingHighlights(true)
     }
 
-    const result = await getActiveDailyHighlightsRequest(80)
+    const result = await getActiveDailyHighlightsRequest()
     if (result.ok && result.data) {
       const highlightsData = result.data
       const previousCurrentId = highlightsRef.current[activeIndexRef.current]?.id ?? null
