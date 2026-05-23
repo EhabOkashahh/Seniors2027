@@ -126,6 +126,7 @@ export type User = {
   photoUrl?: string | null
   description?: string | null
   socialLinks?: string[]
+  favoriteSongEmbedUrl?: string | null
   gender: string
 }
 
@@ -136,6 +137,7 @@ export type MeUser = {
   photoUrl?: string | null
   description?: string | null
   socialLinks?: string[]
+  favoriteSongEmbedUrl?: string | null
   role?: AppUserRole | null
 }
 
@@ -835,6 +837,35 @@ export async function updateMySocialLinksRequest(
     }
 
     const data = (await tryReadJson(response)) as { message?: string; socialLinks?: string[] } | null
+    return { ok: true, data: data ?? {} }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function updateMyFavoriteSongRequest(
+  input: string,
+  tokenOverride?: string
+): Promise<ApiResult<{ message?: string; favoriteSongEmbedUrl?: string | null }>> {
+  try {
+    const token = tokenOverride ?? getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/auth/me/favorite-song`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ input })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await tryReadJson(response)) as { message?: string; favoriteSongEmbedUrl?: string | null } | null
     return { ok: true, data: data ?? {} }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }

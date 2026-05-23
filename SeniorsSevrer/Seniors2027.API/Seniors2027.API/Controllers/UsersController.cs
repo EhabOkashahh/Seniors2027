@@ -65,6 +65,7 @@ public class UsersController : ControllerBase
                 u.PhotoUrl,
                 u.Description,
                 u.SocialLinksJson,
+                u.FavoriteSongEmbedUrl,
                 u.Points,
                 u.Gender
             })
@@ -79,6 +80,7 @@ public class UsersController : ControllerBase
             user.PhotoUrl,
             user.Description,
             socialLinks = ParseSocialLinks(user.SocialLinksJson),
+            favoriteSongEmbedUrl = string.IsNullOrWhiteSpace(user.FavoriteSongEmbedUrl) ? null : user.FavoriteSongEmbedUrl,
             user.Points,
             user.Gender
         });

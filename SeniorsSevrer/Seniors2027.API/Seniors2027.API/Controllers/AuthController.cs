@@ -6,7 +6,9 @@ using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
 using Seniors2027.DAL.Interfaces;
+using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Seniors2027.API.Controllers;
 
@@ -29,6 +31,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
                 u.PhotoUrl,
                 u.Description,
                 u.SocialLinksJson,
+                u.FavoriteSongEmbedUrl,
                 u.Points,
                 u.Role
             })
@@ -42,6 +45,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
             photoUrl = string.IsNullOrWhiteSpace(user.PhotoUrl) ? null : user.PhotoUrl,
             description = string.IsNullOrWhiteSpace(user.Description) ? null : user.Description,
             socialLinks = ParseSocialLinks(user.SocialLinksJson),
+            favoriteSongEmbedUrl = string.IsNullOrWhiteSpace(user.FavoriteSongEmbedUrl) ? null : user.FavoriteSongEmbedUrl,
             points = user.Points,
             role = user.Role
         });
@@ -119,6 +123,27 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
         {
             message = "Social links updated successfully.",
             socialLinks = ParseSocialLinks(user.SocialLinksJson)
+        });
+    }
+
+    [Authorize]
+    [HttpPut("me/favorite-song")]
+    public async Task<ActionResult> UpdateMyFavoriteSong(UpdateFavoriteSongDto dto)
+    {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+
+        if (!TryNormalizeSpotifyTrackEmbedUrl(dto?.Input, out var normalizedEmbedUrl, out var validationError))
+        {
+            return BadRequest(validationError ?? "Invalid Spotify track input.");
+        }
+
+        var updated = await _authService.UpdateFavoriteSongEmbedUrlAsync(userId, normalizedEmbedUrl);
+        if (!updated) return NotFound();
+
+        return Ok(new
+        {
+            message = normalizedEmbedUrl == null ? "Favorite song removed." : "Favorite song updated successfully.",
+            favoriteSongEmbedUrl = normalizedEmbedUrl
         });
     }
 
@@ -303,6 +328,102 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     {
         return string.Equals(scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
             || string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static readonly Regex SpotifyTrackIdRegex = new("^[A-Za-z0-9]{22}$", RegexOptions.Compiled);
+    private static readonly Regex SpotifyIframeSrcRegex = new(
+        "<iframe[^>]*\\s+src\\s*=\\s*[\"'](?<src>[^\"']+)[\"'][^>]*>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static bool TryNormalizeSpotifyTrackEmbedUrl(string? input, out string? normalizedEmbedUrl, out string? validationError)
+    {
+        normalizedEmbedUrl = null;
+        validationError = null;
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return true;
+        }
+
+        var candidate = input.Trim();
+        if (candidate.Contains("<iframe", StringComparison.OrdinalIgnoreCase))
+        {
+            var match = SpotifyIframeSrcRegex.Match(candidate);
+            if (!match.Success)
+            {
+                validationError = "Invalid iframe. Please paste a Spotify track iframe or link.";
+                return false;
+            }
+
+            candidate = WebUtility.HtmlDecode(match.Groups["src"].Value.Trim());
+        }
+
+        if (!TryExtractSpotifyTrackId(candidate, out var trackId))
+        {
+            validationError = "Only Spotify track links are allowed.";
+            return false;
+        }
+
+        normalizedEmbedUrl = $"https://open.spotify.com/embed/track/{trackId}";
+        return true;
+    }
+
+    private static bool TryExtractSpotifyTrackId(string value, out string trackId)
+    {
+        trackId = string.Empty;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+
+        if (value.StartsWith("spotify:track:", StringComparison.OrdinalIgnoreCase))
+        {
+            var spotifyId = value["spotify:track:".Length..].Trim();
+            if (SpotifyTrackIdRegex.IsMatch(spotifyId))
+            {
+                trackId = spotifyId;
+                return true;
+            }
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)) return false;
+        if (!IsSupportedWebScheme(uri.Scheme)) return false;
+
+        var host = uri.Host.ToLowerInvariant();
+        if (!host.Equals("open.spotify.com", StringComparison.OrdinalIgnoreCase) &&
+            !host.EndsWith(".spotify.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var segments = uri.AbsolutePath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length == 0) return false;
+
+        var offset = 0;
+        if (segments[0].StartsWith("intl-", StringComparison.OrdinalIgnoreCase))
+        {
+            offset = 1;
+        }
+
+        string? candidateTrackId = null;
+
+        if (segments.Length - offset >= 2 &&
+            segments[offset].Equals("track", StringComparison.OrdinalIgnoreCase))
+        {
+            candidateTrackId = segments[offset + 1];
+        }
+        else if (segments.Length - offset >= 3 &&
+                 segments[offset].Equals("embed", StringComparison.OrdinalIgnoreCase) &&
+                 segments[offset + 1].Equals("track", StringComparison.OrdinalIgnoreCase))
+        {
+            candidateTrackId = segments[offset + 2];
+        }
+
+        if (string.IsNullOrWhiteSpace(candidateTrackId)) return false;
+
+        candidateTrackId = candidateTrackId.Trim();
+        if (!SpotifyTrackIdRegex.IsMatch(candidateTrackId)) return false;
+
+        trackId = candidateTrackId;
+        return true;
     }
 
 }

@@ -321,6 +321,20 @@ public class AuthService(
         return true;
     }
 
+    public async Task<bool> UpdateFavoriteSongEmbedUrlAsync(int userId, string? favoriteSongEmbedUrl)
+    {
+        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        if (user == null) return false;
+
+        user.FavoriteSongEmbedUrl = string.IsNullOrWhiteSpace(favoriteSongEmbedUrl)
+            ? null
+            : favoriteSongEmbedUrl.Trim();
+
+        _unitOfWork.Repository<User>().Update(user);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
+
     private static List<string> NormalizeSocialLinks(IEnumerable<string>? links)
     {
         if (links == null) return new List<string>();

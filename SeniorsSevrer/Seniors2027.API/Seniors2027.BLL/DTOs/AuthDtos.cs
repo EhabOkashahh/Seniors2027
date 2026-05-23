@@ -47,6 +47,11 @@ public class UpdateSocialLinksDto
     public List<string>? Links { get; set; }
 }
 
+public class UpdateFavoriteSongDto
+{
+    public string? Input { get; set; }
+}
+
 public class UpdateUsernameDto
 {
     public required string Username { get; set; }

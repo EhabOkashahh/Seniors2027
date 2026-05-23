@@ -12,4 +12,5 @@ public interface IAuthService
     Task<bool> UpdateGenderAsync(int userId, Gender gender);
     Task<bool> UpdateDescriptionAsync(int userId, string? description);
     Task<bool> UpdateSocialLinksAsync(int userId, IEnumerable<string>? links);
+    Task<bool> UpdateFavoriteSongEmbedUrlAsync(int userId, string? favoriteSongEmbedUrl);
 }

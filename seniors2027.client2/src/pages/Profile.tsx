@@ -6,6 +6,7 @@ import {
   Award,
   BookOpen,
   GripVertical,
+  Music2,
   Pencil,
   Paperclip,
   Plus,
@@ -24,6 +25,7 @@ import {
   getReceivedNotesPageRequest,
   getUserByIdRequest,
   sendNoteRequest,
+  updateMyFavoriteSongRequest,
   updateMyPhotoRequest,
   updateMySocialLinksRequest,
   updateMyUsernameRequest,
@@ -57,6 +59,9 @@ export default function Profile() {
   const [socialLinksSaving, setSocialLinksSaving] = useState(false)
   const [socialLinksMessage, setSocialLinksMessage] = useState<string | null>(null)
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false)
+  const [favoriteSongInput, setFavoriteSongInput] = useState('')
+  const [favoriteSongSaving, setFavoriteSongSaving] = useState(false)
+  const [favoriteSongMessage, setFavoriteSongMessage] = useState<string | null>(null)
   const [draggedSocialLink, setDraggedSocialLink] = useState<string | null>(null)
   const [socialLinkDropTarget, setSocialLinkDropTarget] = useState<string | null>(null)
   const [photoUpdating, setPhotoUpdating] = useState(false)
@@ -101,6 +106,7 @@ export default function Profile() {
   useGlobalToastMessage(usernameMessage, setUsernameMessage)
   useGlobalToastMessage(descriptionMessage, setDescriptionMessage)
   useGlobalToastMessage(socialLinksMessage, setSocialLinksMessage)
+  useGlobalToastMessage(favoriteSongMessage, setFavoriteSongMessage)
   useGlobalToastMessage(photoMessage, setPhotoMessage)
   useGlobalToastMessage(galleryMessage, setGalleryMessage)
   useGlobalToastMessage(noteMessage, setNoteMessage)
@@ -140,9 +146,11 @@ export default function Profile() {
           setUsernameInput(userResult.data.username ?? '')
           setDescriptionInput(userResult.data.description ?? '')
           setSocialLinksDraft(normalizeSocialLinks(userResult.data.socialLinks))
+          setFavoriteSongInput(userResult.data.favoriteSongEmbedUrl ?? '')
         } else {
           setProfileUser(null)
           setSocialLinksDraft([])
+          setFavoriteSongInput('')
         }
 
         if (meResult.ok && meResult.data) {
@@ -151,6 +159,7 @@ export default function Profile() {
             setUsernameInput(meResult.data.username ?? userResult.data.username ?? '')
             setDescriptionInput(meResult.data.description ?? userResult.data.description ?? '')
             setSocialLinksDraft(normalizeSocialLinks(meResult.data.socialLinks ?? userResult.data.socialLinks))
+            setFavoriteSongInput(meResult.data.favoriteSongEmbedUrl ?? userResult.data.favoriteSongEmbedUrl ?? '')
           }
         } else {
           setMe(null)
@@ -293,6 +302,7 @@ export default function Profile() {
   const displayPhoto = profileUser?.photoUrl || '/favicon.svg'
   const profilePoints = Math.max(0, profileUser?.points ?? 0)
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
+  const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
   const maxSocialLinks = 8
   const galleryPageSize = 4
   const galleryTotalPages = Math.max(1, Math.ceil(galleryPhotos.length / galleryPageSize))
@@ -556,6 +566,30 @@ export default function Profile() {
     setSocialLinksDraft(persistedLinks)
     setSocialLinksMessage('Social links saved.')
     setIsSocialLinksModalOpen(false)
+  }
+
+  const handleSaveFavoriteSong = async () => {
+    if (!isOwnProfile) {
+      setFavoriteSongMessage('You can only edit your own song.')
+      return
+    }
+
+    setFavoriteSongSaving(true)
+    setFavoriteSongMessage(null)
+
+    const result = await updateMyFavoriteSongRequest(favoriteSongInput)
+    setFavoriteSongSaving(false)
+
+    if (!result.ok) {
+      setFavoriteSongMessage(result.error ?? 'Could not save your song.')
+      return
+    }
+
+    const nextEmbedUrl = result.data?.favoriteSongEmbedUrl ?? null
+    setProfileUser((prev) => (prev ? { ...prev, favoriteSongEmbedUrl: nextEmbedUrl } : prev))
+    setMe((prev) => (prev ? { ...prev, favoriteSongEmbedUrl: nextEmbedUrl } : prev))
+    setFavoriteSongInput(nextEmbedUrl ?? '')
+    setFavoriteSongMessage(nextEmbedUrl ? 'Song shared on your profile.' : 'Shared song removed.')
   }
 
   const handleSendNote = async () => {
@@ -893,7 +927,7 @@ export default function Profile() {
                 style={{
                   display: 'grid',
                   gap: '12px',
-                  gridTemplateColumns: '1fr',
+                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(250px, 330px)',
                   alignItems: 'start'
                 }}
               >
@@ -985,6 +1019,85 @@ export default function Profile() {
                     )}
                   </div>
                 </div>
+
+                {(isOwnProfile || Boolean(sharedSongEmbedUrl)) && (
+                  <div style={{ display: 'grid', gap: '8px', alignContent: 'start' }}>
+                    <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <Music2 size={14} />
+                      SHARE SONG
+                    </div>
+                    <div
+                      style={{
+                        border: '3px solid black',
+                        boxShadow: '6px 6px 0 black',
+                        background: 'white',
+                        padding: '10px',
+                        minHeight: '96px',
+                        display: 'grid',
+                        gap: '10px',
+                        alignContent: 'start'
+                      }}
+                    >
+                      {isOwnProfile && (
+                        <div style={{ display: 'grid', gap: '8px' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.82 }}>
+                            Paste Spotify track link or iframe embed code. One favorite song only.
+                          </div>
+                          <textarea
+                            value={favoriteSongInput}
+                            onChange={(event) => {
+                              setFavoriteSongInput(event.target.value)
+                              setFavoriteSongMessage(null)
+                            }}
+                            placeholder="https://open.spotify.com/track/... or <iframe ...>"
+                            style={{
+                              minHeight: '82px',
+                              border: '2px solid black',
+                              padding: '8px',
+                              fontFamily: 'inherit',
+                              fontWeight: 600,
+                              resize: 'vertical'
+                            }}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              onClick={() => void handleSaveFavoriteSong()}
+                              disabled={favoriteSongSaving}
+                              style={{
+                                minWidth: 'auto',
+                                width: 'fit-content',
+                                background: '#ccffd5',
+                                padding: '4px 10px',
+                                fontSize: '0.75rem',
+                                boxShadow: '3px 3px 0 black'
+                              }}
+                            >
+                              {favoriteSongSaving ? 'Saving...' : 'Save Song'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {sharedSongEmbedUrl ? (
+                        <iframe
+                          title={`${displayName} favorite song`}
+                          src={sharedSongEmbedUrl}
+                          width="100%"
+                          height="152"
+                          loading="lazy"
+                          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                          style={{ border: '2px solid black', borderRadius: '8px' }}
+                        />
+                      ) : (
+                        <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.8 }}>
+                          {isOwnProfile ? 'No song shared yet.' : 'No shared song yet.'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
             </div>
