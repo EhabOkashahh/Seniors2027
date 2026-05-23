@@ -45,7 +45,7 @@ export default function Profile() {
   const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
-  const [isTablet, setIsTablet] = useState(() => window.innerWidth <= 1120)
+  const [isTablet, setIsTablet] = useState(() => window.innerWidth <= 1360)
 
   const [profileUser, setProfileUser] = useState<User | null>(null)
   const [me, setMe] = useState<MeUser | null>(null)
@@ -118,7 +118,7 @@ export default function Profile() {
   useEffect(() => {
     const onResize = () => {
       setIsMobile(window.innerWidth <= 760)
-      setIsTablet(window.innerWidth <= 1120)
+      setIsTablet(window.innerWidth <= 1360)
     }
 
     window.addEventListener('resize', onResize)
