@@ -136,9 +136,10 @@ export default function MemoryBoard() {
 
   const sortedPhotos = useMemo(() => {
     return [...photos].sort((left, right) => {
-      const leftDate = Date.parse(left.sortDateUtc ?? left.createdAt)
-      const rightDate = Date.parse(right.sortDateUtc ?? right.createdAt)
-      return leftDate - rightDate
+      const leftOrder = getMemoryBoardStableRandomOrder(left)
+      const rightOrder = getMemoryBoardStableRandomOrder(right)
+      if (leftOrder === rightOrder) return left.id - right.id
+      return leftOrder - rightOrder
     })
   }, [photos])
 
@@ -864,4 +865,9 @@ function seededUnitRandom(seedText: string): number {
 
   const normalized = ((hash >>> 0) % 10000) / 10000
   return normalized
+}
+
+function getMemoryBoardStableRandomOrder(photo: MemoryBoardPhoto): number {
+  const seed = `order:${photo.id}:${photo.userId}:${photo.createdAt}:${photo.photoUrl.length}`
+  return seededUnitRandom(seed)
 }
