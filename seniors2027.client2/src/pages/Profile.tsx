@@ -97,6 +97,14 @@ export default function Profile() {
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
   const isAdmin = me?.role === 'Admin'
+  const compactEditActionButtonStyle = {
+    minWidth: isMobile ? '78px' : '86px',
+    padding: isMobile ? '10px 14px' : '11px 16px',
+    fontSize: isMobile ? '0.84rem' : '0.9rem',
+    borderWidth: '3px',
+    boxShadow: '6px 6px 0 black'
+  }
+
   useGlobalToastMessage(usernameMessage, setUsernameMessage)
   useGlobalToastMessage(descriptionMessage, setDescriptionMessage)
   useGlobalToastMessage(socialLinksMessage, setSocialLinksMessage)
@@ -817,7 +825,7 @@ export default function Profile() {
                         setUsernameMessage(null)
                         setIsEditingUsername(false)
                       }}
-                      style={{ minWidth: '92px' }}
+                      style={compactEditActionButtonStyle}
                     >
                       Cancel
                     </button>
@@ -825,7 +833,7 @@ export default function Profile() {
                       type="button"
                       onClick={() => void handleSaveUsername()}
                       disabled={usernameSaving}
-                      style={{ minWidth: '92px' }}
+                      style={compactEditActionButtonStyle}
                     >
                       {usernameSaving ? 'Saving...' : 'Save Username'}
                     </button>
@@ -871,7 +879,7 @@ export default function Profile() {
                       style={{ width: '100%' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <button onClick={handleSaveDescription} disabled={descriptionSaving} style={{ minWidth: '92px' }}>
+                      <button type="button" onClick={handleSaveDescription} disabled={descriptionSaving} style={compactEditActionButtonStyle}>
                         {descriptionSaving ? 'Saving...' : 'Save'}
                       </button>
                     </div>
