@@ -4,6 +4,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom'
 import {
   Image as ImageIcon,
   BookOpen,
+  GripVertical,
   Pencil,
   Paperclip,
   Plus,
@@ -62,6 +63,8 @@ export default function Profile() {
   const [socialLinksSaving, setSocialLinksSaving] = useState(false)
   const [socialLinksMessage, setSocialLinksMessage] = useState<string | null>(null)
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false)
+  const [draggedSocialLink, setDraggedSocialLink] = useState<string | null>(null)
+  const [socialLinkDropTarget, setSocialLinkDropTarget] = useState<string | null>(null)
   const [photoUpdating, setPhotoUpdating] = useState(false)
   const [photoMessage, setPhotoMessage] = useState<string | null>(null)
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false)
@@ -514,6 +517,8 @@ export default function Profile() {
     setSocialLinksDraft(visibleSocialLinks)
     setSocialLinkInput('')
     setSocialLinksMessage(null)
+    setDraggedSocialLink(null)
+    setSocialLinkDropTarget(null)
     setIsSocialLinksModalOpen(true)
   }
 
@@ -521,6 +526,8 @@ export default function Profile() {
     if (socialLinksSaving) return
     setIsSocialLinksModalOpen(false)
     setSocialLinkInput('')
+    setDraggedSocialLink(null)
+    setSocialLinkDropTarget(null)
   }
 
   const handleAddSocialLink = () => {
@@ -548,7 +555,68 @@ export default function Profile() {
 
   const handleRemoveSocialLink = (linkToRemove: string) => {
     setSocialLinksDraft((prev) => prev.filter((link) => link !== linkToRemove))
+    if (draggedSocialLink === linkToRemove) {
+      setDraggedSocialLink(null)
+      setSocialLinkDropTarget(null)
+    }
     setSocialLinksMessage(null)
+  }
+
+  const reorderSocialLinks = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+
+    setSocialLinksDraft((prev) => {
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= prev.length || toIndex >= prev.length) {
+        return prev
+      }
+
+      const next = [...prev]
+      const [movedLink] = next.splice(fromIndex, 1)
+      if (!movedLink) return prev
+      next.splice(toIndex, 0, movedLink)
+      return next
+    })
+  }
+
+  const handleSocialLinkDragStart = (event: React.DragEvent<HTMLDivElement>, link: string) => {
+    if (socialLinksSaving) {
+      event.preventDefault()
+      return
+    }
+
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', link)
+    setDraggedSocialLink(link)
+    setSocialLinkDropTarget(link)
+    setSocialLinksMessage(null)
+  }
+
+  const handleSocialLinkDragOver = (event: React.DragEvent<HTMLDivElement>, link: string) => {
+    if (socialLinksSaving) return
+    event.preventDefault()
+    const activeDraggedLink = draggedSocialLink || event.dataTransfer.getData('text/plain')
+    if (!activeDraggedLink || activeDraggedLink === link) return
+    event.dataTransfer.dropEffect = 'move'
+    if (socialLinkDropTarget !== link) {
+      setSocialLinkDropTarget(link)
+    }
+  }
+
+  const handleSocialLinkDrop = (event: React.DragEvent<HTMLDivElement>, dropOnLink: string) => {
+    event.preventDefault()
+    const activeDraggedLink = draggedSocialLink || event.dataTransfer.getData('text/plain')
+    if (!activeDraggedLink) return
+
+    const fromIndex = socialLinksDraft.findIndex((link) => link === activeDraggedLink)
+    const toIndex = socialLinksDraft.findIndex((link) => link === dropOnLink)
+    reorderSocialLinks(fromIndex, toIndex)
+    setDraggedSocialLink(null)
+    setSocialLinkDropTarget(null)
+  }
+
+  const handleSocialLinkDragEnd = () => {
+    setDraggedSocialLink(null)
+    setSocialLinkDropTarget(null)
   }
 
   const handleSaveSocialLinks = async () => {
@@ -1403,6 +1471,9 @@ export default function Profile() {
               <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
                 Paste any profile link or email address and we will automatically show the right icon.
               </div>
+              <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.75 }}>
+                Drag and drop links to change their order.
+              </div>
               <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
                 {socialLinksDraft.length}/{maxSocialLinks} links
               </div>
@@ -1431,19 +1502,44 @@ export default function Profile() {
                   const faviconUrl = getWebsiteFaviconUrl(link)
                   const localFallbackIconUrl = getLocalPlatformFallbackIconUrl(platform)
                   const theme = getSocialPlatformTheme(platform)
+                  const isDragging = draggedSocialLink === link
+                  const isDropTarget = socialLinkDropTarget === link && draggedSocialLink !== null && !isDragging
                   return (
                     <div
                       key={link}
+                      draggable={!socialLinksSaving}
+                      onDragStart={(event) => handleSocialLinkDragStart(event, link)}
+                      onDragOver={(event) => handleSocialLinkDragOver(event, link)}
+                      onDrop={(event) => handleSocialLinkDrop(event, link)}
+                      onDragEnd={handleSocialLinkDragEnd}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '40px 1fr auto',
+                        gridTemplateColumns: '30px 40px 1fr auto',
                         gap: '8px',
                         alignItems: 'center',
-                        border: '2px solid black',
+                        border: isDropTarget ? '2px dashed black' : '2px solid black',
                         background: '#fff9da',
-                        padding: '6px 8px'
+                        padding: '6px 8px',
+                        opacity: isDragging ? 0.6 : 1,
+                        transform: isDropTarget ? 'translateY(-1px)' : 'none'
                       }}
                     >
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '24px',
+                          height: '24px',
+                          border: '2px solid black',
+                          background: '#fff2b2',
+                          cursor: socialLinksSaving ? 'default' : 'grab'
+                        }}
+                        aria-label="Drag to reorder link"
+                        title="Drag to reorder"
+                      >
+                        <GripVertical size={14} />
+                      </div>
                       <div
                         style={{
                           width: '32px',
