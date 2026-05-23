@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Navigate, useLocation, useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import {
   Image as ImageIcon,
   Award,
@@ -9,7 +9,6 @@ import {
   Pencil,
   Paperclip,
   Plus,
-  Music2,
   X
 } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
@@ -19,14 +18,10 @@ import {
   checkMyUsernameAvailabilityRequest,
   deleteGalleryPhotoRequest,
   deleteNoteRequest,
-  disconnectSpotifyRequest,
   getUserGalleryPhotosRequest,
   getLatestReceivedNotesRequest,
   getMeRequest,
   getReceivedNotesPageRequest,
-  getSpotifyConnectUrlRequest,
-  getUserSpotifyNowPlayingRequest,
-  getMySpotifyNowPlayingRequest,
   getUserByIdRequest,
   sendNoteRequest,
   updateMyPhotoRequest,
@@ -36,14 +31,12 @@ import {
   type MeUser,
   type NoteItem,
   type PagedNotes,
-  type SpotifyNowPlaying,
   type User
 } from '../lib/authApi'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 
 export default function Profile() {
   const { id } = useParams()
-  const location = useLocation()
   const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -94,10 +87,6 @@ export default function Profile() {
   const [deletingNoteIds, setDeletingNoteIds] = useState<number[]>([])
   const [deletingGalleryPhotoIds, setDeletingGalleryPhotoIds] = useState<number[]>([])
   const [noteMessage, setNoteMessage] = useState<string | null>(null)
-  const [spotifyNowPlaying, setSpotifyNowPlaying] = useState<SpotifyNowPlaying | null>(null)
-  const [spotifyLoading, setSpotifyLoading] = useState(false)
-  const [spotifyActionLoading, setSpotifyActionLoading] = useState(false)
-  const [spotifyMessage, setSpotifyMessage] = useState<string | null>(null)
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
   const isAdmin = me?.role === 'Admin'
@@ -112,7 +101,6 @@ export default function Profile() {
   useGlobalToastMessage(usernameMessage, setUsernameMessage)
   useGlobalToastMessage(descriptionMessage, setDescriptionMessage)
   useGlobalToastMessage(socialLinksMessage, setSocialLinksMessage)
-  useGlobalToastMessage(spotifyMessage, setSpotifyMessage)
   useGlobalToastMessage(photoMessage, setPhotoMessage)
   useGlobalToastMessage(galleryMessage, setGalleryMessage)
   useGlobalToastMessage(noteMessage, setNoteMessage)
@@ -139,7 +127,6 @@ export default function Profile() {
             setProfileUser(null)
             setMe(null)
             setSocialLinksDraft([])
-            setSpotifyNowPlaying(null)
             setLoading(false)
           }
           return
@@ -178,81 +165,6 @@ export default function Profile() {
       cancelled = true
     }
   }, [userId])
-
-  const fetchSpotifyStatus = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
-    if (userId === null) return
-
-    if (!silent) {
-      setSpotifyLoading(true)
-      setSpotifyMessage(null)
-    }
-
-    const result = isOwnProfile
-      ? await getMySpotifyNowPlayingRequest()
-      : await getUserSpotifyNowPlayingRequest(userId)
-
-    if (!result.ok) {
-      if (!silent) {
-        setSpotifyMessage(result.error ?? 'Could not load Spotify status.')
-        setSpotifyLoading(false)
-      }
-      return
-    }
-
-    if (isOwnProfile) {
-      setSpotifyNowPlaying(result.data ?? { isConnected: false, isPlaying: false })
-    } else {
-      setSpotifyNowPlaying(result.data ?? null)
-    }
-
-    if (!silent) {
-      setSpotifyLoading(false)
-    }
-  }, [isOwnProfile, userId])
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const spotifyStatus = params.get('spotify')
-    if (!spotifyStatus) return
-
-    if (spotifyStatus === 'connected') {
-      setSpotifyMessage('Spotify connected successfully.')
-    } else if (spotifyStatus === 'failed') {
-      const reason = params.get('reason')
-      setSpotifyMessage(reason ? `Spotify connection failed: ${reason}` : 'Spotify connection failed.')
-    }
-
-    if (typeof window !== 'undefined') {
-      const cleanUrl = `${location.pathname}${location.hash}`
-      window.history.replaceState({}, document.title, cleanUrl)
-    }
-  }, [location.hash, location.pathname, location.search])
-
-  useEffect(() => {
-    if (userId === null) return
-    if (!me || !profileUser) return
-
-    void fetchSpotifyStatus()
-
-    const timer = window.setInterval(() => {
-      void fetchSpotifyStatus({ silent: true })
-    }, 15000)
-
-    const onVisibilityOrFocus = () => {
-      if (document.visibilityState !== 'hidden') {
-        void fetchSpotifyStatus({ silent: true })
-      }
-    }
-
-    document.addEventListener('visibilitychange', onVisibilityOrFocus)
-    window.addEventListener('focus', onVisibilityOrFocus)
-
-    return () => {
-      window.clearInterval(timer)
-      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
-      window.removeEventListener('focus', onVisibilityOrFocus)
-    }
-  }, [fetchSpotifyStatus, me, profileUser, userId])
 
   const fetchLatestNotes = async () => {
     if (userId === null) return
@@ -646,40 +558,6 @@ export default function Profile() {
     setIsSocialLinksModalOpen(false)
   }
 
-  const handleConnectSpotify = async () => {
-    if (!isOwnProfile || spotifyActionLoading) return
-
-    setSpotifyActionLoading(true)
-    setSpotifyMessage(null)
-
-    const result = await getSpotifyConnectUrlRequest()
-    if (!result.ok || !result.data?.url) {
-      setSpotifyActionLoading(false)
-      setSpotifyMessage(result.error ?? 'Could not start Spotify connection.')
-      return
-    }
-
-    window.location.href = result.data.url
-  }
-
-  const handleDisconnectSpotify = async () => {
-    if (!isOwnProfile || spotifyActionLoading) return
-
-    setSpotifyActionLoading(true)
-    setSpotifyMessage(null)
-
-    const result = await disconnectSpotifyRequest()
-    setSpotifyActionLoading(false)
-
-    if (!result.ok) {
-      setSpotifyMessage(result.error ?? 'Could not disconnect Spotify.')
-      return
-    }
-
-    setSpotifyNowPlaying({ isConnected: false, isPlaying: false })
-    setSpotifyMessage(result.data?.message ?? 'Spotify disconnected.')
-  }
-
   const handleSendNote = async () => {
     if (userId === null) return
 
@@ -1015,9 +893,7 @@ export default function Profile() {
                 style={{
                   display: 'grid',
                   gap: '12px',
-                  gridTemplateColumns: isTablet || (!isOwnProfile && !spotifyNowPlaying?.isPlaying)
-                    ? '1fr'
-                    : 'minmax(0, 1fr) minmax(240px, 320px)',
+                  gridTemplateColumns: '1fr',
                   alignItems: 'start'
                 }}
               >
@@ -1109,130 +985,6 @@ export default function Profile() {
                     )}
                   </div>
                 </div>
-
-                {(isOwnProfile || Boolean(spotifyNowPlaying?.isConnected)) && (
-                  <div style={{ display: 'grid', gap: '8px', alignContent: 'start' }}>
-                    <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
-                      SPOTIFY
-                    </div>
-                    <div
-                      style={{
-                        border: '3px solid black',
-                        boxShadow: '6px 6px 0 black',
-                        background: 'white',
-                        padding: '10px',
-                        minHeight: '96px',
-                        display: 'grid',
-                        gap: '10px',
-                        alignContent: 'start'
-                      }}
-                    >
-                      {spotifyLoading ? (
-                        <div style={{ fontWeight: 700 }}>Checking Spotify...</div>
-                      ) : isOwnProfile && !spotifyNowPlaying?.isConnected ? (
-                        <>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
-                            Connect Spotify to show your current song on profile.
-                          </div>
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            onClick={() => void handleConnectSpotify()}
-                            disabled={spotifyActionLoading}
-                            style={{
-                              minWidth: 'auto',
-                              width: 'fit-content',
-                              background: '#ccffd5',
-                              padding: '4px 10px',
-                              fontSize: '0.75rem',
-                              boxShadow: '3px 3px 0 black'
-                            }}
-                          >
-                            {spotifyActionLoading ? 'Connecting...' : 'Connect Spotify'}
-                          </button>
-                        </>
-                      ) : spotifyNowPlaying?.trackName ? (
-                        <div style={{ display: 'grid', gap: '8px' }}>
-                          <div
-                            style={{
-                              display: 'grid',
-                              gap: '8px',
-                              gridTemplateColumns: spotifyNowPlaying.albumImageUrl ? '58px 1fr' : '1fr',
-                              alignItems: 'center'
-                            }}
-                          >
-                            {spotifyNowPlaying.albumImageUrl && (
-                              <img
-                                src={spotifyNowPlaying.albumImageUrl}
-                                alt="Album artwork"
-                                style={{
-                                  width: '58px',
-                                  height: '58px',
-                                  objectFit: 'cover',
-                                  border: '2px solid black',
-                                  boxShadow: '3px 3px 0 black'
-                                }}
-                              />
-                            )}
-                            <div style={{ display: 'grid', gap: '4px' }}>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 900, fontSize: '0.72rem', opacity: 0.84 }}>
-                                <Music2 size={13} />
-                                {spotifyNowPlaying.isPlaying ? 'NOW PLAYING' : 'LAST TRACK'}
-                              </div>
-                              <div style={{ fontWeight: 900, fontSize: '0.9rem', lineHeight: 1.25 }}>
-                                {spotifyNowPlaying.trackName ?? 'Unknown track'}
-                              </div>
-                              <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.86 }}>
-                                {spotifyNowPlaying.artists ?? 'Unknown artist'}
-                              </div>
-                              {spotifyNowPlaying.albumName && (
-                                <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.72 }}>
-                                  Album: {spotifyNowPlaying.albumName}
-                                </div>
-                              )}
-                              {!spotifyNowPlaying.isPlaying && (
-                                <div style={{ fontWeight: 700, fontSize: '0.72rem', opacity: 0.7 }}>
-                                  Not playing right now.
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
-                          {isOwnProfile
-                            ? 'Not playing any song right now.'
-                            : 'No Spotify activity to show right now.'}
-                        </div>
-                      )}
-
-                      {spotifyNowPlaying?.errorMessage && (
-                        <div style={{ fontWeight: 700, fontSize: '0.72rem', opacity: 0.7 }}>
-                          {spotifyNowPlaying.errorMessage}
-                        </div>
-                      )}
-
-                      {isOwnProfile && spotifyNowPlaying?.isConnected && (
-                        <button
-                          type="button"
-                          className="neo-btn"
-                          onClick={() => void handleDisconnectSpotify()}
-                          disabled={spotifyActionLoading}
-                          style={{
-                            minWidth: 'auto',
-                            width: 'fit-content',
-                            background: '#ffd5d5',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            boxShadow: '3px 3px 0 black'
-                          }}
-                        >
-                          {spotifyActionLoading ? 'Working...' : 'Disconnect Spotify'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
               {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
             </div>

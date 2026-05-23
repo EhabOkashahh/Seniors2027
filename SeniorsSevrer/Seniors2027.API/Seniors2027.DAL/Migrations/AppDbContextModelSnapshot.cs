@@ -319,20 +319,6 @@ namespace Seniors2027.DAL.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
-                    b.Property<string>("SpotifyAccessToken")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<DateTime?>("SpotifyConnectedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("SpotifyRefreshToken")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<DateTime?>("SpotifyTokenExpiresAtUtc")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(100)

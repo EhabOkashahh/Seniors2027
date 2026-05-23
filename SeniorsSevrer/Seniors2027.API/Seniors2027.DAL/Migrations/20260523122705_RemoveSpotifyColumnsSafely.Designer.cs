@@ -12,8 +12,8 @@ using Seniors2027.DAL.Data;
 namespace Seniors2027.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260522160005_AddSpotifyIntegration")]
-    partial class AddSpotifyIntegration
+    [Migration("20260523122705_RemoveSpotifyColumnsSafely")]
+    partial class RemoveSpotifyColumnsSafely
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -310,26 +310,17 @@ namespace Seniors2027.DAL.Migrations
                     b.Property<string>("PhotoUrl")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("Points")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("Role")
                         .HasColumnType("int");
 
                     b.Property<string>("SocialLinksJson")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
-
-                    b.Property<string>("SpotifyAccessToken")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<DateTime?>("SpotifyConnectedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("SpotifyRefreshToken")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<DateTime?>("SpotifyTokenExpiresAtUtc")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("Username")
                         .IsRequired()

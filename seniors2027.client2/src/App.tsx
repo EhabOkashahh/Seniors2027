@@ -7,7 +7,6 @@ import Directory from './pages/Directory'
 import Profile from './pages/Profile'
 import AdminJoinRequests from './pages/AdminJoinRequests'
 import MemoryBoard from './pages/MemoryBoard'
-import SpotifyCallback from './pages/SpotifyCallback'
 import GlobalToastHost from './components/GlobalToastHost'
 import { getAuthToken, getRoleFromToken, getStoredRole } from './lib/session'
 
@@ -85,14 +84,6 @@ function App() {
           element={
             <PrivateRoute>
               <MemoryBoard />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/spoitfy/callback"
-          element={
-            <PrivateRoute>
-              <SpotifyCallback />
             </PrivateRoute>
           }
         />

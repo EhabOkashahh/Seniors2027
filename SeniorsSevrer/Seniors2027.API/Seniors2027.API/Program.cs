@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
@@ -29,25 +28,8 @@ builder.Services.AddScoped<INoteService, NoteService>();
 builder.Services.AddScoped<IGalleryService, GalleryService>();
 builder.Services.AddScoped<IDailyHighlightService, DailyHighlightService>();
 builder.Services.AddScoped<IImageUploadProcessor, ImageUploadProcessor>();
-builder.Services.AddScoped<ISpotifyService, SpotifyService>();
-builder.Services.AddSingleton<ISpotifyTokenProtector, SpotifyTokenProtector>();
-builder.Services.AddSingleton<ISpotifyUserNowPlayingCache, SpotifyUserNowPlayingCache>();
 builder.Services.AddScoped<IEmailService, EmailService >();
 builder.Services.AddSingleton<IDailyHighlightsRealtimeNotifier, DailyHighlightsRealtimeNotifier>();
-var dataProtectionBuilder = builder.Services.AddDataProtection();
-var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
-if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
-{
-    var normalizedKeysPath = Path.IsPathRooted(dataProtectionKeysPath)
-        ? dataProtectionKeysPath
-        : Path.Combine(builder.Environment.ContentRootPath, dataProtectionKeysPath);
-
-    Directory.CreateDirectory(normalizedKeysPath);
-    dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(normalizedKeysPath));
-}
-builder.Services.Configure<SpotifyUserPollingOptions>(builder.Configuration.GetSection("SpotifyUserPolling"));
-builder.Services.AddSingleton<ISpotifyNowPlayingSnapshotStore, SpotifyNowPlayingSnapshotStore>();
-builder.Services.AddHostedService<SpotifyUsersCurrentlyPlayingPoller>();
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
 
