@@ -55,15 +55,7 @@ public class MediaController : ControllerBase
 
     private void ApplyCrossOriginHeaders()
     {
-        var origin = Request.Headers.Origin.ToString();
-
-        if (string.IsNullOrWhiteSpace(origin))
-        {
-            Response.Headers["Access-Control-Allow-Origin"] = "*";
-            return;
-        }
-
-        Response.Headers["Access-Control-Allow-Origin"] = origin;
+        Response.Headers["Access-Control-Allow-Origin"] = "*";
         Response.Headers["Vary"] = "Origin";
         Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin";
     }
