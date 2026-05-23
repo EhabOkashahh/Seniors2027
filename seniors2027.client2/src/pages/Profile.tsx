@@ -2,11 +2,11 @@ import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Navigate, useParams } from 'react-router-dom'
 import {
+  Heart,
   Image as ImageIcon,
   Award,
   BookOpen,
   GripVertical,
-  Music2,
   Pencil,
   Paperclip,
   Plus,
@@ -59,6 +59,7 @@ export default function Profile() {
   const [socialLinksSaving, setSocialLinksSaving] = useState(false)
   const [socialLinksMessage, setSocialLinksMessage] = useState<string | null>(null)
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false)
+  const [isFavoriteSongModalOpen, setIsFavoriteSongModalOpen] = useState(false)
   const [favoriteSongInput, setFavoriteSongInput] = useState('')
   const [favoriteSongSaving, setFavoriteSongSaving] = useState(false)
   const [favoriteSongMessage, setFavoriteSongMessage] = useState<string | null>(null)
@@ -446,12 +447,24 @@ export default function Profile() {
     setIsSocialLinksModalOpen(true)
   }
 
+  const openFavoriteSongModal = () => {
+    if (!isOwnProfile) return
+    setFavoriteSongInput(profileUser?.favoriteSongEmbedUrl ?? '')
+    setFavoriteSongMessage(null)
+    setIsFavoriteSongModalOpen(true)
+  }
+
   const closeSocialLinksModal = () => {
     if (socialLinksSaving) return
     setIsSocialLinksModalOpen(false)
     setSocialLinkInput('')
     setDraggedSocialLink(null)
     setSocialLinkDropTarget(null)
+  }
+
+  const closeFavoriteSongModal = () => {
+    if (favoriteSongSaving) return
+    setIsFavoriteSongModalOpen(false)
   }
 
   const handleAddSocialLink = () => {
@@ -590,6 +603,7 @@ export default function Profile() {
     setMe((prev) => (prev ? { ...prev, favoriteSongEmbedUrl: nextEmbedUrl } : prev))
     setFavoriteSongInput(nextEmbedUrl ?? '')
     setFavoriteSongMessage(nextEmbedUrl ? 'Song shared on your profile.' : 'Shared song removed.')
+    setIsFavoriteSongModalOpen(false)
   }
 
   const handleSendNote = async () => {
@@ -927,7 +941,7 @@ export default function Profile() {
                 style={{
                   display: 'grid',
                   gap: '12px',
-                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(250px, 330px)',
+                  gridTemplateColumns: '1fr',
                   alignItems: 'start'
                 }}
               >
@@ -1017,87 +1031,87 @@ export default function Profile() {
                         Add social links
                       </button>
                     )}
-                  </div>
-                </div>
 
-                {(isOwnProfile || Boolean(sharedSongEmbedUrl)) && (
-                  <div style={{ display: 'grid', gap: '8px', alignContent: 'start' }}>
-                    <div style={{ fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <Music2 size={14} />
-                      SHARE SONG
-                    </div>
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        aria-label={sharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
+                        title={sharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
+                        onClick={openFavoriteSongModal}
+                        style={{
+                          height: '36px',
+                          minWidth: '52px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          padding: '0 10px',
+                          border: '2px solid black',
+                          borderRadius: '999px',
+                          background: 'linear-gradient(135deg, #1ed760 0%, #1db954 100%)',
+                          boxShadow: '4px 4px 0 black',
+                          color: '#0a0a0a',
+                          fontWeight: 900
+                        }}
+                      >
+                        <img
+                          src="https://cdn.simpleicons.org/spotify/000000"
+                          alt=""
+                          aria-hidden="true"
+                          style={{ width: '16px', height: '16px', objectFit: 'contain' }}
+                        />
+                        <Heart size={12} fill="currentColor" />
+                      </button>
+                    )}
+                  </div>
+
+                  {sharedSongEmbedUrl && (
                     <div
                       style={{
-                        border: '3px solid black',
-                        boxShadow: '6px 6px 0 black',
-                        background: 'white',
-                        padding: '10px',
-                        minHeight: '96px',
-                        display: 'grid',
-                        gap: '10px',
-                        alignContent: 'start'
+                        display: 'flex',
+                        flexDirection: isMobile ? 'column' : 'row',
+                        alignItems: isMobile ? 'stretch' : 'flex-start',
+                        gap: '8px'
                       }}
                     >
+                      <iframe
+                        title={`${displayName} favorite song`}
+                        src={sharedSongEmbedUrl}
+                        width="100%"
+                        height="152"
+                        loading="lazy"
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                        style={{
+                          border: 0,
+                          borderRadius: '12px',
+                          width: isMobile ? '100%' : 'min(100%, 420px)'
+                        }}
+                      />
                       {isOwnProfile && (
-                        <div style={{ display: 'grid', gap: '8px' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.82 }}>
-                            Paste Spotify track link or iframe embed code. One favorite song only.
-                          </div>
-                          <textarea
-                            value={favoriteSongInput}
-                            onChange={(event) => {
-                              setFavoriteSongInput(event.target.value)
-                              setFavoriteSongMessage(null)
-                            }}
-                            placeholder="https://open.spotify.com/track/... or <iframe ...>"
-                            style={{
-                              minHeight: '82px',
-                              border: '2px solid black',
-                              padding: '8px',
-                              fontFamily: 'inherit',
-                              fontWeight: 600,
-                              resize: 'vertical'
-                            }}
-                          />
-                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button
-                              type="button"
-                              className="neo-btn"
-                              onClick={() => void handleSaveFavoriteSong()}
-                              disabled={favoriteSongSaving}
-                              style={{
-                                minWidth: 'auto',
-                                width: 'fit-content',
-                                background: '#ccffd5',
-                                padding: '4px 10px',
-                                fontSize: '0.75rem',
-                                boxShadow: '3px 3px 0 black'
-                              }}
-                            >
-                              {favoriteSongSaving ? 'Saving...' : 'Save Song'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {sharedSongEmbedUrl ? (
-                        <iframe
-                          title={`${displayName} favorite song`}
-                          src={sharedSongEmbedUrl}
-                          width="100%"
-                          height="152"
-                          loading="lazy"
-                          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                          style={{ border: '2px solid black', borderRadius: '8px' }}
-                        />
-                      ) : (
-                        <div style={{ fontWeight: 700, fontSize: '0.8rem', opacity: 0.8 }}>
-                          {isOwnProfile ? 'No song shared yet.' : 'No shared song yet.'}
-                        </div>
+                        <button
+                          type="button"
+                          aria-label="Edit shared song"
+                          title="Edit shared song"
+                          onClick={openFavoriteSongModal}
+                          style={{
+                            width: '34px',
+                            height: '34px',
+                            flex: '0 0 34px',
+                            display: 'grid',
+                            placeItems: 'center',
+                            padding: 0,
+                            border: '2px solid black',
+                            borderRadius: '10px',
+                            background: '#f7f7f7',
+                            boxShadow: '3px 3px 0 black'
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </button>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
               {loading && <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Loading profile...</div>}
             </div>
@@ -1303,6 +1317,85 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {isFavoriteSongModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={closeFavoriteSongModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 73,
+            padding: '20px'
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(620px, 100%)',
+              border: '4px solid black',
+              boxShadow: '12px 12px 0 black',
+              background: 'var(--retro-paper)',
+              padding: isMobile ? '12px' : '18px',
+              display: 'grid',
+              gap: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <img
+                  src="https://cdn.simpleicons.org/spotify/000000"
+                  alt=""
+                  aria-hidden="true"
+                  style={{ width: '18px', height: '18px', objectFit: 'contain' }}
+                />
+                Favorite Song
+              </h3>
+              <button type="button" className="neo-btn" onClick={closeFavoriteSongModal} disabled={favoriteSongSaving}>
+                Close
+              </button>
+            </div>
+
+            <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.82 }}>
+              Paste Spotify track link or Spotify iframe embed code. Keep it empty to remove your song.
+            </div>
+
+            <textarea
+              value={favoriteSongInput}
+              onChange={(event) => {
+                setFavoriteSongInput(event.target.value)
+                setFavoriteSongMessage(null)
+              }}
+              placeholder="https://open.spotify.com/track/... or <iframe ...>"
+              style={{
+                minHeight: '104px',
+                border: '3px solid black',
+                padding: '10px',
+                fontFamily: 'inherit',
+                fontWeight: 600,
+                background: 'white',
+                resize: 'vertical'
+              }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={() => void handleSaveFavoriteSong()}
+                disabled={favoriteSongSaving}
+                style={{ background: '#ccffd5' }}
+              >
+                {favoriteSongSaving ? 'Saving...' : 'Save Song'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isSocialLinksModalOpen && (
         <div
