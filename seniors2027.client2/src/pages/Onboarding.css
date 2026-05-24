@@ -73,7 +73,13 @@
 .neo-btn:hover { background: var(--retro-yellow); transform: translate(-3px, -3px); box-shadow: 11px 11px 0 var(--retro-ink); }
 .neo-btn:active { background: var(--retro-yellow); transform: translate(3px, 3px); box-shadow: 3px 3px 0 var(--retro-ink); }
 
-.auth-page { padding-top: 24px; }
+.auth-page {
+  padding-top: 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  place-items: start center;
+  align-content: start;
+}
 .auth-card {
   width: min(760px, 96vw);
   max-height: min(92vh, 840px);
@@ -185,6 +191,10 @@
   gap: 10px;
 }
 
+.mobile-step-actions--inline {
+  margin-top: 12px;
+}
+
 .mobile-step-actions .neo-btn {
   width: 100%;
   min-width: 0;
@@ -230,8 +240,30 @@
   .auth-buttons { flex-direction: column; align-items: center; }
   .neo-btn { width: min(320px, 90vw); }
   .sticker-b, .shape-triangle, .spark-b { display: none; }
-  .auth-card { padding: 14px; box-shadow: 8px 8px 0 var(--retro-ink); max-height: 94vh; }
-  .step-panel { padding: 14px; min-height: 310px; }
+  .auth-page {
+    padding: 12px;
+    place-items: start center;
+  }
+  .auth-card {
+    width: 100%;
+    padding: 12px;
+    box-shadow: 8px 8px 0 var(--retro-ink);
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+    margin-bottom: 12px;
+  }
+  .step-slider {
+    box-shadow: 7px 7px 0 var(--retro-ink);
+  }
+  .step-panel {
+    padding: 12px;
+    min-height: 0;
+    gap: 8px;
+  }
+  .step-caption {
+    display: none;
+  }
   .retro-input { height: 58px; font-size: 0.92rem; }
   .retro-upload { min-height: 180px; }
   .retro-upload-placeholder { min-height: 150px; }

@@ -246,7 +246,12 @@ export default function HorizontalStepForm({
     isLastStep
   }
 
-  const mobilePrimaryLabel = currentStepConfig?.mobileCtaLabel ?? (isLastStep ? 'Submit' : 'Next')
+  const getMobilePrimaryLabel = (stepIndex: number) => {
+    const stepConfig = steps[stepIndex]
+    if (!stepConfig) return 'Next'
+    if (stepConfig.mobileCtaLabel) return stepConfig.mobileCtaLabel
+    return stepIndex === totalSteps - 1 ? 'Submit' : 'Next'
+  }
 
   useEffect(() => {
     const previousTotalSteps = previousTotalStepsRef.current
@@ -312,6 +317,25 @@ export default function HorizontalStepForm({
               <div className="form-step-body">
                 {typeof step.content === 'function' ? step.content(controls) : step.content}
               </div>
+
+              {isPhone && index === currentStep && (
+                <div className="mobile-step-actions mobile-step-actions--inline">
+                  <button type="button" className="neo-btn" onClick={attemptBack} disabled={isSubmitting}>
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="neo-btn primary-btn"
+                    onClick={() => {
+                      void attemptNext()
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Please wait...' : getMobilePrimaryLabel(index)}
+                  </button>
+                </div>
+              )}
+
               {!isPhone && !step.hideHint && (
                 <div className="scroll-hint" aria-hidden="true">
                   <span>Scroll down to continue</span>
@@ -331,24 +355,6 @@ export default function HorizontalStepForm({
           ))}
         </motion.div>
       </div>
-
-      {isPhone && (
-        <div className="mobile-step-actions">
-          <button type="button" className="neo-btn" onClick={attemptBack} disabled={isSubmitting}>
-            Back
-          </button>
-          <button
-            type="button"
-            className="neo-btn primary-btn"
-            onClick={() => {
-              void attemptNext()
-            }}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Please wait...' : mobilePrimaryLabel}
-          </button>
-        </div>
-      )}
 
       <span className="step-caption">Current: {stepTitle}</span>
     </motion.section>
