@@ -47,6 +47,7 @@ builder.Services.AddScoped<IDailyHighlightService, DailyHighlightService>();
 builder.Services.AddScoped<IImageUploadProcessor, ImageUploadProcessor>();
 builder.Services.AddScoped<IEmailService, EmailService >();
 builder.Services.AddSingleton<IDailyHighlightsRealtimeNotifier, DailyHighlightsRealtimeNotifier>();
+builder.Services.AddSingleton<IAnnouncementPollRealtimeNotifier, AnnouncementPollRealtimeNotifier>();
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
 
@@ -73,7 +74,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var requestPath = context.HttpContext.Request.Path;
 
                 if (!string.IsNullOrWhiteSpace(accessToken) &&
-                    requestPath.StartsWithSegments(DailyHighlightsHub.RoutePath))
+                    (requestPath.StartsWithSegments(DailyHighlightsHub.RoutePath) ||
+                     requestPath.StartsWithSegments(AnnouncementPollsHub.RoutePath)))
                 {
                     context.Token = accessToken;
                 }
@@ -153,6 +155,7 @@ app.UseMiddleware<AccountLockMiddleware>();
 app.UseAuthorization();
 
 app.MapHub<DailyHighlightsHub>(DailyHighlightsHub.Route);
+app.MapHub<AnnouncementPollsHub>(AnnouncementPollsHub.Route);
 app.MapControllers();
 
 app.Run();

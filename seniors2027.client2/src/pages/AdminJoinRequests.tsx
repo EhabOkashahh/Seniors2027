@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
+import { buildAnnouncementBodyWithPoll, normalizePollOptions, parseAnnouncementBody } from '../lib/announcementPoll'
 import {
   createAdminAnnouncementRequest,
   createAdminEventRequest,
@@ -49,6 +50,7 @@ const USERS_PAGE_SIZE = 20
 const USERS_FETCH_SIZE = USERS_PAGE_SIZE + 1
 const REQUESTS_SYNC_INTERVAL_MS = 5000
 const MEMORYBOARD_SYNC_INTERVAL_MS = 5000
+const MAX_ANNOUNCEMENT_POLL_OPTIONS = 6
 
 type AdminSection = 'requests' | 'users' | 'announcements' | 'memoryboard'
 
@@ -80,6 +82,9 @@ export default function AdminJoinRequests() {
   const [eventActionId, setEventActionId] = useState<number | null>(null)
   const [announcementTitleInput, setAnnouncementTitleInput] = useState('')
   const [announcementBodyInput, setAnnouncementBodyInput] = useState('')
+  const [announcementPollEnabled, setAnnouncementPollEnabled] = useState(false)
+  const [announcementPollQuestionInput, setAnnouncementPollQuestionInput] = useState('')
+  const [announcementPollOptionsInput, setAnnouncementPollOptionsInput] = useState<string[]>(['', ''])
   const [announcementPhotoFile, setAnnouncementPhotoFile] = useState<File | null>(null)
   const [eventTitleInput, setEventTitleInput] = useState('')
   const [eventDateInput, setEventDateInput] = useState('')
@@ -347,14 +352,38 @@ export default function AdminJoinRequests() {
   const handlePublishAnnouncement = async () => {
     const title = announcementTitleInput.trim()
     const body = announcementBodyInput.trim()
+    const pollQuestion = announcementPollQuestionInput.trim()
+    const pollOptions = normalizePollOptions(announcementPollOptionsInput)
 
     if (!title || !body) {
       setAnnouncementsMessage('Announcement title and body are required.')
       return
     }
 
+    if (announcementPollEnabled) {
+      if (!pollQuestion) {
+        setAnnouncementsMessage('Poll question is required when poll is enabled.')
+        return
+      }
+
+      if (pollOptions.length < 2) {
+        setAnnouncementsMessage('Poll requires at least 2 unique options.')
+        return
+      }
+    }
+
+    const announcementBodyPayload = buildAnnouncementBodyWithPoll(
+      body,
+      announcementPollEnabled
+        ? {
+            question: pollQuestion,
+            options: pollOptions
+          }
+        : null
+    )
+
     setAnnouncementsMessage(null)
-    const result = await createAdminAnnouncementRequest(title, body, announcementPhotoFile)
+    const result = await createAdminAnnouncementRequest(title, announcementBodyPayload, announcementPhotoFile)
     if (!result.ok || !result.data) {
       setAnnouncementsMessage(result.error ?? 'Could not create announcement.')
       return
@@ -363,11 +392,32 @@ export default function AdminJoinRequests() {
     setAnnouncements((prev) => [result.data!, ...prev])
     setAnnouncementTitleInput('')
     setAnnouncementBodyInput('')
+    setAnnouncementPollEnabled(false)
+    setAnnouncementPollQuestionInput('')
+    setAnnouncementPollOptionsInput(['', ''])
     setAnnouncementPhotoFile(null)
     if (announcementPhotoInputRef.current) {
       announcementPhotoInputRef.current.value = ''
     }
     setAnnouncementsMessage('Announcement published.')
+  }
+
+  const handleAnnouncementPollOptionChange = (index: number, value: string) => {
+    setAnnouncementPollOptionsInput((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)))
+  }
+
+  const handleAddAnnouncementPollOption = () => {
+    setAnnouncementPollOptionsInput((prev) => {
+      if (prev.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS) return prev
+      return [...prev, '']
+    })
+  }
+
+  const handleRemoveAnnouncementPollOption = (index: number) => {
+    setAnnouncementPollOptionsInput((prev) => {
+      if (prev.length <= 2) return prev
+      return prev.filter((_, itemIndex) => itemIndex !== index)
+    })
   }
 
   const handlePublishEvent = async () => {
@@ -1065,6 +1115,87 @@ export default function AdminJoinRequests() {
                       rows={5}
                       style={{ width: '100%', padding: '10px 12px', background: 'white', resize: 'vertical' }}
                     />
+                    <label
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: 800,
+                        fontSize: '0.84rem'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={announcementPollEnabled}
+                        onChange={(e) => setAnnouncementPollEnabled(e.target.checked)}
+                        style={{ width: '18px', height: '18px', padding: 0 }}
+                      />
+                      Add Poll To Announcement
+                    </label>
+                    {announcementPollEnabled && (
+                      <div
+                        style={{
+                          border: '2px solid black',
+                          background: '#fff6cf',
+                          boxShadow: '3px 3px 0 black',
+                          padding: '10px',
+                          display: 'grid',
+                          gap: '8px'
+                        }}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Poll question"
+                          value={announcementPollQuestionInput}
+                          onChange={(e) => setAnnouncementPollQuestionInput(e.target.value)}
+                          style={{ width: '100%', padding: '9px 10px', background: 'white' }}
+                        />
+                        <div style={{ fontWeight: 800, fontSize: '0.76rem', opacity: 0.82 }}>
+                          Poll options (at least 2 unique options)
+                        </div>
+                        {announcementPollOptionsInput.map((option, index) => (
+                          <div
+                            key={`announcement-poll-option-${index}`}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+                              gap: '6px'
+                            }}
+                          >
+                            <input
+                              type="text"
+                              placeholder={`Option ${index + 1}`}
+                              value={option}
+                              onChange={(e) => handleAnnouncementPollOptionChange(index, e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', background: 'white' }}
+                            />
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              onClick={() => handleRemoveAnnouncementPollOption(index)}
+                              disabled={announcementPollOptionsInput.length <= 2}
+                              style={{
+                                minWidth: 'auto',
+                                width: isMobile ? '100%' : 'fit-content',
+                                padding: '8px 10px',
+                                background: '#ffd7d7'
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="neo-btn"
+                          onClick={handleAddAnnouncementPollOption}
+                          disabled={announcementPollOptionsInput.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS}
+                          style={{ minWidth: 'auto', width: 'fit-content', padding: '8px 10px', background: '#daf3ff' }}
+                        >
+                          Add Option
+                        </button>
+                      </div>
+                    )}
                     <input
                       ref={announcementPhotoInputRef}
                       type="file"
@@ -1153,30 +1284,129 @@ export default function AdminJoinRequests() {
                       <p style={{ margin: 0, fontWeight: 800 }}>No announcements yet.</p>
                     ) : (
                       announcements.map((announcement) => (
-                        <div key={announcement.id} style={{ border: '2px solid black', padding: '10px', background: 'white', display: 'grid', gap: '8px' }}>
-                          {announcement.photoUrl && (
-                            <img
-                              src={announcement.photoUrl}
-                              alt={announcement.title}
-                              style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', border: '2px solid black' }}
-                            />
-                          )}
-                          <div style={{ fontWeight: 900 }}>{announcement.title}</div>
-                          <div style={{ fontWeight: 700, whiteSpace: 'pre-wrap' }}>{announcement.body}</div>
-                          <div style={{ fontSize: '0.78rem', fontWeight: 700, opacity: 0.75 }}>
-                            {new Date(announcement.createdAt).toLocaleString()}
-                          </div>
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            onClick={() => void handleDeleteAnnouncement(announcement.id)}
-                            disabled={announcementActionId === announcement.id}
-                            style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
-                          >
-                            <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                            {announcementActionId === announcement.id ? 'Deleting...' : 'Delete'}
-                          </button>
-                        </div>
+                        (() => {
+                          const parsedAnnouncement = parseAnnouncementBody(announcement.body)
+                          const activePoll = announcement.poll ?? (
+                            parsedAnnouncement.poll
+                              ? {
+                                  question: parsedAnnouncement.poll.question,
+                                  options: parsedAnnouncement.poll.options.map((optionLabel) => ({
+                                    label: optionLabel,
+                                    voteCount: 0,
+                                    voters: []
+                                  }))
+                                }
+                              : null
+                          )
+
+                          return (
+                            <div key={announcement.id} style={{ border: '2px solid black', padding: '10px', background: 'white', display: 'grid', gap: '8px' }}>
+                              {announcement.photoUrl && (
+                                <img
+                                  src={announcement.photoUrl}
+                                  alt={announcement.title}
+                                  style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', border: '2px solid black' }}
+                                />
+                              )}
+                              <div
+                                style={{
+                                  border: '2px solid black',
+                                  background: '#ffd5e6',
+                                  boxShadow: '3px 3px 0 black',
+                                  padding: '6px 8px',
+                                  display: 'grid',
+                                  gap: '4px'
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: 'fit-content',
+                                    border: '2px solid black',
+                                    background: '#fff36d',
+                                    padding: '2px 6px',
+                                    fontWeight: 900,
+                                    fontSize: '0.68rem',
+                                    textTransform: 'uppercase'
+                                  }}
+                                >
+                                  Title
+                                </div>
+                                <div style={{ fontWeight: 900, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.01em', lineHeight: 1.2 }}>
+                                  {announcement.title}
+                                </div>
+                              </div>
+                              <div style={{ fontWeight: 700, fontSize: '0.95rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                                {parsedAnnouncement.body}
+                              </div>
+                              {activePoll && (
+                                <div
+                                  style={{
+                                    border: '2px solid black',
+                                    background: '#fff6cf',
+                                    boxShadow: '3px 3px 0 black',
+                                    padding: '8px',
+                                    display: 'grid',
+                                    gap: '7px'
+                                  }}
+                                >
+                                  <div style={{ fontWeight: 900, fontSize: '0.84rem', lineHeight: 1.25 }}>
+                                    Poll: {activePoll.question}
+                                  </div>
+                                  <div style={{ display: 'grid', gap: '5px' }}>
+                                    {activePoll.options.map((pollOption, optionIndex) => (
+                                      <div
+                                        key={`admin-announcement-poll-${announcement.id}-${optionIndex}`}
+                                        style={{
+                                          border: '2px solid black',
+                                          background: 'white',
+                                          padding: '5px 7px',
+                                          display: 'grid',
+                                          gap: '4px'
+                                        }}
+                                      >
+                                        <div style={{ fontWeight: 800, fontSize: '0.82rem' }}>
+                                          {optionIndex + 1}. {pollOption.label} ({pollOption.voteCount})
+                                        </div>
+                                        <details style={{ fontWeight: 700, fontSize: '0.75rem', opacity: 0.88 }}>
+                                          <summary style={{ cursor: 'pointer', fontWeight: 800 }}>
+                                            Who voted ({pollOption.voteCount})
+                                          </summary>
+                                          <div style={{ display: 'grid', gap: '3px', marginTop: '4px' }}>
+                                            {pollOption.voters.length === 0 ? (
+                                              <div style={{ opacity: 0.75 }}>No votes yet.</div>
+                                            ) : (
+                                              pollOption.voters.map((voter) => (
+                                                <div
+                                                  key={`admin-announcement-poll-voter-${announcement.id}-${optionIndex}-${voter.userId}`}
+                                                  style={{ border: '1px solid black', background: '#fff', padding: '3px 6px' }}
+                                                >
+                                                  {voter.username}
+                                                </div>
+                                              ))
+                                            )}
+                                          </div>
+                                        </details>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <div style={{ fontSize: '0.78rem', fontWeight: 700, opacity: 0.75 }}>
+                                {new Date(announcement.createdAt).toLocaleString()}
+                              </div>
+                              <button
+                                type="button"
+                                className="neo-btn"
+                                onClick={() => void handleDeleteAnnouncement(announcement.id)}
+                                disabled={announcementActionId === announcement.id}
+                                style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
+                              >
+                                <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                {announcementActionId === announcement.id ? 'Deleting...' : 'Delete'}
+                              </button>
+                            </div>
+                          )
+                        })()
                       ))
                     )}
                   </div>

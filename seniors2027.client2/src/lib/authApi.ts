@@ -252,6 +252,24 @@ export type AnnouncementItem = {
   createdAt: string
   createdByUserId: number
   createdByUsername: string
+  poll?: AnnouncementPollItem | null
+}
+
+export type AnnouncementPollItem = {
+  question: string
+  options: AnnouncementPollOptionItem[]
+}
+
+export type AnnouncementPollOptionItem = {
+  label: string
+  voteCount: number
+  voters: AnnouncementPollVoterItem[]
+}
+
+export type AnnouncementPollVoterItem = {
+  userId: number
+  username: string
+  photoUrl?: string | null
 }
 
 export type PortalEventItem = {
@@ -1460,6 +1478,35 @@ export async function getPortalAnnouncementsRequest(maxCount: number = 6): Promi
     }
 
     const data = (await response.json()) as AnnouncementItem[]
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function voteAnnouncementPollRequest(
+  announcementId: number,
+  option: string
+): Promise<ApiResult<AnnouncementItem>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/portal-content/announcements/${announcementId}/poll-vote`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ option })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as AnnouncementItem
     return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }

@@ -9,12 +9,38 @@ public class AnnouncementDto
     public int CreatedByUserId { get; set; }
     public string CreatedByUsername { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public AnnouncementPollDto? Poll { get; set; }
 }
 
 public class CreateAnnouncementDto
 {
     public string Title { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
+}
+
+public class VoteAnnouncementPollDto
+{
+    public string Option { get; set; } = string.Empty;
+}
+
+public class AnnouncementPollDto
+{
+    public string Question { get; set; } = string.Empty;
+    public IReadOnlyList<AnnouncementPollOptionDto> Options { get; set; } = Array.Empty<AnnouncementPollOptionDto>();
+}
+
+public class AnnouncementPollOptionDto
+{
+    public string Label { get; set; } = string.Empty;
+    public int VoteCount { get; set; }
+    public IReadOnlyList<AnnouncementPollVoterDto> Voters { get; set; } = Array.Empty<AnnouncementPollVoterDto>();
+}
+
+public class AnnouncementPollVoterDto
+{
+    public int UserId { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
 }
 
 public class PortalEventDto

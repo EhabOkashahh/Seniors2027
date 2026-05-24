@@ -26,4 +26,6 @@ public class Announcement
 
     [ForeignKey(nameof(CreatedByUserId))]
     public User CreatedByUser { get; set; } = null!;
+
+    public ICollection<AnnouncementPollVote> PollVotes { get; set; } = new List<AnnouncementPollVote>();
 }

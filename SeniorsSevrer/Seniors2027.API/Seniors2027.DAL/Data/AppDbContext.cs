@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<UserOtp> UsersOTPs { get; set; }
     public DbSet<JoinRequest> JoinRequests { get; set; }
     public DbSet<Announcement> Announcements { get; set; }
+    public DbSet<AnnouncementPollVote> AnnouncementPollVotes { get; set; }
     public DbSet<PortalEvent> Events { get; set; }
     public DbSet<MemoryBoardPhoto> MemoryBoardPhotos { get; set; }
 
@@ -135,6 +136,23 @@ public class AppDbContext : DbContext
                 .WithMany(u => u.Announcements)
                 .HasForeignKey(e => e.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.CreatedAt);
+        });
+
+        modelBuilder.Entity<AnnouncementPollVote>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Option).IsRequired().HasMaxLength(200);
+            entity.HasOne(e => e.Announcement)
+                .WithMany(a => a.PollVotes)
+                .HasForeignKey(e => e.AnnouncementId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.AnnouncementPollVotes)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.AnnouncementId, e.UserId }).IsUnique();
+            entity.HasIndex(e => new { e.AnnouncementId, e.Option });
             entity.HasIndex(e => e.CreatedAt);
         });
 

@@ -174,6 +174,14 @@ public class AdminController(
                 _context.DailyHighlightReactions.RemoveRange(userHighlightReactions);
             }
 
+            var userAnnouncementPollVotes = await _context.AnnouncementPollVotes
+                .Where(v => v.UserId == userId)
+                .ToListAsync();
+            if (userAnnouncementPollVotes.Count > 0)
+            {
+                _context.AnnouncementPollVotes.RemoveRange(userAnnouncementPollVotes);
+            }
+
             if (userGalleryPhotos.Count > 0)
             {
                 _context.GalleryPhotos.RemoveRange(userGalleryPhotos);
@@ -253,21 +261,34 @@ public class AdminController(
     {
         var safeMaxCount = maxCount < 1 ? 10 : Math.Min(maxCount, 200);
 
-        var items = await _context.Announcements
+        var announcements = await _context.Announcements
             .AsNoTracking()
+            .Include(a => a.CreatedByUser)
             .OrderByDescending(a => a.CreatedAt)
             .Take(safeMaxCount)
-            .Select(a => new AnnouncementDto
-            {
-                Id = a.Id,
-                Title = a.Title,
-                Body = a.Body,
-                PhotoUrl = a.PhotoUrl,
-                CreatedAt = a.CreatedAt,
-                CreatedByUserId = a.CreatedByUserId,
-                CreatedByUsername = a.CreatedByUser.Username
-            })
             .ToListAsync();
+
+        var announcementIds = announcements.Select(a => a.Id).ToList();
+        var pollVotes = announcementIds.Count == 0
+            ? new List<AnnouncementPollVote>()
+            : await _context.AnnouncementPollVotes
+                .AsNoTracking()
+                .Include(v => v.User)
+                .Where(v => announcementIds.Contains(v.AnnouncementId))
+                .ToListAsync();
+        var votesByAnnouncementId = pollVotes
+            .GroupBy(v => v.AnnouncementId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<AnnouncementPollVote>)group.ToList());
+
+        var items = announcements
+            .Select(a =>
+            {
+                var votes = votesByAnnouncementId.TryGetValue(a.Id, out var value)
+                    ? value
+                    : Array.Empty<AnnouncementPollVote>();
+                return AnnouncementPollMapper.ToAnnouncementDto(a, votes);
+            })
+            .ToList();
 
         return Ok(items);
     }
@@ -322,21 +343,13 @@ public class AdminController(
             throw;
         }
 
-        var created = await _context.Announcements
+        var createdAnnouncement = await _context.Announcements
             .AsNoTracking()
+            .Include(a => a.CreatedByUser)
             .Where(a => a.Id == announcement.Id)
-            .Select(a => new AnnouncementDto
-            {
-                Id = a.Id,
-                Title = a.Title,
-                Body = a.Body,
-                PhotoUrl = a.PhotoUrl,
-                CreatedAt = a.CreatedAt,
-                CreatedByUserId = a.CreatedByUserId,
-                CreatedByUsername = a.CreatedByUser.Username
-            })
             .FirstAsync();
 
+        var created = AnnouncementPollMapper.ToAnnouncementDto(createdAnnouncement, Array.Empty<AnnouncementPollVote>());
         return Ok(created);
     }
 

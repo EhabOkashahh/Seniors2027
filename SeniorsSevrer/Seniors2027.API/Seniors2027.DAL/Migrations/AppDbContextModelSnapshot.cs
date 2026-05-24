@@ -59,6 +59,45 @@ namespace Seniors2027.DAL.Migrations
                     b.ToTable("Announcements");
                 });
 
+            modelBuilder.Entity("Seniors2027.DAL.Entities.AnnouncementPollVote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AnnouncementId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Option")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("AnnouncementId", "Option");
+
+                    b.HasIndex("AnnouncementId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("AnnouncementPollVotes");
+                });
+
             modelBuilder.Entity("Seniors2027.DAL.Entities.DailyHighlight", b =>
                 {
                     b.Property<int>("Id")
@@ -422,6 +461,25 @@ namespace Seniors2027.DAL.Migrations
                     b.Navigation("CreatedByUser");
                 });
 
+            modelBuilder.Entity("Seniors2027.DAL.Entities.AnnouncementPollVote", b =>
+                {
+                    b.HasOne("Seniors2027.DAL.Entities.Announcement", "Announcement")
+                        .WithMany("PollVotes")
+                        .HasForeignKey("AnnouncementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Seniors2027.DAL.Entities.User", "User")
+                        .WithMany("AnnouncementPollVotes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Announcement");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Seniors2027.DAL.Entities.DailyHighlight", b =>
                 {
                     b.HasOne("Seniors2027.DAL.Entities.GalleryPhoto", "GalleryPhoto")
@@ -546,6 +604,11 @@ namespace Seniors2027.DAL.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Seniors2027.DAL.Entities.Announcement", b =>
+                {
+                    b.Navigation("PollVotes");
+                });
+
             modelBuilder.Entity("Seniors2027.DAL.Entities.DailyHighlight", b =>
                 {
                     b.Navigation("Reactions");
@@ -558,6 +621,8 @@ namespace Seniors2027.DAL.Migrations
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.User", b =>
                 {
+                    b.Navigation("AnnouncementPollVotes");
+
                     b.Navigation("Announcements");
 
                     b.Navigation("DailyHighlightReactions");

@@ -20,6 +20,7 @@ import GenderCapAvatar from '../components/GenderCapAvatar'
 import Logo from '../assets/Logo.png'
 import NoteAsset from '../assets/Asset1.svg'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
+import { parseAnnouncementBody } from '../lib/announcementPoll'
 import {
   deleteDailyHighlightRequest,
   getPortalAnnouncementsRequest,
@@ -29,8 +30,10 @@ import {
   getUserByIdRequest,
   getActiveDailyHighlightsRequest,
   getHighlightsArchiveRequest,
+  voteAnnouncementPollRequest,
   toggleDailyHighlightReactionRequest,
   type AnnouncementItem,
+  type AnnouncementPollOptionItem,
   type DailyHighlight,
   type DailyHighlightReaction,
   type DailyHighlightReactionType,
@@ -38,6 +41,7 @@ import {
   type PortalEventItem,
   uploadDailyHighlightRequest
 } from '../lib/authApi'
+import { subscribeAnnouncementPollRealtime } from '../lib/announcementPollRealtime'
 import { subscribeDailyHighlightsRealtime } from '../lib/dailyHighlightsRealtime'
 
 const HIGHLIGHTS_SYNC_INTERVAL_MS = 5000
@@ -73,6 +77,7 @@ export default function PortalHome() {
   const [events, setEvents] = useState<PortalEventItem[]>([])
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true)
   const [loadingEvents, setLoadingEvents] = useState(true)
+  const [announcementPollActionId, setAnnouncementPollActionId] = useState<number | null>(null)
   const [portalContentMessage, setPortalContentMessage] = useState<string | null>(null)
 
   const [highlights, setHighlights] = useState<DailyHighlight[]>([])
@@ -189,6 +194,23 @@ export default function PortalHome() {
     }
   }, [])
 
+  const handleVoteAnnouncementPoll = async (announcementId: number, option: string) => {
+    if (!option.trim()) return
+
+    setAnnouncementPollActionId(announcementId)
+    const result = await voteAnnouncementPollRequest(announcementId, option.trim())
+    setAnnouncementPollActionId(null)
+
+    if (!result.ok || !result.data) {
+      setPortalContentMessage(result.error ?? 'Could not submit poll vote.')
+      return
+    }
+
+    setAnnouncements((prev) =>
+      prev.map((item) => (item.id === announcementId ? result.data! : item))
+    )
+  }
+
   const fetchMonthlyDump = useCallback(async () => {
     if (currentUserId === null) return
 
@@ -292,6 +314,16 @@ export default function PortalHome() {
       unsubscribe()
     }
   }, [fetchHighlights])
+
+  useEffect(() => {
+    const unsubscribe = subscribeAnnouncementPollRealtime(() => {
+      void fetchPortalContent({ silent: true })
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [fetchPortalContent])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -997,78 +1029,252 @@ export default function PortalHome() {
                   </div>
                 ) : (
                   announcements.map((announcement, index) => (
-                    <motion.div
-                      key={announcement.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.22, delay: index * 0.035 }}
-                      whileHover={{ y: -2 }}
-                      style={{
-                        border: '3px solid black',
-                        boxShadow: '6px 6px 0 black',
-                        background: 'linear-gradient(180deg, #ffffff 0%, #fff2f8 100%)',
-                        padding: '10px 11px',
-                        display: 'grid',
-                        gap: '7px',
-                        transform: index % 2 === 0 ? 'rotate(-0.15deg)' : 'rotate(0.15deg)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <div
+                    (() => {
+                      const parsedAnnouncement = parseAnnouncementBody(announcement.body)
+                      const activePoll = announcement.poll ?? (
+                        parsedAnnouncement.poll
+                          ? {
+                              question: parsedAnnouncement.poll.question,
+                              options: parsedAnnouncement.poll.options.map((optionLabel) => ({
+                                label: optionLabel,
+                                voteCount: 0,
+                                voters: []
+                              })) satisfies AnnouncementPollOptionItem[]
+                            }
+                          : null
+                      )
+                      const currentUserSelectedOption = currentUserId === null || !activePoll
+                        ? null
+                        : activePoll.options.find((option) =>
+                          option.voters.some((voter) => voter.userId === currentUserId)
+                        )?.label ?? null
+                      const totalPollVotes = activePoll?.options.reduce((sum, option) => sum + option.voteCount, 0) ?? 0
+                      const isVotingOnAnnouncement = announcementPollActionId === announcement.id
+
+                      return (
+                        <motion.div
+                          key={announcement.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.22, delay: index * 0.035 }}
+                          whileHover={{ y: -2 }}
                           style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            border: '2px solid black',
-                            background: '#ffef77',
-                            padding: '3px 7px',
-                            fontWeight: 900,
-                            fontSize: '0.7rem',
-                            textTransform: 'uppercase'
+                            border: '3px solid black',
+                            boxShadow: '6px 6px 0 black',
+                            background: 'linear-gradient(180deg, #ffffff 0%, #fff2f8 100%)',
+                            padding: '10px 11px',
+                            display: 'grid',
+                            gap: '7px',
+                            transform: index % 2 === 0 ? 'rotate(-0.15deg)' : 'rotate(0.15deg)'
                           }}
                         >
-                          <Sparkles size={12} />
-                          Spotlight
-                        </div>
-                        <div style={{ fontWeight: 800, fontSize: '0.72rem', opacity: 0.72 }}>
-                          {formatDateLong(announcement.createdAt)}
-                        </div>
-                      </div>
-                      {announcement.photoUrl && (
-                        <img
-                          src={announcement.photoUrl}
-                          alt={announcement.title}
-                          style={{
-                            width: '100%',
-                            maxHeight: '190px',
-                            objectFit: 'cover',
-                            border: '2px solid black',
-                            boxShadow: '3px 3px 0 black',
-                            background: '#ffe9f2'
-                          }}
-                        />
-                      )}
-                      <div
-                        style={{
-                          border: '2px solid black',
-                          background: '#ffd5e6',
-                          boxShadow: '3px 3px 0 black',
-                          padding: '6px 8px',
-                          fontWeight: 900,
-                          fontSize: '0.91rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.01em',
-                          lineHeight: 1.15
-                        }}
-                      >
-                        {announcement.title}
-                      </div>
-                      <div style={{ fontWeight: 700, fontSize: '0.84rem', whiteSpace: 'pre-wrap', lineHeight: 1.38 }}>{announcement.body}</div>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.74rem', opacity: 0.82 }}>
-                        <UserRound size={13} />
-                        {announcement.createdByUsername}
-                      </div>
-                    </motion.div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <div
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                border: '2px solid black',
+                                background: '#ffef77',
+                                padding: '3px 7px',
+                                fontWeight: 900,
+                                fontSize: '0.7rem',
+                                textTransform: 'uppercase'
+                              }}
+                            >
+                              <Sparkles size={12} />
+                              Spotlight
+                            </div>
+                            <div style={{ fontWeight: 800, fontSize: '0.72rem', opacity: 0.72 }}>
+                              {formatDateLong(announcement.createdAt)}
+                            </div>
+                          </div>
+                          {announcement.photoUrl && (
+                            <img
+                              src={announcement.photoUrl}
+                              alt={announcement.title}
+                              style={{
+                                width: '100%',
+                                maxHeight: '190px',
+                                objectFit: 'cover',
+                                border: '2px solid black',
+                                boxShadow: '3px 3px 0 black',
+                                background: '#ffe9f2'
+                              }}
+                            />
+                          )}
+                          <div
+                            style={{
+                              border: '2px solid black',
+                              background: '#ffd5e6',
+                              boxShadow: '3px 3px 0 black',
+                              padding: '7px 9px',
+                              display: 'grid',
+                              gap: '4px'
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 'fit-content',
+                                border: '2px solid black',
+                                background: '#fff36d',
+                                padding: '2px 6px',
+                                fontWeight: 900,
+                                fontSize: '0.66rem',
+                                textTransform: 'uppercase'
+                              }}
+                            >
+                              Title
+                            </div>
+                            <div
+                              style={{
+                                fontWeight: 900,
+                                fontSize: isMobile ? '1.02rem' : '1.12rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.01em',
+                                lineHeight: 1.2
+                              }}
+                            >
+                              {announcement.title}
+                            </div>
+                          </div>
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              fontSize: isMobile ? '0.94rem' : '1.02rem',
+                              whiteSpace: 'pre-wrap',
+                              lineHeight: 1.52
+                            }}
+                          >
+                            {parsedAnnouncement.body}
+                          </div>
+                          {activePoll && (
+                            <div
+                              style={{
+                                border: '2px solid black',
+                                background: '#fff6cf',
+                                boxShadow: '3px 3px 0 black',
+                                padding: '8px',
+                                display: 'grid',
+                                gap: '7px'
+                              }}
+                            >
+                              <div style={{ fontWeight: 900, fontSize: '0.86rem', lineHeight: 1.25 }}>
+                                Poll: {activePoll.question}
+                              </div>
+                              <div style={{ fontWeight: 700, fontSize: '0.75rem', opacity: 0.82 }}>
+                                Click your selected option again to remove your vote.
+                              </div>
+                              <div style={{ display: 'grid', gap: '5px' }}>
+                                {activePoll.options.map((pollOption, optionIndex) => {
+                                  const hasCurrentUserVotedForOption = currentUserSelectedOption !== null
+                                    && pollOption.label.localeCompare(currentUserSelectedOption, undefined, { sensitivity: 'base' }) === 0
+                                  const optionVotePercentage = totalPollVotes > 0
+                                    ? Math.round((pollOption.voteCount / totalPollVotes) * 100)
+                                    : 0
+                                  return (
+                                    <div
+                                    key={`portal-announcement-poll-${announcement.id}-${optionIndex}`}
+                                    style={{
+                                      border: '2px solid black',
+                                      background: 'white',
+                                      padding: '5px 7px',
+                                      display: 'grid',
+                                      gap: '6px'
+                                    }}
+                                    >
+                                    <button
+                                      type="button"
+                                      className="neo-btn"
+                                      onClick={() => void handleVoteAnnouncementPoll(announcement.id, pollOption.label)}
+                                      disabled={isVotingOnAnnouncement}
+                                      style={{
+                                        minWidth: 'auto',
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        padding: '8px 9px',
+                                        border: hasCurrentUserVotedForOption ? '2px solid #2e7f43' : '2px solid black',
+                                        boxShadow: hasCurrentUserVotedForOption ? 'inset 0 0 0 2px rgba(46, 127, 67, 0.15)' : undefined,
+                                        background: `linear-gradient(90deg, #ffcb2f 0%, #ffcb2f ${optionVotePercentage}%, #ffffff ${optionVotePercentage}%, #ffffff 100%)`
+                                      }}
+                                    >
+                                      <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontWeight: 900, fontSize: '0.82rem' }}>
+                                          {optionIndex + 1}. {pollOption.label}
+                                        </span>
+                                        <span style={{ fontWeight: 800, fontSize: '0.76rem', opacity: 0.84, whiteSpace: 'nowrap' }}>
+                                          {pollOption.voteCount} votes - {optionVotePercentage}%
+                                        </span>
+                                      </span>
+                                    </button>
+                                    <details style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.88 }}>
+                                      <summary style={{ cursor: 'pointer', fontWeight: 800 }}>
+                                        Who voted ({pollOption.voteCount})
+                                      </summary>
+                                      <div style={{ display: 'grid', gap: '4px', marginTop: '4px' }}>
+                                        {pollOption.voters.length === 0 ? (
+                                          <div style={{ opacity: 0.75 }}>No votes yet.</div>
+                                        ) : (
+                                          pollOption.voters.map((voter) => (
+                                            <div
+                                              key={`poll-voter-${announcement.id}-${optionIndex}-${voter.userId}`}
+                                              style={{
+                                                border: '1px solid black',
+                                                padding: '4px 6px',
+                                                background: '#fff',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                              }}
+                                            >
+                                              {voter.photoUrl ? (
+                                                <img
+                                                  src={voter.photoUrl}
+                                                  alt={voter.username}
+                                                  style={{
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    borderRadius: '50%',
+                                                    border: '1px solid black',
+                                                    objectFit: 'cover'
+                                                  }}
+                                                />
+                                              ) : (
+                                                <div
+                                                  style={{
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    borderRadius: '50%',
+                                                    border: '1px solid black',
+                                                    display: 'grid',
+                                                    placeItems: 'center',
+                                                    fontWeight: 900,
+                                                    fontSize: '0.65rem',
+                                                    background: '#f0f0f0'
+                                                  }}
+                                                >
+                                                  {voter.username.charAt(0).toUpperCase()}
+                                                </div>
+                                              )}
+                                              <span>{voter.username}</span>
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
+                                    </details>
+                                  </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.74rem', opacity: 0.82 }}>
+                            <UserRound size={13} />
+                            {announcement.createdByUsername}
+                          </div>
+                        </motion.div>
+                      )
+                    })()
                   ))
                 )}
               </div>
