@@ -921,23 +921,18 @@ export default function Profile() {
                       position: 'absolute',
                       right: '10px',
                       bottom: '62px',
-                      borderRadius: '999px',
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
                       border: '3px solid black',
                       background: '#e4f5ff',
                       boxShadow: '4px 4px 0 black',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      padding: '7px 10px',
-                      minWidth: 'auto',
-                      width: 'fit-content',
-                      fontSize: '0.72rem',
-                      fontWeight: 900
+                      display: 'grid',
+                      placeItems: 'center',
+                      padding: 0
                     }}
                   >
                     <Share2 size={14} />
-                    Story
                   </button>
                   <button
                     type="button"
