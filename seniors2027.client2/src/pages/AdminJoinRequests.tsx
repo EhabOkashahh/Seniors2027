@@ -19,6 +19,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
+import './AdminJoinRequests.css'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
 import { buildAnnouncementBodyWithPoll, normalizePollOptions, parseAnnouncementBody } from '../lib/announcementPoll'
@@ -27,7 +28,6 @@ import {
   createAdminEventRequest,
   deleteAdminAnnouncementRequest,
   deleteAdminEventRequest,
-  deleteAdminMemoryBoardPhotoRequest,
   deleteAdminUserRequest,
   getAdminAnnouncementsRequest,
   getAdminEventsRequest,
@@ -52,11 +52,10 @@ import {
 const USERS_PAGE_SIZE = 20
 const MAX_ANNOUNCEMENT_POLL_OPTIONS = 6
 
-type AdminSection = 'requests' | 'users' | 'announcements' | 'memoryboard'
+type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos'
 
 export default function AdminJoinRequests() {
   const navigate = useNavigate()
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [activeSection, setActiveSection] = useState<AdminSection>('requests')
 
   const [items, setItems] = useState<JoinRequestItem[]>([])
@@ -111,7 +110,6 @@ export default function AdminJoinRequests() {
   const [eventEditActionId, setEventEditActionId] = useState<number | null>(null)
 
   const [memoryBoardPendingPhotos, setMemoryBoardPendingPhotos] = useState<MemoryBoardPhoto[]>([])
-  const [memoryBoardApprovedPhotos, setMemoryBoardApprovedPhotos] = useState<MemoryBoardPhoto[]>([])
   const [memoryBoardLoading, setMemoryBoardLoading] = useState(false)
   const [memoryBoardActionId, setMemoryBoardActionId] = useState<number | null>(null)
   const [memoryBoardMessage, setMemoryBoardMessage] = useState<string | null>(null)
@@ -124,12 +122,6 @@ export default function AdminJoinRequests() {
   const eventPhotoInputRef = useRef<HTMLInputElement>(null)
 
   const pendingCount = useMemo(() => items.filter((item) => item.status === 'Pending').length, [items])
-
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 760)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
 
   const loadRequests = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -213,33 +205,18 @@ export default function AdminJoinRequests() {
       setMemoryBoardMessage(null)
     }
 
-    const [pendingResult, approvedResult] = await Promise.all([
-      getAdminMemoryBoardPhotosRequest('Pending', 400),
-      getAdminMemoryBoardPhotosRequest('Approved', 1200)
-    ])
+    const pendingResult = await getAdminMemoryBoardPhotosRequest('Pending', 400)
 
     if (!pendingResult.ok || !pendingResult.data) {
       if (!silent) {
         setMemoryBoardPendingPhotos([])
-        setMemoryBoardApprovedPhotos([])
-        setMemoryBoardMessage(pendingResult.error ?? 'Could not load pending memoryboard photos.')
-        setMemoryBoardLoading(false)
-      }
-      return
-    }
-
-    if (!approvedResult.ok || !approvedResult.data) {
-      if (!silent) {
-        setMemoryBoardPendingPhotos(pendingResult.data)
-        setMemoryBoardApprovedPhotos([])
-        setMemoryBoardMessage(approvedResult.error ?? 'Could not load approved memoryboard photos.')
+        setMemoryBoardMessage(pendingResult.error ?? 'Could not load pending photos.')
         setMemoryBoardLoading(false)
       }
       return
     }
 
     setMemoryBoardPendingPhotos(pendingResult.data)
-    setMemoryBoardApprovedPhotos(approvedResult.data)
     if (!silent) {
       setMemoryBoardLoading(false)
     }
@@ -285,7 +262,7 @@ export default function AdminJoinRequests() {
   }, [activeSection, loadAnnouncementsAndEvents])
 
   useEffect(() => {
-    if (activeSection !== 'memoryboard') return
+    if (activeSection !== 'approvePhotos') return
     void loadMemoryBoardPhotos()
   }, [activeSection, loadMemoryBoardPhotos])
 
@@ -301,7 +278,7 @@ export default function AdminJoinRequests() {
         return
       }
 
-      if (activeSection === 'memoryboard') {
+      if (activeSection === 'approvePhotos') {
         void loadMemoryBoardPhotos({ silent: true })
       }
     }
@@ -323,7 +300,7 @@ export default function AdminJoinRequests() {
         }
       },
       onMemoryBoardUpdated: () => {
-        if (activeSection === 'memoryboard') {
+        if (activeSection === 'approvePhotos') {
           void loadMemoryBoardPhotos({ silent: true })
         }
       },
@@ -703,52 +680,11 @@ export default function AdminJoinRequests() {
     }
 
     setMemoryBoardPendingPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
-    if (decision === 'Approve' && result.data) {
-      const approvedPhoto = result.data
-      setMemoryBoardApprovedPhotos((prev) => {
-        const merged = [...prev.filter((photo) => photo.id !== approvedPhoto.id), approvedPhoto]
-        return merged.sort((left, right) => {
-          const leftSort = Date.parse(left.sortDateUtc ?? left.createdAt)
-          const rightSort = Date.parse(right.sortDateUtc ?? right.createdAt)
-
-          if (Number.isNaN(leftSort) && Number.isNaN(rightSort)) return left.id - right.id
-          if (Number.isNaN(leftSort)) return 1
-          if (Number.isNaN(rightSort)) return -1
-          if (leftSort !== rightSort) return leftSort - rightSort
-
-          const leftCreated = Date.parse(left.createdAt)
-          const rightCreated = Date.parse(right.createdAt)
-          if (Number.isNaN(leftCreated) && Number.isNaN(rightCreated)) return left.id - right.id
-          if (Number.isNaN(leftCreated)) return 1
-          if (Number.isNaN(rightCreated)) return -1
-          return leftCreated - rightCreated
-        })
-      })
-    } else if (decision === 'Approve' && !result.data) {
+    if (decision === 'Approve' && !result.data) {
       setMemoryBoardMessage('Photo approved. Refresh if it does not appear yet.')
       return
     }
     setMemoryBoardMessage(decision === 'Approve' ? 'Photo approved.' : 'Photo rejected.')
-  }
-
-  const handleDeleteMemoryBoardPhoto = async (photoId: number) => {
-    const confirmed = window.confirm('Delete this approved photo from Memoryboard?')
-    if (!confirmed) return
-
-    setMemoryBoardActionId(photoId)
-    setMemoryBoardMessage(null)
-
-    const result = await deleteAdminMemoryBoardPhotoRequest(photoId)
-    setMemoryBoardActionId(null)
-
-    if (!result.ok) {
-      setMemoryBoardMessage(result.error ?? 'Could not delete photo.')
-      return
-    }
-
-    setMemoryBoardPendingPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
-    setMemoryBoardApprovedPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
-    setMemoryBoardMessage('Photo deleted.')
   }
 
   const editingAnnouncement = useMemo(
@@ -780,556 +716,412 @@ export default function AdminJoinRequests() {
 
   return (
     <PortalLayout>
-      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-        <div style={{ display: 'grid', gap: '18px' }}>
-          <div
-            className="window"
-            style={{
-              maxWidth: '100%',
-              boxShadow: '10px 10px 0 black'
-            }}
-          >
-            <div className="window-header" style={{ background: 'var(--accent-blue)' }}>
-              <Shield size={18} />
-              <span style={{ fontWeight: 900 }}>ADMIN_DASHBOARD</span>
-            </div>
-            <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '10px' }}>
-              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.02em' }}>Admin Dashboard</h1>
-              <p style={{ margin: '6px 0 0 0', fontWeight: 700, opacity: 0.75 }}>
-                Manage requests, users, announcements, events, and memoryboard approvals from one place.
-              </p>
-            </div>
-          </div>
-
-          <div className="window" style={{ maxWidth: '100%' }}>
-            <div className="window-header" style={{ background: 'var(--accent-yellow)' }}>
-              <span style={{ fontWeight: 900 }}>ADMIN_SECTIONS</span>
-            </div>
-            <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                <button
-                  type="button"
-                  className="neo-btn"
-                  onClick={() => setActiveSection('requests')}
-                  style={activeSection === 'requests' ? { background: '#cde5ff' } : undefined}
-                >
-                  <UserRoundPlus size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  All Requests ({pendingCount})
-                </button>
-                <button
-                  type="button"
-                  className="neo-btn"
-                  onClick={() => setActiveSection('users')}
-                  style={activeSection === 'users' ? { background: '#ffe0bc' } : undefined}
-                >
-                  <Users size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  Users Management
-                </button>
-                <button
-                  type="button"
-                  className="neo-btn"
-                  onClick={() => setActiveSection('announcements')}
-                  style={activeSection === 'announcements' ? { background: '#d5f7c5' } : undefined}
-                >
-                  <Megaphone size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  Announcements & Events
-                </button>
-                <button
-                  type="button"
-                  className="neo-btn"
-                  onClick={() => setActiveSection('memoryboard')}
-                  style={activeSection === 'memoryboard' ? { background: '#d9f4ff' } : undefined}
-                >
-                  <Images size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  Memoryboard Photos ({memoryBoardPendingPhotos.length + memoryBoardApprovedPhotos.length})
-                </button>
+      <motion.div
+        className="admin-dashboard"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+      >
+        <div className="admin-dashboard__stack">
+          <section className="admin-hero">
+            <div className="admin-hero__title-row">
+              <div className="admin-hero__icon">
+                <Shield size={18} />
+              </div>
+              <div>
+                <h1 className="admin-hero__title">Admin Dashboard</h1>
+                <p className="admin-hero__subtitle">
+                  Manage requests, users, announcements, events, and photo approvals from one place.
+                </p>
               </div>
             </div>
-          </div>
+            <div className="admin-kpi-grid">
+              <div className="admin-kpi-card">
+                <span className="admin-kpi-card__label">Pending Requests</span>
+                <span className="admin-kpi-card__value">{pendingCount}</span>
+              </div>
+              <div className="admin-kpi-card">
+                <span className="admin-kpi-card__label">Users In Page</span>
+                <span className="admin-kpi-card__value">{adminUsers.length}</span>
+              </div>
+              <div className="admin-kpi-card">
+                <span className="admin-kpi-card__label">Announcements</span>
+                <span className="admin-kpi-card__value">{announcements.length}</span>
+              </div>
+              <div className="admin-kpi-card">
+                <span className="admin-kpi-card__label">Photo Requests</span>
+                <span className="admin-kpi-card__value">{memoryBoardPendingPhotos.length}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="admin-surface admin-surface--tabs">
+            <div className="admin-tabs">
+              <button
+                type="button"
+                className={`admin-tab ${activeSection === 'requests' ? 'active' : ''}`}
+                onClick={() => setActiveSection('requests')}
+              >
+                <UserRoundPlus size={16} />
+                <span>Requests ({pendingCount})</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab ${activeSection === 'users' ? 'active' : ''}`}
+                onClick={() => setActiveSection('users')}
+              >
+                <Users size={16} />
+                <span>Users</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab ${activeSection === 'announcements' ? 'active' : ''}`}
+                onClick={() => setActiveSection('announcements')}
+              >
+                <Megaphone size={16} />
+                <span>Announcements & Events</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab ${activeSection === 'approvePhotos' ? 'active' : ''}`}
+                onClick={() => setActiveSection('approvePhotos')}
+              >
+                <Images size={16} />
+                <span>Approve Photos ({memoryBoardPendingPhotos.length})</span>
+              </button>
+            </div>
+          </section>
 
           {activeSection === 'requests' && (
-            <div style={{ display: 'grid', gap: '12px' }}>
-              <div className="window" style={{ maxWidth: '100%' }}>
-                <div className="window-header" style={{ background: 'var(--accent-blue)' }}>
-                  <UserRoundPlus size={18} />
-                  <span style={{ fontWeight: 900 }}>JOIN_REQUESTS</span>
-                </div>
-                <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 900, fontSize: '0.95rem' }}>Pending: {pendingCount}</div>
-                    <button
-                      type="button"
-                      className="neo-btn"
-                      onClick={() => void loadRequests()}
-                      disabled={loading}
-                      style={{ minWidth: 'auto', padding: '10px 14px' }}
-                    >
-                      <RefreshCw size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                      {loading ? 'Refreshing...' : 'Refresh'}
-                    </button>
+            <section className="admin-section">
+              <div className="admin-surface">
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <UserRoundPlus size={18} />
+                    <h2 className="admin-surface__title">Join Requests</h2>
                   </div>
+                  <button
+                    type="button"
+                    className="neo-btn admin-btn admin-btn--secondary"
+                    onClick={() => void loadRequests()}
+                    disabled={loading}
+                  >
+                    <RefreshCw size={14} />
+                    <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+                  </button>
                 </div>
+                <p className="admin-surface__muted">Pending requests: {pendingCount}</p>
               </div>
 
               {loading ? (
-                <div className="window">
-                  <div className="window-content" style={{ padding: '18px' }}>
-                    <p style={{ margin: 0, fontWeight: 800 }}>Loading requests...</p>
-                  </div>
+                <div className="admin-empty-state">
+                  <p>Loading requests...</p>
                 </div>
               ) : items.length === 0 ? (
-                <div className="window">
-                  <div className="window-content" style={{ padding: '18px' }}>
-                    <p style={{ margin: 0, fontWeight: 800 }}>No pending requests right now.</p>
-                  </div>
+                <div className="admin-empty-state">
+                  <p>No pending requests right now.</p>
                 </div>
               ) : (
                 items.map((item) => {
                   const isBusy = actionRequestId === item.id
                   const requestedAtLabel = new Date(item.requestedAt).toLocaleString()
                   return (
-                    <div key={item.id} className="window" style={{ maxWidth: '100%' }}>
-                      <div className="window-content" style={{ padding: '16px', gap: '10px', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '10px', flexWrap: 'wrap' }}>
-                          <div>
-                            <div style={{ fontWeight: 900, fontSize: '1rem', wordBreak: 'break-word' }}>{item.name}</div>
-                            <div style={{ fontWeight: 800, fontSize: '0.86rem', opacity: 0.82, wordBreak: 'break-word' }}>{item.email}</div>
-                            <div style={{ fontWeight: 700, opacity: 0.75, fontSize: '0.85rem' }}>Requested: {requestedAtLabel}</div>
-                          </div>
-                          <div
-                            style={{
-                              border: '2px solid black',
-                              background: 'var(--accent-yellow)',
-                              padding: '4px 8px',
-                              fontWeight: 900,
-                              fontSize: '0.76rem'
-                            }}
-                          >
-                            {item.status}
-                          </div>
+                    <article key={item.id} className="admin-entity-card">
+                      <div className="admin-entity-card__head">
+                        <div className="admin-entity-card__identity">
+                          <h3>{item.name}</h3>
+                          <p>{item.email}</p>
+                          <span>Requested: {requestedAtLabel}</span>
                         </div>
-
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            disabled={isBusy}
-                            onClick={() => void reviewRequest(item.id, 'Accept')}
-                            style={{ background: '#bde7c2', minWidth: 'auto', padding: '10px 14px' }}
-                          >
-                            <CheckCircle2 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                            Accept
-                          </button>
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            disabled={isBusy}
-                            onClick={() => void reviewRequest(item.id, 'Decline')}
-                            style={{ background: '#ffc5c5', minWidth: 'auto', padding: '10px 14px' }}
-                          >
-                            <XCircle size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                            Decline
-                          </button>
-                          {isBusy && (
-                            <div style={{ fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 8px' }}>
-                              Processing...
-                            </div>
-                          )}
-                        </div>
+                        <span className="admin-status-pill">{item.status}</span>
                       </div>
-                    </div>
+
+                      <div className="admin-actions-row">
+                        <button
+                          type="button"
+                          className="neo-btn admin-btn admin-btn--success"
+                          disabled={isBusy}
+                          onClick={() => void reviewRequest(item.id, 'Accept')}
+                        >
+                          <CheckCircle2 size={14} />
+                          <span>Accept</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="neo-btn admin-btn admin-btn--danger"
+                          disabled={isBusy}
+                          onClick={() => void reviewRequest(item.id, 'Decline')}
+                        >
+                          <XCircle size={14} />
+                          <span>Decline</span>
+                        </button>
+                        {isBusy && <div className="admin-inline-note">Processing...</div>}
+                      </div>
+                    </article>
                   )
                 })
               )}
-            </div>
+            </section>
           )}
 
           {activeSection === 'users' && (
-            <div style={{ display: 'grid', gap: '12px' }}>
-              <div className="window" style={{ maxWidth: '100%' }}>
-                <div className="window-header" style={{ background: 'var(--accent-orange)' }}>
-                  <Users size={18} />
-                  <span style={{ fontWeight: 900 }}>USER_MANAGEMENT</span>
+            <section className="admin-section">
+              <div className="admin-surface">
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <Users size={18} />
+                    <h2 className="admin-surface__title">User Management</h2>
+                  </div>
+                  <button
+                    type="button"
+                    className="neo-btn admin-btn admin-btn--secondary"
+                    onClick={() => void loadUsers(usersPageNumber, debouncedUsersSearch)}
+                    disabled={usersLoading}
+                  >
+                    <RefreshCw size={14} />
+                    <span>{usersLoading ? 'Refreshing...' : 'Refresh'}</span>
+                  </button>
                 </div>
-                <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 900, fontSize: '0.95rem' }}>
-                      Manage account access and lifecycle.
-                    </div>
-                    <button
-                      type="button"
-                      className="neo-btn"
-                      onClick={() => void loadUsers(usersPageNumber, debouncedUsersSearch)}
-                      disabled={usersLoading}
-                      style={{ minWidth: 'auto', padding: '10px 14px' }}
-                    >
-                      <RefreshCw size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                      {usersLoading ? 'Refreshing...' : 'Refresh'}
-                    </button>
-                  </div>
 
-                  <div style={{ position: 'relative', width: 'min(100%, 360px)' }}>
-                    <input
-                      type="text"
-                      placeholder="Search users by name or email..."
-                      value={usersSearchInput}
-                      onChange={(e) => setUsersSearchInput(e.target.value)}
-                      style={{ padding: '12px 15px 12px 45px', fontSize: '1rem', width: '100%', background: 'white' }}
-                    />
-                    <Search size={20} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
-                  </div>
+                <p className="admin-surface__muted">Manage account access and lifecycle.</p>
 
+                <div className="admin-search-field">
+                  <Search size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search users by name or email..."
+                    value={usersSearchInput}
+                    onChange={(e) => setUsersSearchInput(e.target.value)}
+                  />
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(170px, 1fr))' : 'repeat(auto-fill, minmax(220px, 1fr))',
-                  gap: '18px'
-                }}
-              >
+              <div className="admin-users-grid">
                 {usersLoading ? (
-                  <p style={{ margin: 0, fontWeight: 900 }}>Loading users...</p>
+                  <div className="admin-empty-state">
+                    <p>Loading users...</p>
+                  </div>
                 ) : adminUsers.length === 0 ? (
-                  <p style={{ margin: 0, fontWeight: 900 }}>No users found.</p>
+                  <div className="admin-empty-state">
+                    <p>No users found.</p>
+                  </div>
                 ) : (
                   adminUsers.map((user) => {
                     const isCurrentAdmin = myUserId === user.id
                     const isActionBusy = userActionId === user.id
                     return (
-                      <div
-                        key={user.id}
-                        style={{
-                          background: 'white',
-                          border: '4px solid black',
-                          boxShadow: '6px 6px 0px black',
-                          overflow: 'hidden',
-                          display: 'grid',
-                          gap: '0'
-                        }}
-                      >
+                      <article key={user.id} className="admin-user-card">
                         <button
                           type="button"
                           onClick={() => navigate(`/profile/${user.id}`)}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            padding: 0,
-                            textAlign: 'left',
-                            cursor: 'pointer'
-                          }}
+                          className="admin-user-card__media-btn"
                         >
-                          <div style={{ width: '100%', height: '190px', borderBottom: '4px solid black' }}>
+                          <div className="admin-user-card__media">
                             <GenderCapAvatar
                               src={user.photoUrl}
                               alt={user.username}
                               gender={user.gender}
                               fallbackText={user.username.charAt(0).toUpperCase()}
-                              containerStyle={{ width: '100%', height: '100%', background: '#eee' }}
+                              containerStyle={{ width: '100%', height: '100%', background: '#eceff5' }}
                               imageStyle={{ objectFit: 'cover' }}
-                              fallbackStyle={{ fontSize: '3rem', background: '#eee' }}
+                              fallbackStyle={{ fontSize: '3rem', background: '#eceff5' }}
                               capScale={0.5}
                             />
                           </div>
                         </button>
 
-                        <div style={{ padding: '12px', display: 'grid', gap: '8px' }}>
-                          <div style={{ fontWeight: 900, fontSize: '1.02rem', textTransform: 'uppercase', wordBreak: 'break-word' }}>
-                            {user.username || 'Unnamed'}
-                          </div>
-                          <div style={{ fontWeight: 800, fontSize: '0.8rem', opacity: 0.82, wordBreak: 'break-word' }}>{user.email}</div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 900, fontSize: '0.75rem' }}>{user.role}</div>
-                            <div
-                              style={{
-                                border: '2px solid black',
-                                padding: '3px 7px',
-                                fontWeight: 900,
-                                fontSize: '0.72rem',
-                                background: user.isLocked ? '#ffbbbb' : '#c9ffd2'
-                              }}
-                            >
+                        <div className="admin-user-card__content">
+                          <div className="admin-user-card__name">{user.username || 'Unnamed'}</div>
+                          <div className="admin-user-card__email">{user.email}</div>
+                          <div className="admin-user-card__meta">
+                            <span>{user.role}</span>
+                            <span className={`admin-status-pill ${user.isLocked ? 'is-danger' : 'is-success'}`}>
                               {user.isLocked ? 'Locked' : 'Active'}
-                            </div>
+                            </span>
                           </div>
-                          <div style={{ fontWeight: 700, fontSize: '0.75rem', opacity: 0.7 }}>
-                            Created {new Date(user.createdAt).toLocaleDateString()}
-                          </div>
+                          <div className="admin-user-card__date">Created {new Date(user.createdAt).toLocaleDateString()}</div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '8px' }}>
+                          <div className="admin-user-card__actions">
                             <button
                               type="button"
-                              className="neo-btn"
+                              className={`neo-btn admin-btn ${user.isLocked ? 'admin-btn--success' : 'admin-btn--warning'}`}
                               disabled={isActionBusy || isCurrentAdmin}
                               onClick={() => void handleLockToggle(user)}
-                              style={{
-                                minWidth: 'auto',
-                                padding: '8px 10px',
-                                background: user.isLocked ? '#bde7c2' : '#ffe8a8'
-                              }}
                             >
                               {user.isLocked ? (
                                 <>
-                                  <LockOpen size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                  Unlock
+                                  <LockOpen size={13} />
+                                  <span>Unlock</span>
                                 </>
                               ) : (
                                 <>
-                                  <LockKeyhole size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                  Lock
+                                  <LockKeyhole size={13} />
+                                  <span>Lock</span>
                                 </>
                               )}
                             </button>
 
                             <button
                               type="button"
-                              className="neo-btn"
+                              className="neo-btn admin-btn admin-btn--danger"
                               disabled={isActionBusy || isCurrentAdmin}
                               onClick={() => void handleDeleteUser(user)}
-                              style={{ minWidth: 'auto', padding: '8px 10px', background: '#ffb6b6' }}
                             >
-                              <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                              Delete
+                              <Trash2 size={13} />
+                              <span>Delete</span>
                             </button>
                           </div>
-                          {isCurrentAdmin && <div style={{ fontWeight: 800, fontSize: '0.75rem' }}>Your account</div>}
+
+                          {isCurrentAdmin && <div className="admin-inline-note">Your account</div>}
                         </div>
-                      </div>
+                      </article>
                     )
                   })
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div className="admin-pagination">
                 <button
                   type="button"
-                  className="neo-btn"
+                  className="neo-btn admin-btn admin-btn--ghost"
                   onClick={() => {
                     if (isUsersPreviousDisabled) return
                     setUsersPageNumber((prev) => Math.max(1, prev - 1))
                   }}
                   disabled={isUsersPreviousDisabled}
-                  style={isUsersPreviousDisabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
                 >
                   Previous
                 </button>
-                <div style={{ display: 'grid', placeItems: 'center', fontWeight: 900 }}>
-                  Page {usersPageNumber}
-                </div>
+                <div className="admin-pagination__label">Page {usersPageNumber}</div>
                 <button
                   type="button"
-                  className="neo-btn"
+                  className="neo-btn admin-btn admin-btn--ghost"
                   onClick={() => {
                     if (isUsersNextDisabled) return
                     setUsersPageNumber((prev) => prev + 1)
                   }}
                   disabled={isUsersNextDisabled}
-                  style={isUsersNextDisabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
                 >
                   Next
                 </button>
               </div>
-            </div>
+            </section>
           )}
 
-          {activeSection === 'memoryboard' && (
-            <div style={{ display: 'grid', gap: '12px' }}>
-              <div className="window" style={{ maxWidth: '100%' }}>
-                <div className="window-header" style={{ background: '#d4f4ff' }}>
-                  <ImagePlus size={18} />
-                  <span style={{ fontWeight: 900 }}>MEMORYBOARD_APPROVALS</span>
-                </div>
-                <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 900, fontSize: '0.95rem' }}>
-                      Pending: {memoryBoardPendingPhotos.length} | Approved: {memoryBoardApprovedPhotos.length}
-                    </div>
-                    <button
-                      type="button"
-                      className="neo-btn"
-                      onClick={() => void loadMemoryBoardPhotos()}
-                      disabled={memoryBoardLoading}
-                      style={{ minWidth: 'auto', padding: '10px 14px' }}
-                    >
-                      <RefreshCw size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                      {memoryBoardLoading ? 'Refreshing...' : 'Refresh'}
-                    </button>
+          {activeSection === 'approvePhotos' && (
+            <section className="admin-section">
+              <div className="admin-surface">
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <ImagePlus size={18} />
+                    <h2 className="admin-surface__title">Approve Photos</h2>
                   </div>
-
-                  <p style={{ margin: 0, fontWeight: 700, opacity: 0.78 }}>
-                    Review new uploads and delete any Memoryboard photo directly from this section.
-                  </p>
+                  <button
+                    type="button"
+                    className="neo-btn admin-btn admin-btn--secondary"
+                    onClick={() => void loadMemoryBoardPhotos()}
+                    disabled={memoryBoardLoading}
+                  >
+                    <RefreshCw size={14} />
+                    <span>{memoryBoardLoading ? 'Refreshing...' : 'Refresh'}</span>
+                  </button>
                 </div>
+                <p className="admin-surface__muted">
+                  Pending approval requests: {memoryBoardPendingPhotos.length}
+                </p>
               </div>
 
               {memoryBoardLoading ? (
-                <div className="window">
-                  <div className="window-content" style={{ padding: '18px', textAlign: 'left' }}>
-                    <p style={{ margin: 0, fontWeight: 800 }}>Loading memoryboard photos...</p>
-                  </div>
+                <div className="admin-empty-state">
+                  <p>Loading photos...</p>
                 </div>
               ) : (
                 <>
-                  <div className="window" style={{ maxWidth: '100%' }}>
-                    <div className="window-header" style={{ background: '#cfe7ff' }}>
-                      <span style={{ fontWeight: 900 }}>PENDING_PHOTOS</span>
-                    </div>
-                    <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
-                      {memoryBoardPendingPhotos.length === 0 ? (
-                        <p style={{ margin: 0, fontWeight: 800 }}>No pending photos right now.</p>
-                      ) : (
-                        <div style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: '6px' }}>
-                          <div style={{ display: 'flex', alignItems: 'stretch', gap: '14px', width: 'max-content', minWidth: '100%' }}>
+                  <div className="admin-surface">
+                    <div className="admin-subsection-title">Pending Approval Requests</div>
+                    {memoryBoardPendingPhotos.length === 0 ? (
+                      <div className="admin-empty-state compact">
+                        <p>No pending photos right now.</p>
+                      </div>
+                    ) : (
+                      <div className="admin-list-panel__body">
                           {memoryBoardPendingPhotos.map((photo) => {
                             const isBusy = memoryBoardActionId === photo.id
                             const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
                             const createdAtLabel = formatDateTime(photo.createdAt)
 
                             return (
-                              <div
-                                key={`pending-${photo.id}`}
-                                style={{
-                                  border: '4px solid black',
-                                  boxShadow: '6px 6px 0 black',
-                                  background: 'white',
-                                  overflow: 'hidden',
-                                  display: 'grid',
-                                  width: isMobile ? 'min(260px, 74vw)' : '280px',
-                                  flex: isMobile ? '0 0 min(260px, 74vw)' : '0 0 280px'
-                                }}
-                              >
-                                <img
-                                  src={photo.photoUrl}
-                                  alt={`Pending memoryboard photo by ${photo.username}`}
-                                  style={{ width: '100%', height: '220px', objectFit: 'cover', borderBottom: '4px solid black', background: '#eaf1ff' }}
-                                />
+                              <article key={`pending-${photo.id}`} className="admin-entity-card">
+                                <div className="admin-entity-card__head">
+                                  <div className="admin-entity-card__identity">
+                                    <h3>{photo.username}</h3>
+                                    <p>Taken: {takenAtLabel}</p>
+                                    <span>Uploaded: {createdAtLabel}</span>
+                                  </div>
+                                  <span className="admin-status-pill">Pending</span>
+                                </div>
 
-                                <div style={{ padding: '12px', display: 'grid', gap: '8px' }}>
-                                  <div style={{ fontWeight: 900, fontSize: '1rem', wordBreak: 'break-word' }}>{photo.username}</div>
-                                  <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.8 }}>Taken: {takenAtLabel}</div>
-                                  <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.72 }}>Uploaded: {createdAtLabel}</div>
-
-                                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '6px' }}>
+                                <div className="admin-actions-row">
                                     <button
                                       type="button"
-                                      className="neo-btn"
+                                      className="neo-btn admin-btn admin-btn--success"
                                       disabled={isBusy}
                                       onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Approve')}
-                                      style={{ minWidth: 'auto', padding: '6px 8px', fontSize: '0.74rem', background: '#c9ffd2' }}
                                     >
-                                      <CheckCircle2 size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                                      Approve
+                                      <CheckCircle2 size={12} />
+                                      <span>Approve</span>
                                     </button>
                                     <button
                                       type="button"
-                                      className="neo-btn"
+                                      className="neo-btn admin-btn admin-btn--danger"
                                       disabled={isBusy}
                                       onClick={() => void handleReviewMemoryBoardPhoto(photo.id, 'Reject')}
-                                      style={{ minWidth: 'auto', padding: '6px 8px', fontSize: '0.74rem', background: '#ffc8c8' }}
                                     >
-                                      <XCircle size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                                      Reject
+                                      <XCircle size={12} />
+                                      <span>Reject</span>
                                     </button>
-                                  </div>
-                                  {isBusy && <div style={{ fontWeight: 800, fontSize: '0.76rem' }}>Saving...</div>}
                                 </div>
-                              </div>
+                                {isBusy && <div className="admin-inline-note">Saving...</div>}
+                                <div className="admin-inline-note">Open Memoryboard page to inspect full image before action if needed.</div>
+                              </article>
                             )
                           })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="window" style={{ maxWidth: '100%' }}>
-                    <div className="window-header" style={{ background: '#d7ffd8' }}>
-                      <span style={{ fontWeight: 900 }}>APPROVED_PHOTOS</span>
-                    </div>
-                    <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
-                      {memoryBoardApprovedPhotos.length === 0 ? (
-                        <p style={{ margin: 0, fontWeight: 800 }}>No approved photos yet.</p>
-                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: '12px' }}>
-                          {memoryBoardApprovedPhotos.map((photo) => {
-                            const isBusy = memoryBoardActionId === photo.id
-                            const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
-                            return (
-                              <div
-                                key={`approved-${photo.id}`}
-                                style={{
-                                  border: '3px solid black',
-                                  boxShadow: '5px 5px 0 black',
-                                  background: 'white',
-                                  overflow: 'hidden',
-                                  display: 'grid'
-                                }}
-                              >
-                                <img
-                                  src={photo.photoUrl}
-                                  alt={`Approved memoryboard photo by ${photo.username}`}
-                                  style={{ width: '100%', height: '170px', objectFit: 'cover', borderBottom: '3px solid black', background: '#eaf1ff' }}
-                                />
-                                <div style={{ padding: '10px', display: 'grid', gap: '7px' }}>
-                                  <div style={{ fontWeight: 900, fontSize: '0.9rem', wordBreak: 'break-word' }}>{photo.username}</div>
-                                  <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.8 }}>{takenAtLabel}</div>
-                                  <button
-                                    type="button"
-                                    className="neo-btn"
-                                    disabled={isBusy}
-                                    onClick={() => void handleDeleteMemoryBoardPhoto(photo.id)}
-                                    style={{ minWidth: 'auto', width: 'fit-content', padding: '8px 10px', background: '#ffb9b9' }}
-                                  >
-                                    <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                    Delete
-                                  </button>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
-            </div>
+            </section>
           )}
 
           {activeSection === 'announcements' && (
-            <div style={{ display: 'grid', gap: '12px' }}>
-              <div className="window" style={{ maxWidth: '100%' }}>
-                <div className="window-header" style={{ background: '#b7ef9f' }}>
-                  <Megaphone size={18} />
-                  <span style={{ fontWeight: 900 }}>ANNOUNCEMENTS_AND_EVENTS</span>
-                </div>
-                <div className="window-content" style={{ padding: '20px', textAlign: 'left', gap: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <p style={{ margin: 0, fontWeight: 700, opacity: 0.78 }}>
-                      Add announcements and events here, then they will appear in the portal.
-                    </p>
-                    <button
-                      type="button"
-                      className="neo-btn"
-                      onClick={() => void loadAnnouncementsAndEvents()}
-                      disabled={announcementsLoading || eventsLoading}
-                      style={{ minWidth: 'auto', padding: '8px 12px' }}
-                    >
-                      <RefreshCw size={13} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                      {announcementsLoading || eventsLoading ? 'Refreshing...' : 'Refresh'}
-                    </button>
+            <section className="admin-section">
+              <div className="admin-surface">
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <Megaphone size={18} />
+                    <h2 className="admin-surface__title">Announcements & Events</h2>
                   </div>
+                  <button
+                    type="button"
+                    className="neo-btn admin-btn admin-btn--secondary"
+                    onClick={() => void loadAnnouncementsAndEvents()}
+                    disabled={announcementsLoading || eventsLoading}
+                  >
+                    <RefreshCw size={13} />
+                    <span>{announcementsLoading || eventsLoading ? 'Refreshing...' : 'Refresh'}</span>
+                  </button>
                 </div>
+                <p className="admin-surface__muted">Add announcements and events here, then they will appear in the portal.</p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-                <div className="window" style={{ maxWidth: '100%' }}>
-                  <div className="window-header" style={{ background: '#d7ffd8' }}>
+              <div className="admin-two-column-grid">
+                <div className="admin-surface admin-form-panel">
+                  <div className="admin-form-panel__title">
                     <Megaphone size={16} />
-                    <span style={{ fontWeight: 900 }}>ADD_ANNOUNCEMENT</span>
+                    <span>Add Announcement</span>
                   </div>
-                  <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
+                  <div className="admin-form-panel__body">
                     <input
                       type="text"
                       placeholder="Announcement title"
@@ -1344,34 +1136,16 @@ export default function AdminJoinRequests() {
                       rows={5}
                       style={{ width: '100%', padding: '10px 12px', background: 'white', resize: 'vertical' }}
                     />
-                    <label
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontWeight: 800,
-                        fontSize: '0.84rem'
-                      }}
-                    >
+                    <label className="admin-checkbox-row">
                       <input
                         type="checkbox"
                         checked={announcementPollEnabled}
                         onChange={(e) => setAnnouncementPollEnabled(e.target.checked)}
-                        style={{ width: '18px', height: '18px', padding: 0 }}
                       />
-                      Add Poll To Announcement
+                      Add poll to announcement
                     </label>
                     {announcementPollEnabled && (
-                      <div
-                        style={{
-                          border: '2px solid black',
-                          background: '#fff6cf',
-                          boxShadow: '3px 3px 0 black',
-                          padding: '10px',
-                          display: 'grid',
-                          gap: '8px'
-                        }}
-                      >
+                      <div className="admin-poll-builder">
                         <input
                           type="text"
                           placeholder="Poll question"
@@ -1379,18 +1153,11 @@ export default function AdminJoinRequests() {
                           onChange={(e) => setAnnouncementPollQuestionInput(e.target.value)}
                           style={{ width: '100%', padding: '9px 10px', background: 'white' }}
                         />
-                        <div style={{ fontWeight: 800, fontSize: '0.76rem', opacity: 0.82 }}>
+                        <div className="admin-inline-note">
                           Poll options (at least 2 unique options)
                         </div>
                         {announcementPollOptionsInput.map((option, index) => (
-                          <div
-                            key={`announcement-poll-option-${index}`}
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
-                              gap: '6px'
-                            }}
-                          >
+                          <div key={`announcement-poll-option-${index}`} className="admin-poll-option-row">
                             <input
                               type="text"
                               placeholder={`Option ${index + 1}`}
@@ -1400,15 +1167,9 @@ export default function AdminJoinRequests() {
                             />
                             <button
                               type="button"
-                              className="neo-btn"
+                              className="neo-btn admin-btn admin-btn--danger"
                               onClick={() => handleRemoveAnnouncementPollOption(index)}
                               disabled={announcementPollOptionsInput.length <= 2}
-                              style={{
-                                minWidth: 'auto',
-                                width: isMobile ? '100%' : 'fit-content',
-                                padding: '8px 10px',
-                                background: '#ffd7d7'
-                              }}
                             >
                               Remove
                             </button>
@@ -1416,10 +1177,9 @@ export default function AdminJoinRequests() {
                         ))}
                         <button
                           type="button"
-                          className="neo-btn"
+                          className="neo-btn admin-btn admin-btn--secondary"
                           onClick={handleAddAnnouncementPollOption}
                           disabled={announcementPollOptionsInput.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS}
-                          style={{ minWidth: 'auto', width: 'fit-content', padding: '8px 10px', background: '#daf3ff' }}
                         >
                           Add Option
                         </button>
@@ -1432,12 +1192,12 @@ export default function AdminJoinRequests() {
                       onChange={(e) => setAnnouncementPhotoFile(e.target.files?.[0] ?? null)}
                       style={{ width: '100%', padding: '8px 10px', background: 'white' }}
                     />
-                    <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.74 }}>
+                    <div className="admin-inline-note">
                       {announcementPhotoFile ? `Selected photo: ${announcementPhotoFile.name}` : 'Optional photo (jpg, png, webp)'}
                     </div>
                     <button
                       type="button"
-                      className="neo-btn"
+                      className="neo-btn admin-btn admin-btn--primary"
                       onClick={() => void handlePublishAnnouncement()}
                       disabled={announcementsLoading}
                     >
@@ -1446,12 +1206,12 @@ export default function AdminJoinRequests() {
                   </div>
                 </div>
 
-                <div className="window" style={{ maxWidth: '100%' }}>
-                  <div className="window-header" style={{ background: '#ffe4b8' }}>
+                <div className="admin-surface admin-form-panel">
+                  <div className="admin-form-panel__title">
                     <CalendarDays size={16} />
-                    <span style={{ fontWeight: 900 }}>ADD_EVENT</span>
+                    <span>Add Event</span>
                   </div>
-                  <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
+                  <div className="admin-form-panel__body">
                     <input
                       type="text"
                       placeholder="Event title"
@@ -1486,12 +1246,12 @@ export default function AdminJoinRequests() {
                       onChange={(e) => setEventPhotoFile(e.target.files?.[0] ?? null)}
                       style={{ width: '100%', padding: '8px 10px', background: 'white' }}
                     />
-                    <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.74 }}>
+                    <div className="admin-inline-note">
                       {eventPhotoFile ? `Selected photo: ${eventPhotoFile.name}` : 'Optional photo (jpg, png, webp)'}
                     </div>
                     <button
                       type="button"
-                      className="neo-btn"
+                      className="neo-btn admin-btn admin-btn--primary"
                       onClick={() => void handlePublishEvent()}
                       disabled={eventsLoading}
                     >
@@ -1501,16 +1261,16 @@ export default function AdminJoinRequests() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-                <div className="window" style={{ maxWidth: '100%' }}>
-                  <div className="window-header" style={{ background: '#d7ffd8' }}>
-                    <span style={{ fontWeight: 900 }}>ANNOUNCEMENTS_LIST</span>
+              <div className="admin-two-column-grid">
+                <div className="admin-surface admin-list-panel">
+                  <div className="admin-form-panel__title">
+                    <span>Announcements List</span>
                   </div>
-                  <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
+                  <div className="admin-list-panel__body">
                     {announcementsLoading ? (
-                      <p style={{ margin: 0, fontWeight: 800 }}>Loading announcements...</p>
+                      <div className="admin-empty-state compact"><p>Loading announcements...</p></div>
                     ) : announcements.length === 0 ? (
-                      <p style={{ margin: 0, fontWeight: 800 }}>No announcements yet.</p>
+                      <div className="admin-empty-state compact"><p>No announcements yet.</p></div>
                     ) : (
                       announcements.map((announcement) => (
                         (() => {
@@ -1529,89 +1289,55 @@ export default function AdminJoinRequests() {
                           )
 
                           return (
-                            <div key={announcement.id} style={{ border: '2px solid black', padding: '10px', background: 'white', display: 'grid', gap: '8px' }}>
+                            <article key={announcement.id} className="admin-entity-card">
                               {announcement.photoUrl && (
                                 <img
                                   src={announcement.photoUrl}
                                   alt={announcement.title}
-                                  style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', border: '2px solid black' }}
+                                  className="admin-entity-card__image"
                                 />
                               )}
-                              <div
-                                style={{
-                                  border: '2px solid black',
-                                  background: '#ffd5e6',
-                                  boxShadow: '3px 3px 0 black',
-                                  padding: '6px 8px',
-                                  display: 'grid',
-                                  gap: '4px'
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    width: 'fit-content',
-                                    border: '2px solid black',
-                                    background: '#fff36d',
-                                    padding: '2px 6px',
-                                    fontWeight: 900,
-                                    fontSize: '0.68rem',
-                                    textTransform: 'uppercase'
-                                  }}
-                                >
+                              <div className="admin-entity-card__label-block">
+                                <div className="admin-chip">
                                   Title
                                 </div>
-                                <div style={{ fontWeight: 900, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.01em', lineHeight: 1.2 }}>
+                                <div className="admin-entity-card__title">
                                   {announcement.title}
                                 </div>
                               </div>
-                              <div style={{ fontWeight: 700, fontSize: '0.95rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                              <div className="admin-entity-card__body">
                                 {parsedAnnouncement.body}
                               </div>
                               {activePoll && (
-                                <div
-                                  style={{
-                                    border: '2px solid black',
-                                    background: '#fff6cf',
-                                    boxShadow: '3px 3px 0 black',
-                                    padding: '8px',
-                                    display: 'grid',
-                                    gap: '7px'
-                                  }}
-                                >
-                                  <div style={{ fontWeight: 900, fontSize: '0.84rem', lineHeight: 1.25 }}>
+                                <div className="admin-poll-builder admin-poll-results">
+                                  <div className="admin-entity-card__poll-title">
                                     Poll: {activePoll.question}
                                   </div>
-                                  <div style={{ display: 'grid', gap: '5px' }}>
+                                  <div className="admin-poll-results__list">
                                     {activePoll.options.map((pollOption, optionIndex) => (
                                       <div
                                         key={`admin-announcement-poll-${announcement.id}-${optionIndex}`}
-                                        style={{
-                                          border: '2px solid black',
-                                          background: 'white',
-                                          padding: '5px 7px',
-                                          display: 'grid',
-                                          gap: '4px'
-                                        }}
+                                        className="admin-poll-results__option"
                                       >
-                                        <div style={{ fontWeight: 800, fontSize: '0.82rem' }}>
+                                        <div className="admin-poll-results__option-label">
                                           {optionIndex + 1}. {pollOption.label} ({pollOption.voteCount})
                                         </div>
-                                        <details style={{ fontWeight: 700, fontSize: '0.75rem', opacity: 0.88 }}>
-                                          <summary style={{ cursor: 'pointer', fontWeight: 800 }}>
+                                        <details className="admin-poll-results__details">
+                                          <summary>
                                             Who voted ({pollOption.voteCount})
                                           </summary>
-                                          <div style={{ display: 'grid', gap: '3px', marginTop: '4px' }}>
+                                          <div className="admin-poll-results__voters">
                                             {pollOption.voters.length === 0 ? (
-                                              <div style={{ opacity: 0.75 }}>No votes yet.</div>
+                                              <div className="admin-inline-note">No votes yet.</div>
                                             ) : (
                                               pollOption.voters.map((voter) => (
                                                 <div
                                                   key={`admin-announcement-poll-voter-${announcement.id}-${optionIndex}-${voter.username}-${voter.votedAt}`}
-                                                  style={{ border: '1px solid black', background: '#fff', padding: '3px 6px' }}
+                                                  className="admin-poll-results__voter"
                                                 >
-                                                  <div style={{ display: 'grid', gap: '2px' }}>
+                                                  <div className="admin-poll-results__voter-inner">
                                                     <span>{voter.username}</span>
-                                                    <span style={{ fontSize: '0.68rem', opacity: 0.75 }}>{formatDateTime(voter.votedAt)}</span>
+                                                    <span>{formatDateTime(voter.votedAt)}</span>
                                                   </div>
                                                 </div>
                                               ))
@@ -1623,31 +1349,29 @@ export default function AdminJoinRequests() {
                                   </div>
                                 </div>
                               )}
-                              <div style={{ fontSize: '0.78rem', fontWeight: 700, opacity: 0.75 }}>
+                              <div className="admin-entity-card__timestamp">
                                 {new Date(announcement.createdAt).toLocaleString()}
                               </div>
-                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <div className="admin-actions-row">
                                 <button
                                   type="button"
-                                  className="neo-btn"
+                                  className="neo-btn admin-btn admin-btn--secondary"
                                   onClick={() => handleStartEditAnnouncement(announcement)}
                                   disabled={announcementActionId === announcement.id || announcementEditActionId === announcement.id}
-                                  style={{ minWidth: 'auto', width: 'fit-content', background: '#daf3ff' }}
                                 >
                                   Open Editor
                                 </button>
                                 <button
                                   type="button"
-                                  className="neo-btn"
+                                  className="neo-btn admin-btn admin-btn--danger"
                                   onClick={() => void handleDeleteAnnouncement(announcement.id)}
                                   disabled={announcementActionId === announcement.id || announcementEditActionId === announcement.id}
-                                  style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
                                 >
-                                  <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                  <Trash2 size={13} />
                                   {announcementActionId === announcement.id ? 'Deleting...' : 'Delete'}
                                 </button>
                               </div>
-                            </div>
+                            </article>
                           )
                         })()
                       ))
@@ -1655,36 +1379,36 @@ export default function AdminJoinRequests() {
                   </div>
                 </div>
 
-                <div className="window" style={{ maxWidth: '100%' }}>
-                  <div className="window-header" style={{ background: '#ffe4b8' }}>
-                    <span style={{ fontWeight: 900 }}>EVENTS_LIST</span>
+                <div className="admin-surface admin-list-panel">
+                  <div className="admin-form-panel__title">
+                    <span>Events List</span>
                   </div>
-                  <div className="window-content" style={{ padding: '16px', textAlign: 'left', gap: '10px' }}>
+                  <div className="admin-list-panel__body">
                     {eventsLoading ? (
-                      <p style={{ margin: 0, fontWeight: 800 }}>Loading events...</p>
+                      <div className="admin-empty-state compact"><p>Loading events...</p></div>
                     ) : events.length === 0 ? (
-                      <p style={{ margin: 0, fontWeight: 800 }}>No events yet.</p>
+                      <div className="admin-empty-state compact"><p>No events yet.</p></div>
                     ) : (
                       events.map((eventItem) => (
-                        <div key={eventItem.id} style={{ border: '2px solid black', padding: '10px', background: 'white', display: 'grid', gap: '8px' }}>
+                        <article key={eventItem.id} className="admin-entity-card">
                           {eventItem.photoUrl && (
                             <img
                               src={eventItem.photoUrl}
                               alt={eventItem.title}
-                              style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', border: '2px solid black' }}
+                              className="admin-entity-card__image"
                             />
                           )}
-                          <div style={{ fontWeight: 900 }}>{eventItem.title}</div>
-                          <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>
+                          <div className="admin-entity-card__title">{eventItem.title}</div>
+                          <div className="admin-entity-card__meta">
                             Date: {formatEventDate(eventItem.eventDate)}
                           </div>
-                          {eventItem.location && <div style={{ fontWeight: 700 }}>Location: {eventItem.location}</div>}
-                          {eventItem.details && <div style={{ fontWeight: 700, whiteSpace: 'pre-wrap' }}>{eventItem.details}</div>}
-                          <div style={{ fontSize: '0.78rem', fontWeight: 700, opacity: 0.75 }}>
+                          {eventItem.location && <div className="admin-entity-card__meta">Location: {eventItem.location}</div>}
+                          {eventItem.details && <div className="admin-entity-card__body">{eventItem.details}</div>}
+                          <div className="admin-entity-card__timestamp">
                             Published {new Date(eventItem.createdAt).toLocaleString()}
                           </div>
                           {editingEventId === eventItem.id && (
-                            <div style={{ border: '2px dashed black', padding: '10px', background: '#f7faff', display: 'grid', gap: '8px' }}>
+                            <div className="admin-inline-editor">
                               <input
                                 type="text"
                                 placeholder="Event title"
@@ -1718,7 +1442,7 @@ export default function AdminJoinRequests() {
                                 onChange={(event) => setEditingEventPhotoFile(event.target.files?.[0] ?? null)}
                                 style={{ width: '100%', padding: '8px 10px', background: 'white' }}
                               />
-                              <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.84 }}>
+                              <div className="admin-inline-note">
                                 {editingEventPhotoFile
                                   ? `Selected replacement photo: ${editingEventPhotoFile.name}`
                                   : eventItem.photoUrl
@@ -1726,7 +1450,7 @@ export default function AdminJoinRequests() {
                                     : 'Optional photo (jpg, png, webp)'}
                               </div>
                               {eventItem.photoUrl && (
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.78rem' }}>
+                                <label className="admin-checkbox-row">
                                   <input
                                     type="checkbox"
                                     checked={editingEventRemovePhoto}
@@ -1735,159 +1459,101 @@ export default function AdminJoinRequests() {
                                   Remove current photo
                                 </label>
                               )}
-                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <div className="admin-actions-row">
                                 <button
                                   type="button"
-                                  className="neo-btn"
+                                  className="neo-btn admin-btn admin-btn--success"
                                   onClick={() => void handleSaveEventEdit()}
                                   disabled={eventEditActionId === eventItem.id}
-                                  style={{ minWidth: 'auto', width: 'fit-content', background: '#d7ffd8' }}
                                 >
                                   {eventEditActionId === eventItem.id ? 'Saving...' : 'Save'}
                                 </button>
                                 <button
                                   type="button"
-                                  className="neo-btn"
+                                  className="neo-btn admin-btn admin-btn--ghost"
                                   onClick={handleCancelEditEvent}
                                   disabled={eventEditActionId === eventItem.id}
-                                  style={{ minWidth: 'auto', width: 'fit-content', background: '#efefef' }}
                                 >
                                   Cancel
                                 </button>
                               </div>
                             </div>
                           )}
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <div className="admin-actions-row">
                             <button
                               type="button"
-                              className="neo-btn"
+                              className="neo-btn admin-btn admin-btn--secondary"
                               onClick={() => handleStartEditEvent(eventItem)}
                               disabled={eventActionId === eventItem.id || eventEditActionId === eventItem.id}
-                              style={{ minWidth: 'auto', width: 'fit-content', background: '#daf3ff' }}
                             >
                               Edit
                             </button>
                             <button
                               type="button"
-                              className="neo-btn"
+                              className="neo-btn admin-btn admin-btn--danger"
                               onClick={() => void handleDeleteEvent(eventItem.id)}
                               disabled={eventActionId === eventItem.id || eventEditActionId === eventItem.id}
-                              style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
                             >
-                              <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                              <Trash2 size={13} />
                               {eventActionId === eventItem.id ? 'Deleting...' : 'Delete'}
                             </button>
                           </div>
-                        </div>
+                        </article>
                       ))
                     )}
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
           )}
         </div>
 
         {editingAnnouncement && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 1250,
-              background: 'linear-gradient(160deg, rgba(11, 27, 45, 0.86) 0%, rgba(8, 8, 12, 0.86) 100%)',
-              backdropFilter: 'blur(3px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: isMobile ? '10px' : '22px'
-            }}
-            onClick={handleCancelEditAnnouncement}
-          >
+          <div className="admin-modal-overlay" onClick={handleCancelEditAnnouncement}>
             <motion.div
+              className="admin-modal"
               initial={{ opacity: 0, scale: 0.96, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.2 }}
               role="dialog"
               aria-modal="true"
               aria-label="Edit announcement"
-              style={{
-                width: isMobile ? 'min(96vw, 760px)' : 'min(860px, 96vw)',
-                maxHeight: '92vh',
-                overflowY: 'auto',
-                border: '3px solid black',
-                boxShadow: '12px 12px 0 black',
-                background: 'linear-gradient(180deg, #f8fff0 0%, #fff7e1 100%)',
-                display: 'grid',
-                gap: '12px',
-                padding: isMobile ? '12px' : '16px',
-                textAlign: 'left'
-              }}
               onClick={(event) => event.stopPropagation()}
             >
-              <div
-                style={{
-                  border: '2px solid black',
-                  background: 'linear-gradient(90deg, #bff4cc 0%, #daf3ff 100%)',
-                  boxShadow: '4px 4px 0 black',
-                  padding: '10px 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px'
-                }}
-              >
-                <div style={{ display: 'grid', gap: '2px' }}>
-                  <div style={{ fontWeight: 900, fontSize: '1rem', letterSpacing: '0.03em' }}>EDIT ANNOUNCEMENT</div>
-                  <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.8 }}>
+              <div className="admin-modal__header">
+                <div className="admin-modal__header-text">
+                  <div className="admin-modal__title">Edit Announcement</div>
+                  <div className="admin-modal__subtitle">
                     ID #{editingAnnouncement.id} • Published {new Date(editingAnnouncement.createdAt).toLocaleString()}
                   </div>
                 </div>
                 <button
                   type="button"
-                  className="neo-btn"
+                  className="neo-btn admin-btn admin-btn--danger"
                   onClick={handleCancelEditAnnouncement}
                   disabled={announcementEditActionId === editingAnnouncement.id}
-                  style={{ minWidth: 'auto', padding: '8px 10px', background: '#ffd3d3' }}
                 >
                   <XCircle size={15} />
                 </button>
               </div>
 
-              <div style={{ display: 'grid', gap: '8px' }}>
+              <div className="admin-modal__form-grid">
                 <input
                   type="text"
                   placeholder="Announcement title"
                   value={editingAnnouncementTitleInput}
                   onChange={(event) => setEditingAnnouncementTitleInput(event.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', border: '2px solid black', background: '#fff' }}
                 />
                 <textarea
                   placeholder="Announcement body"
                   value={editingAnnouncementBodyInput}
                   onChange={(event) => setEditingAnnouncementBodyInput(event.target.value)}
                   rows={6}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '2px solid black',
-                    background: '#fff',
-                    resize: 'vertical',
-                    whiteSpace: 'pre-wrap'
-                  }}
                 />
               </div>
 
-              <div
-                style={{
-                  border: '2px solid black',
-                  background: '#fff6cf',
-                  boxShadow: '4px 4px 0 black',
-                  padding: '10px',
-                  display: 'grid',
-                  gap: '8px'
-                }}
-              >
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 800, fontSize: '0.84rem' }}>
+              <div className="admin-poll-builder admin-modal__poll">
+                <label className="admin-checkbox-row">
                   <input
                     type="checkbox"
                     checked={editingAnnouncementPollEnabled}
@@ -1897,42 +1563,27 @@ export default function AdminJoinRequests() {
                 </label>
 
                 {editingAnnouncementPollEnabled && (
-                  <div style={{ display: 'grid', gap: '8px' }}>
+                  <div className="admin-modal__form-grid">
                     <input
                       type="text"
                       placeholder="Poll question"
                       value={editingAnnouncementPollQuestionInput}
                       onChange={(event) => setEditingAnnouncementPollQuestionInput(event.target.value)}
-                      style={{ width: '100%', padding: '9px 10px', border: '2px solid black', background: 'white' }}
                     />
-                    <div style={{ display: 'grid', gap: '6px' }}>
+                    <div className="admin-modal__form-grid">
                       {editingAnnouncementPollOptionsInput.map((option, index) => (
-                        <div
-                          key={`editing-announcement-poll-option-modal-${editingAnnouncement.id}-${index}`}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
-                            gap: '6px'
-                          }}
-                        >
+                        <div key={`editing-announcement-poll-option-modal-${editingAnnouncement.id}-${index}`} className="admin-poll-option-row">
                           <input
                             type="text"
                             placeholder={`Option ${index + 1}`}
                             value={option}
                             onChange={(event) => handleEditingAnnouncementPollOptionChange(index, event.target.value)}
-                            style={{ width: '100%', padding: '9px 10px', border: '2px solid black', background: 'white' }}
                           />
                           <button
                             type="button"
-                            className="neo-btn"
+                            className="neo-btn admin-btn admin-btn--danger"
                             onClick={() => handleRemoveEditingAnnouncementPollOption(index)}
                             disabled={editingAnnouncementPollOptionsInput.length <= 2}
-                            style={{
-                              minWidth: 'auto',
-                              width: isMobile ? '100%' : 'fit-content',
-                              padding: '9px 10px',
-                              background: '#ffd7d7'
-                            }}
                           >
                             Remove
                           </button>
@@ -1941,36 +1592,26 @@ export default function AdminJoinRequests() {
                     </div>
                     <button
                       type="button"
-                      className="neo-btn"
+                      className="neo-btn admin-btn admin-btn--secondary"
                       onClick={handleAddEditingAnnouncementPollOption}
                       disabled={editingAnnouncementPollOptionsInput.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS}
-                      style={{ minWidth: 'auto', width: 'fit-content', padding: '9px 10px', background: '#daf3ff' }}
                     >
                       Add Option
                     </button>
-                    <div style={{ fontWeight: 700, fontSize: '0.75rem', opacity: 0.84 }}>
+                    <div className="admin-inline-note">
                       Editing poll title or option text keeps existing votes. Only removed options lose their votes.
                     </div>
                   </div>
                 )}
               </div>
 
-              <div
-                style={{
-                  border: '2px solid black',
-                  background: '#f9f9f9',
-                  padding: '10px',
-                  display: 'grid',
-                  gap: '7px'
-                }}
-              >
+              <div className="admin-modal__asset-block">
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(event) => setEditingAnnouncementPhotoFile(event.target.files?.[0] ?? null)}
-                  style={{ width: '100%', padding: '8px 10px', background: 'white', border: '2px solid black' }}
                 />
-                <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.84 }}>
+                <div className="admin-inline-note">
                   {editingAnnouncementPhotoFile
                     ? `Selected replacement photo: ${editingAnnouncementPhotoFile.name}`
                     : editingAnnouncement.photoUrl
@@ -1978,7 +1619,7 @@ export default function AdminJoinRequests() {
                       : 'Optional photo (jpg, png, webp)'}
                 </div>
                 {editingAnnouncement.photoUrl && (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.78rem' }}>
+                  <label className="admin-checkbox-row">
                     <input
                       type="checkbox"
                       checked={editingAnnouncementRemovePhoto}
@@ -1989,22 +1630,20 @@ export default function AdminJoinRequests() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="admin-actions-row admin-actions-row--right">
                 <button
                   type="button"
-                  className="neo-btn"
+                  className="neo-btn admin-btn admin-btn--ghost"
                   onClick={handleCancelEditAnnouncement}
                   disabled={announcementEditActionId === editingAnnouncement.id}
-                  style={{ minWidth: 'auto', width: 'fit-content', background: '#ececec' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  className="neo-btn"
+                  className="neo-btn admin-btn admin-btn--success"
                   onClick={() => void handleSaveAnnouncementEdit()}
                   disabled={announcementEditActionId === editingAnnouncement.id}
-                  style={{ minWidth: 'auto', width: 'fit-content', background: '#c8ffd0' }}
                 >
                   {announcementEditActionId === editingAnnouncement.id ? 'Saving...' : 'Save Changes'}
                 </button>
