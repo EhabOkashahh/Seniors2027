@@ -15,11 +15,13 @@ namespace Seniors2027.API.Controllers;
 public class MemoryBoardController(
     AppDbContext context,
     IImageUploadProcessor imageUploadProcessor,
-    IWebHostEnvironment environment) : ControllerBase
+    IWebHostEnvironment environment,
+    IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier) : ControllerBase
 {
     private readonly AppDbContext _context = context;
     private readonly IImageUploadProcessor _imageUploadProcessor = imageUploadProcessor;
     private readonly IWebHostEnvironment _environment = environment;
+    private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
 
     [HttpGet("photos")]
     public async Task<ActionResult<IReadOnlyList<MemoryBoardPhotoDto>>> GetApprovedPhotos([FromQuery] int maxCount = 2000)
@@ -151,6 +153,7 @@ public class MemoryBoardController(
             })
             .FirstAsync();
 
+        await _appUpdatesRealtimeNotifier.NotifyMemoryBoardUpdatedAsync(HttpContext.RequestAborted);
         return Ok(created);
     }
 
@@ -176,6 +179,7 @@ public class MemoryBoardController(
             TryDeleteFile(localPhotoPath);
         }
 
+        await _appUpdatesRealtimeNotifier.NotifyMemoryBoardUpdatedAsync(HttpContext.RequestAborted);
         return NoContent();
     }
 

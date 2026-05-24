@@ -1,0 +1,10 @@
+namespace Seniors2027.API.Services;
+
+public interface IAppUpdatesRealtimeNotifier
+{
+    Task NotifyDailyHighlightsUpdatedAsync(CancellationToken cancellationToken = default);
+    Task NotifyAnnouncementPollUpdatedAsync(int announcementId, CancellationToken cancellationToken = default);
+    Task NotifyPortalContentUpdatedAsync(CancellationToken cancellationToken = default);
+    Task NotifyMemoryBoardUpdatedAsync(CancellationToken cancellationToken = default);
+    Task NotifyJoinRequestsUpdatedAsync(CancellationToken cancellationToken = default);
+}

@@ -14,10 +14,12 @@ namespace Seniors2027.API.Controllers;
 [Authorize]
 public class PortalContentController(
     AppDbContext context,
-    IAnnouncementPollRealtimeNotifier announcementPollRealtimeNotifier) : ControllerBase
+    IAnnouncementPollRealtimeNotifier announcementPollRealtimeNotifier,
+    IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier) : ControllerBase
 {
     private readonly AppDbContext _context = context;
     private readonly IAnnouncementPollRealtimeNotifier _announcementPollRealtimeNotifier = announcementPollRealtimeNotifier;
+    private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
 
     [HttpGet("announcements")]
     public async Task<ActionResult<IReadOnlyList<AnnouncementDto>>> GetAnnouncements([FromQuery] int maxCount = 10)
@@ -104,6 +106,8 @@ public class PortalContentController(
 
         await _context.SaveChangesAsync();
         await _announcementPollRealtimeNotifier.NotifyAnnouncementPollUpdatedAsync(announcementId, HttpContext.RequestAborted);
+        await _appUpdatesRealtimeNotifier.NotifyAnnouncementPollUpdatedAsync(announcementId, HttpContext.RequestAborted);
+        await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
 
         var updatedAnnouncement = await _context.Announcements
             .AsNoTracking()

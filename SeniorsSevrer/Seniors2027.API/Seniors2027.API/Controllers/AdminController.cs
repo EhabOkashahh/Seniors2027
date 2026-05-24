@@ -17,12 +17,14 @@ public class AdminController(
     IJoinRequestService joinRequestService,
     AppDbContext context,
     IWebHostEnvironment environment,
-    IImageUploadProcessor imageUploadProcessor) : ControllerBase
+    IImageUploadProcessor imageUploadProcessor,
+    IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier) : ControllerBase
 {
     private readonly IJoinRequestService _joinRequestService = joinRequestService;
     private readonly AppDbContext _context = context;
     private readonly IWebHostEnvironment _environment = environment;
     private readonly IImageUploadProcessor _imageUploadProcessor = imageUploadProcessor;
+    private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
 
     [HttpGet("join-requests")]
     public async Task<ActionResult<IReadOnlyList<JoinRequestDto>>> GetJoinRequests([FromQuery] JoinRequestStatus? status = JoinRequestStatus.Pending)
@@ -39,6 +41,7 @@ public class AdminController(
         try
         {
             var updated = await _joinRequestService.ReviewJoinRequestAsync(requestId, dto.Decision, reviewerUserId);
+            await _appUpdatesRealtimeNotifier.NotifyJoinRequestsUpdatedAsync(HttpContext.RequestAborted);
             return Ok(updated);
         }
         catch (Exception ex)
@@ -365,6 +368,7 @@ public class AdminController(
             .Where(a => a.Id == announcement.Id)
             .FirstAsync();
 
+        await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
         var created = AnnouncementPollMapper.ToAnnouncementDto(createdAnnouncement, Array.Empty<AnnouncementPollVote>());
         return Ok(created);
     }
@@ -454,6 +458,7 @@ public class AdminController(
             .Where(v => v.AnnouncementId == announcementId)
             .ToListAsync();
 
+        await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
         return Ok(AnnouncementPollMapper.ToAnnouncementDto(announcement, updatedVotes));
     }
 
@@ -473,6 +478,7 @@ public class AdminController(
             TryDeleteFile(localPhotoPath);
         }
 
+        await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
         return NoContent();
     }
 
@@ -583,6 +589,7 @@ public class AdminController(
             })
             .FirstAsync();
 
+        await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
         return Ok(created);
     }
 
@@ -657,6 +664,7 @@ public class AdminController(
             TryDeleteFile(existingLocalPhotoPath);
         }
 
+        await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
         return Ok(new PortalEventDto
         {
             Id = portalEvent.Id,
@@ -686,6 +694,7 @@ public class AdminController(
             TryDeleteFile(localPhotoPath);
         }
 
+        await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
         return NoContent();
     }
 
@@ -770,6 +779,7 @@ public class AdminController(
                 IsOwnedByCurrentUser = photo.UserId == reviewerUserId
             };
 
+            await _appUpdatesRealtimeNotifier.NotifyMemoryBoardUpdatedAsync(HttpContext.RequestAborted);
             return Ok(rejected);
         }
 
@@ -795,6 +805,7 @@ public class AdminController(
             })
             .FirstAsync();
 
+        await _appUpdatesRealtimeNotifier.NotifyMemoryBoardUpdatedAsync(HttpContext.RequestAborted);
         return Ok(updated);
     }
 
@@ -815,6 +826,7 @@ public class AdminController(
             TryDeleteFile(localPhotoPath);
         }
 
+        await _appUpdatesRealtimeNotifier.NotifyMemoryBoardUpdatedAsync(HttpContext.RequestAborted);
         return NoContent();
     }
 

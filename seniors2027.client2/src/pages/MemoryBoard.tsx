@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Trash2, Upload, X } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
+import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
 import {
   deleteMyMemoryBoardPhotoRequest,
   getMeRequest,
@@ -12,7 +13,6 @@ import {
   type MemoryBoardPhoto
 } from '../lib/authApi'
 
-const MEMORYBOARD_SYNC_INTERVAL_MS = 15000
 const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
 const MEMORYBOARD_PAGE_ROWS = 3
 const MEMORYBOARD_PAGE_COLUMNS = 6
@@ -110,23 +110,27 @@ export default function MemoryBoard() {
   }, [loadPhotos, loadMyPendingPhotos])
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const refreshMemoryBoard = () => {
       void loadPhotos({ silent: true })
       void loadMyPendingPhotos({ silent: true })
-    }, MEMORYBOARD_SYNC_INTERVAL_MS)
+    }
+
+    const unsubscribeRealtime = subscribeAppUpdatesRealtime({
+      onMemoryBoardUpdated: refreshMemoryBoard,
+      onConnected: refreshMemoryBoard,
+      onReconnected: refreshMemoryBoard
+    })
 
     const onVisibilityOrFocus = () => {
-      if (document.visibilityState !== 'hidden') {
-        void loadPhotos({ silent: true })
-        void loadMyPendingPhotos({ silent: true })
-      }
+      if (document.visibilityState === 'hidden') return
+      refreshMemoryBoard()
     }
 
     document.addEventListener('visibilitychange', onVisibilityOrFocus)
     window.addEventListener('focus', onVisibilityOrFocus)
 
     return () => {
-      window.clearInterval(timer)
+      unsubscribeRealtime()
       document.removeEventListener('visibilitychange', onVisibilityOrFocus)
       window.removeEventListener('focus', onVisibilityOrFocus)
     }

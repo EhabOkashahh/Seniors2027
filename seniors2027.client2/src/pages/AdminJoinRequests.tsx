@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
+import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
 import { buildAnnouncementBodyWithPoll, normalizePollOptions, parseAnnouncementBody } from '../lib/announcementPoll'
 import {
   createAdminAnnouncementRequest,
@@ -49,8 +50,6 @@ import {
 } from '../lib/authApi'
 
 const USERS_PAGE_SIZE = 20
-const REQUESTS_SYNC_INTERVAL_MS = 5000
-const MEMORYBOARD_SYNC_INTERVAL_MS = 5000
 const MAX_ANNOUNCEMENT_POLL_OPTIONS = 6
 
 type AdminSection = 'requests' | 'users' | 'announcements' | 'memoryboard'
@@ -172,10 +171,12 @@ export default function AdminJoinRequests() {
     setUsersLoading(false)
   }, [])
 
-  const loadAnnouncementsAndEvents = useCallback(async () => {
-    setAnnouncementsLoading(true)
-    setEventsLoading(true)
-    setAnnouncementsMessage(null)
+  const loadAnnouncementsAndEvents = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setAnnouncementsLoading(true)
+      setEventsLoading(true)
+      setAnnouncementsMessage(null)
+    }
 
     const [announcementsResult, eventsResult] = await Promise.all([
       getAdminAnnouncementsRequest(100),
@@ -183,21 +184,27 @@ export default function AdminJoinRequests() {
     ])
 
     if (!announcementsResult.ok || !announcementsResult.data) {
-      setAnnouncements([])
-      setAnnouncementsMessage(announcementsResult.error ?? 'Could not load announcements.')
+      if (!silent) {
+        setAnnouncements([])
+        setAnnouncementsMessage(announcementsResult.error ?? 'Could not load announcements.')
+      }
     } else {
       setAnnouncements(announcementsResult.data)
     }
 
     if (!eventsResult.ok || !eventsResult.data) {
-      setEvents([])
-      setAnnouncementsMessage((prev) => prev ?? eventsResult.error ?? 'Could not load events.')
+      if (!silent) {
+        setEvents([])
+        setAnnouncementsMessage((prev) => prev ?? eventsResult.error ?? 'Could not load events.')
+      }
     } else {
       setEvents(eventsResult.data)
     }
 
-    setAnnouncementsLoading(false)
-    setEventsLoading(false)
+    if (!silent) {
+      setAnnouncementsLoading(false)
+      setEventsLoading(false)
+    }
   }, [])
 
   const loadMemoryBoardPhotos = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -252,25 +259,7 @@ export default function AdminJoinRequests() {
 
   useEffect(() => {
     if (activeSection !== 'requests') return
-
-    const timer = window.setInterval(() => {
-      void loadRequests({ silent: true })
-    }, REQUESTS_SYNC_INTERVAL_MS)
-
-    const onVisibilityOrFocus = () => {
-      if (document.visibilityState !== 'hidden') {
-        void loadRequests({ silent: true })
-      }
-    }
-
-    document.addEventListener('visibilitychange', onVisibilityOrFocus)
-    window.addEventListener('focus', onVisibilityOrFocus)
-
-    return () => {
-      window.clearInterval(timer)
-      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
-      window.removeEventListener('focus', onVisibilityOrFocus)
-    }
+    void loadRequests({ silent: true })
   }, [loadRequests, activeSection])
 
   useEffect(() => {
@@ -298,26 +287,64 @@ export default function AdminJoinRequests() {
   useEffect(() => {
     if (activeSection !== 'memoryboard') return
     void loadMemoryBoardPhotos()
+  }, [activeSection, loadMemoryBoardPhotos])
 
-    const timer = window.setInterval(() => {
-      void loadMemoryBoardPhotos({ silent: true })
-    }, MEMORYBOARD_SYNC_INTERVAL_MS)
+  useEffect(() => {
+    const refreshActiveSection = () => {
+      if (activeSection === 'requests') {
+        void loadRequests({ silent: true })
+        return
+      }
 
-    const onVisibilityOrFocus = () => {
-      if (document.visibilityState !== 'hidden') {
+      if (activeSection === 'announcements') {
+        void loadAnnouncementsAndEvents({ silent: true })
+        return
+      }
+
+      if (activeSection === 'memoryboard') {
         void loadMemoryBoardPhotos({ silent: true })
       }
+    }
+
+    const unsubscribeRealtime = subscribeAppUpdatesRealtime({
+      onJoinRequestsUpdated: () => {
+        if (activeSection === 'requests') {
+          void loadRequests({ silent: true })
+        }
+      },
+      onPortalContentUpdated: () => {
+        if (activeSection === 'announcements') {
+          void loadAnnouncementsAndEvents({ silent: true })
+        }
+      },
+      onAnnouncementPollUpdated: () => {
+        if (activeSection === 'announcements') {
+          void loadAnnouncementsAndEvents({ silent: true })
+        }
+      },
+      onMemoryBoardUpdated: () => {
+        if (activeSection === 'memoryboard') {
+          void loadMemoryBoardPhotos({ silent: true })
+        }
+      },
+      onConnected: refreshActiveSection,
+      onReconnected: refreshActiveSection
+    })
+
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === 'hidden') return
+      refreshActiveSection()
     }
 
     document.addEventListener('visibilitychange', onVisibilityOrFocus)
     window.addEventListener('focus', onVisibilityOrFocus)
 
     return () => {
-      window.clearInterval(timer)
+      unsubscribeRealtime()
       document.removeEventListener('visibilitychange', onVisibilityOrFocus)
       window.removeEventListener('focus', onVisibilityOrFocus)
     }
-  }, [activeSection, loadMemoryBoardPhotos])
+  }, [activeSection, loadAnnouncementsAndEvents, loadMemoryBoardPhotos, loadRequests])
 
   const reviewRequest = async (requestId: number, decision: JoinRequestDecision) => {
     setActionRequestId(requestId)

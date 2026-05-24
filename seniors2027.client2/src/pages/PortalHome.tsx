@@ -40,11 +40,7 @@ import {
   type PortalEventItem,
   uploadDailyHighlightRequest
 } from '../lib/authApi'
-import { subscribeAnnouncementPollRealtime } from '../lib/announcementPollRealtime'
-import { subscribeDailyHighlightsRealtime } from '../lib/dailyHighlightsRealtime'
-
-const HIGHLIGHTS_SYNC_INTERVAL_MS = 5000
-const PORTAL_CONTENT_SYNC_INTERVAL_MS = 15000
+import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
 const LOGO_FIREWORK_PARTICLES = [
   { x: -105, y: -12, c: '#ffcb2f' },
   { x: -82, y: -70, c: '#ff7f7f' },
@@ -304,66 +300,41 @@ export default function PortalHome() {
   }, [monthlyDumpEntries])
 
   useEffect(() => {
-    const unsubscribe = subscribeDailyHighlightsRealtime(() => {
-      void fetchHighlights({ silent: true })
-    })
-
-    return () => {
-      unsubscribe()
-    }
-  }, [fetchHighlights])
-
-  useEffect(() => {
-    const unsubscribe = subscribeAnnouncementPollRealtime(() => {
-      void fetchPortalContent({ silent: true })
-    })
-
-    return () => {
-      unsubscribe()
-    }
-  }, [fetchPortalContent])
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      void fetchHighlights({ silent: true })
-    }, HIGHLIGHTS_SYNC_INTERVAL_MS)
-
-    const onVisibilityOrFocus = () => {
-      if (document.visibilityState !== 'hidden') {
+    const unsubscribeRealtime = subscribeAppUpdatesRealtime({
+      onDailyHighlightsUpdated: () => {
         void fetchHighlights({ silent: true })
-      }
-    }
-
-    document.addEventListener('visibilitychange', onVisibilityOrFocus)
-    window.addEventListener('focus', onVisibilityOrFocus)
-
-    return () => {
-      window.clearInterval(timer)
-      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
-      window.removeEventListener('focus', onVisibilityOrFocus)
-    }
-  }, [fetchHighlights])
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      void fetchPortalContent({ silent: true })
-    }, PORTAL_CONTENT_SYNC_INTERVAL_MS)
-
-    const onVisibilityOrFocus = () => {
-      if (document.visibilityState !== 'hidden') {
+      },
+      onAnnouncementPollUpdated: () => {
+        void fetchPortalContent({ silent: true })
+      },
+      onPortalContentUpdated: () => {
+        void fetchPortalContent({ silent: true })
+      },
+      onConnected: () => {
+        void fetchHighlights({ silent: true })
+        void fetchPortalContent({ silent: true })
+      },
+      onReconnected: () => {
+        void fetchHighlights({ silent: true })
         void fetchPortalContent({ silent: true })
       }
+    })
+
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === 'hidden') return
+      void fetchHighlights({ silent: true })
+      void fetchPortalContent({ silent: true })
     }
 
     document.addEventListener('visibilitychange', onVisibilityOrFocus)
     window.addEventListener('focus', onVisibilityOrFocus)
 
     return () => {
-      window.clearInterval(timer)
+      unsubscribeRealtime()
       document.removeEventListener('visibilitychange', onVisibilityOrFocus)
       window.removeEventListener('focus', onVisibilityOrFocus)
     }
-  }, [fetchPortalContent])
+  }, [fetchHighlights, fetchPortalContent])
 
   useEffect(() => {
     const run = async () => {

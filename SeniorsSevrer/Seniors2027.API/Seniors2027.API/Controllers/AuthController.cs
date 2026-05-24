@@ -14,7 +14,12 @@ namespace Seniors2027.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, IWebHostEnvironment _environment, IImageUploadProcessor _imageUploadProcessor) : ControllerBase
+public class AuthController(
+    IAuthService _authService,
+    IUnitOfWork _unitOfWork,
+    IWebHostEnvironment _environment,
+    IImageUploadProcessor _imageUploadProcessor,
+    IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier) : ControllerBase
 {
     [Authorize]
     [HttpGet("me")]
@@ -259,7 +264,16 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
     {
         try
         {
+            var normalizedEmail = verifyOtpDto.Email.Trim().ToLowerInvariant();
+            var hadPendingJoinRequestBefore = _unitOfWork.Repository<JoinRequest>()
+                .Find(x => x.Email.ToLower() == normalizedEmail && x.Status == JoinRequestStatus.Pending)
+                .Any();
+
             var result = await _authService.VerifyOtpAsync(verifyOtpDto);
+            if (result.Status == AuthResultStatus.PendingApproval && !hadPendingJoinRequestBefore)
+            {
+                await _appUpdatesRealtimeNotifier.NotifyJoinRequestsUpdatedAsync(HttpContext.RequestAborted);
+            }
             return Ok(result);
         }
         catch (Exception ex)

@@ -19,13 +19,17 @@ bool IsAllowedClientOrigin(string? origin)
 {
     if (string.IsNullOrWhiteSpace(origin)) return false;
 
-    if (origin.Equals("http://localhost:5173", StringComparison.OrdinalIgnoreCase) ||
-        origin.Equals("http://localhost:5174", StringComparison.OrdinalIgnoreCase))
+    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+
+    var isLocalhost = uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+        || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+        || uri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+
+    if (isLocalhost &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
     {
         return true;
     }
-
-    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
 
     return uri.Scheme == Uri.UriSchemeHttps &&
            (uri.Host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase) ||
@@ -48,6 +52,7 @@ builder.Services.AddScoped<IImageUploadProcessor, ImageUploadProcessor>();
 builder.Services.AddScoped<IEmailService, EmailService >();
 builder.Services.AddSingleton<IDailyHighlightsRealtimeNotifier, DailyHighlightsRealtimeNotifier>();
 builder.Services.AddSingleton<IAnnouncementPollRealtimeNotifier, AnnouncementPollRealtimeNotifier>();
+builder.Services.AddSingleton<IAppUpdatesRealtimeNotifier, AppUpdatesRealtimeNotifier>();
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
 
@@ -75,7 +80,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
                 if (!string.IsNullOrWhiteSpace(accessToken) &&
                     (requestPath.StartsWithSegments(DailyHighlightsHub.RoutePath) ||
-                     requestPath.StartsWithSegments(AnnouncementPollsHub.RoutePath)))
+                     requestPath.StartsWithSegments(AnnouncementPollsHub.RoutePath) ||
+                     requestPath.StartsWithSegments(AppUpdatesHub.RoutePath)))
                 {
                     context.Token = accessToken;
                 }
@@ -99,7 +105,8 @@ builder.Services.AddCors(options =>
     {
         policy.SetIsOriginAllowed(IsAllowedClientOrigin)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -156,6 +163,7 @@ app.UseAuthorization();
 
 app.MapHub<DailyHighlightsHub>(DailyHighlightsHub.Route);
 app.MapHub<AnnouncementPollsHub>(AnnouncementPollsHub.Route);
+app.MapHub<AppUpdatesHub>(AppUpdatesHub.Route);
 app.MapControllers();
 
 app.Run();

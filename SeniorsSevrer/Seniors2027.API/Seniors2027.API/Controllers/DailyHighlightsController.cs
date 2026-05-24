@@ -17,17 +17,20 @@ public class DailyHighlightsController : ControllerBase
     private readonly IWebHostEnvironment _environment;
     private readonly IImageUploadProcessor _imageUploadProcessor;
     private readonly IDailyHighlightsRealtimeNotifier _highlightsRealtimeNotifier;
+    private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier;
 
     public DailyHighlightsController(
         IDailyHighlightService dailyHighlightService,
         IWebHostEnvironment environment,
         IImageUploadProcessor imageUploadProcessor,
-        IDailyHighlightsRealtimeNotifier highlightsRealtimeNotifier)
+        IDailyHighlightsRealtimeNotifier highlightsRealtimeNotifier,
+        IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier)
     {
         _dailyHighlightService = dailyHighlightService;
         _environment = environment;
         _imageUploadProcessor = imageUploadProcessor;
         _highlightsRealtimeNotifier = highlightsRealtimeNotifier;
+        _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
     }
 
     [HttpGet("active")]
@@ -71,6 +74,7 @@ public class DailyHighlightsController : ControllerBase
         {
             var created = await _dailyHighlightService.AddHighlightAsync(userId, storedPhoto.PhotoUrl);
             await _highlightsRealtimeNotifier.NotifyHighlightsUpdatedAsync(HttpContext.RequestAborted);
+            await _appUpdatesRealtimeNotifier.NotifyDailyHighlightsUpdatedAsync(HttpContext.RequestAborted);
             return Ok(created);
         }
         catch (InvalidOperationException ex)
@@ -102,6 +106,7 @@ public class DailyHighlightsController : ControllerBase
         }
 
         await _highlightsRealtimeNotifier.NotifyHighlightsUpdatedAsync(HttpContext.RequestAborted);
+        await _appUpdatesRealtimeNotifier.NotifyDailyHighlightsUpdatedAsync(HttpContext.RequestAborted);
         return Ok(deleted);
     }
 
@@ -115,6 +120,7 @@ public class DailyHighlightsController : ControllerBase
         if (updated == null) return NotFound();
 
         await _highlightsRealtimeNotifier.NotifyHighlightsUpdatedAsync(HttpContext.RequestAborted);
+        await _appUpdatesRealtimeNotifier.NotifyDailyHighlightsUpdatedAsync(HttpContext.RequestAborted);
         return Ok(updated);
     }
 
