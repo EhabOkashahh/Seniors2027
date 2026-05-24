@@ -748,6 +748,30 @@ export default function AdminJoinRequests() {
     setMemoryBoardMessage('Photo deleted.')
   }
 
+  const editingAnnouncement = useMemo(
+    () => announcements.find((announcement) => announcement.id === editingAnnouncementId) ?? null,
+    [announcements, editingAnnouncementId]
+  )
+
+  useEffect(() => {
+    if (editingAnnouncementId === null) return
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleCancelEditAnnouncement()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = originalOverflow
+    }
+  }, [editingAnnouncementId])
+
   const isUsersPreviousDisabled = usersPageNumber === 1 || usersLoading
   const isUsersNextDisabled = usersLoading || !usersHasNextPage || adminUsers.length === 0
 
@@ -1599,141 +1623,6 @@ export default function AdminJoinRequests() {
                               <div style={{ fontSize: '0.78rem', fontWeight: 700, opacity: 0.75 }}>
                                 {new Date(announcement.createdAt).toLocaleString()}
                               </div>
-                              {editingAnnouncementId === announcement.id && (
-                                <div style={{ border: '2px dashed black', padding: '10px', background: '#f7faff', display: 'grid', gap: '8px' }}>
-                                  <input
-                                    type="text"
-                                    placeholder="Announcement title"
-                                    value={editingAnnouncementTitleInput}
-                                    onChange={(event) => setEditingAnnouncementTitleInput(event.target.value)}
-                                    style={{ width: '100%', padding: '9px 10px', background: 'white' }}
-                                  />
-                                  <textarea
-                                    placeholder="Announcement body"
-                                    value={editingAnnouncementBodyInput}
-                                    onChange={(event) => setEditingAnnouncementBodyInput(event.target.value)}
-                                    rows={4}
-                                    style={{ width: '100%', padding: '9px 10px', background: 'white', resize: 'vertical' }}
-                                  />
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.82rem' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={editingAnnouncementPollEnabled}
-                                      onChange={(event) => setEditingAnnouncementPollEnabled(event.target.checked)}
-                                    />
-                                    Edit poll settings
-                                  </label>
-                                  {editingAnnouncementPollEnabled && (
-                                    <div
-                                      style={{
-                                        border: '2px solid black',
-                                        background: '#fff6cf',
-                                        boxShadow: '3px 3px 0 black',
-                                        padding: '8px',
-                                        display: 'grid',
-                                        gap: '7px'
-                                      }}
-                                    >
-                                      <input
-                                        type="text"
-                                        placeholder="Poll question"
-                                        value={editingAnnouncementPollQuestionInput}
-                                        onChange={(event) => setEditingAnnouncementPollQuestionInput(event.target.value)}
-                                        style={{ width: '100%', padding: '8px 10px', background: 'white' }}
-                                      />
-                                      <div style={{ display: 'grid', gap: '6px' }}>
-                                        {editingAnnouncementPollOptionsInput.map((option, index) => (
-                                          <div
-                                            key={`editing-announcement-poll-option-${announcement.id}-${index}`}
-                                            style={{
-                                              display: 'grid',
-                                              gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
-                                              gap: '6px'
-                                            }}
-                                          >
-                                            <input
-                                              type="text"
-                                              placeholder={`Option ${index + 1}`}
-                                              value={option}
-                                              onChange={(event) => handleEditingAnnouncementPollOptionChange(index, event.target.value)}
-                                              style={{ width: '100%', padding: '8px 10px', background: 'white' }}
-                                            />
-                                            <button
-                                              type="button"
-                                              className="neo-btn"
-                                              onClick={() => handleRemoveEditingAnnouncementPollOption(index)}
-                                              disabled={editingAnnouncementPollOptionsInput.length <= 2}
-                                              style={{
-                                                minWidth: 'auto',
-                                                width: isMobile ? '100%' : 'fit-content',
-                                                padding: '8px 10px',
-                                                background: '#ffd7d7'
-                                              }}
-                                            >
-                                              Remove
-                                            </button>
-                                          </div>
-                                        ))}
-                                        <button
-                                          type="button"
-                                          className="neo-btn"
-                                          onClick={handleAddEditingAnnouncementPollOption}
-                                          disabled={editingAnnouncementPollOptionsInput.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS}
-                                          style={{ minWidth: 'auto', width: 'fit-content', padding: '8px 10px', background: '#daf3ff' }}
-                                        >
-                                          Add Option
-                                        </button>
-                                      </div>
-                                      <div style={{ fontWeight: 700, fontSize: '0.72rem', opacity: 0.84 }}>
-                                        Updating poll settings resets current votes for this announcement.
-                                      </div>
-                                    </div>
-                                  )}
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(event) => setEditingAnnouncementPhotoFile(event.target.files?.[0] ?? null)}
-                                    style={{ width: '100%', padding: '8px 10px', background: 'white' }}
-                                  />
-                                  <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.84 }}>
-                                    {editingAnnouncementPhotoFile
-                                      ? `Selected replacement photo: ${editingAnnouncementPhotoFile.name}`
-                                      : announcement.photoUrl
-                                        ? 'Leave empty to keep current photo.'
-                                        : 'Optional photo (jpg, png, webp)'}
-                                  </div>
-                                  {announcement.photoUrl && (
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.78rem' }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={editingAnnouncementRemovePhoto}
-                                        onChange={(event) => setEditingAnnouncementRemovePhoto(event.target.checked)}
-                                      />
-                                      Remove current photo
-                                    </label>
-                                  )}
-                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                    <button
-                                      type="button"
-                                      className="neo-btn"
-                                      onClick={() => void handleSaveAnnouncementEdit()}
-                                      disabled={announcementEditActionId === announcement.id}
-                                      style={{ minWidth: 'auto', width: 'fit-content', background: '#d7ffd8' }}
-                                    >
-                                      {announcementEditActionId === announcement.id ? 'Saving...' : 'Save'}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="neo-btn"
-                                      onClick={handleCancelEditAnnouncement}
-                                      disabled={announcementEditActionId === announcement.id}
-                                      style={{ minWidth: 'auto', width: 'fit-content', background: '#efefef' }}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
                               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                 <button
                                   type="button"
@@ -1742,7 +1631,7 @@ export default function AdminJoinRequests() {
                                   disabled={announcementActionId === announcement.id || announcementEditActionId === announcement.id}
                                   style={{ minWidth: 'auto', width: 'fit-content', background: '#daf3ff' }}
                                 >
-                                  Edit
+                                  Open Editor
                                 </button>
                                 <button
                                   type="button"
@@ -1895,6 +1784,231 @@ export default function AdminJoinRequests() {
             </div>
           )}
         </div>
+
+        {editingAnnouncement && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1250,
+              background: 'linear-gradient(160deg, rgba(11, 27, 45, 0.86) 0%, rgba(8, 8, 12, 0.86) 100%)',
+              backdropFilter: 'blur(3px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: isMobile ? '10px' : '22px'
+            }}
+            onClick={handleCancelEditAnnouncement}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Edit announcement"
+              style={{
+                width: isMobile ? 'min(96vw, 760px)' : 'min(860px, 96vw)',
+                maxHeight: '92vh',
+                overflowY: 'auto',
+                border: '3px solid black',
+                boxShadow: '12px 12px 0 black',
+                background: 'linear-gradient(180deg, #f8fff0 0%, #fff7e1 100%)',
+                display: 'grid',
+                gap: '12px',
+                padding: isMobile ? '12px' : '16px',
+                textAlign: 'left'
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div
+                style={{
+                  border: '2px solid black',
+                  background: 'linear-gradient(90deg, #bff4cc 0%, #daf3ff 100%)',
+                  boxShadow: '4px 4px 0 black',
+                  padding: '10px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px'
+                }}
+              >
+                <div style={{ display: 'grid', gap: '2px' }}>
+                  <div style={{ fontWeight: 900, fontSize: '1rem', letterSpacing: '0.03em' }}>EDIT ANNOUNCEMENT</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.8 }}>
+                    ID #{editingAnnouncement.id} • Published {new Date(editingAnnouncement.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={handleCancelEditAnnouncement}
+                  disabled={announcementEditActionId === editingAnnouncement.id}
+                  style={{ minWidth: 'auto', padding: '8px 10px', background: '#ffd3d3' }}
+                >
+                  <XCircle size={15} />
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Announcement title"
+                  value={editingAnnouncementTitleInput}
+                  onChange={(event) => setEditingAnnouncementTitleInput(event.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '2px solid black', background: '#fff' }}
+                />
+                <textarea
+                  placeholder="Announcement body"
+                  value={editingAnnouncementBodyInput}
+                  onChange={(event) => setEditingAnnouncementBodyInput(event.target.value)}
+                  rows={6}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '2px solid black',
+                    background: '#fff',
+                    resize: 'vertical',
+                    whiteSpace: 'pre-wrap'
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  border: '2px solid black',
+                  background: '#fff6cf',
+                  boxShadow: '4px 4px 0 black',
+                  padding: '10px',
+                  display: 'grid',
+                  gap: '8px'
+                }}
+              >
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 800, fontSize: '0.84rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={editingAnnouncementPollEnabled}
+                    onChange={(event) => setEditingAnnouncementPollEnabled(event.target.checked)}
+                  />
+                  Enable poll on this announcement
+                </label>
+
+                {editingAnnouncementPollEnabled && (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Poll question"
+                      value={editingAnnouncementPollQuestionInput}
+                      onChange={(event) => setEditingAnnouncementPollQuestionInput(event.target.value)}
+                      style={{ width: '100%', padding: '9px 10px', border: '2px solid black', background: 'white' }}
+                    />
+                    <div style={{ display: 'grid', gap: '6px' }}>
+                      {editingAnnouncementPollOptionsInput.map((option, index) => (
+                        <div
+                          key={`editing-announcement-poll-option-modal-${editingAnnouncement.id}-${index}`}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+                            gap: '6px'
+                          }}
+                        >
+                          <input
+                            type="text"
+                            placeholder={`Option ${index + 1}`}
+                            value={option}
+                            onChange={(event) => handleEditingAnnouncementPollOptionChange(index, event.target.value)}
+                            style={{ width: '100%', padding: '9px 10px', border: '2px solid black', background: 'white' }}
+                          />
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={() => handleRemoveEditingAnnouncementPollOption(index)}
+                            disabled={editingAnnouncementPollOptionsInput.length <= 2}
+                            style={{
+                              minWidth: 'auto',
+                              width: isMobile ? '100%' : 'fit-content',
+                              padding: '9px 10px',
+                              background: '#ffd7d7'
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="neo-btn"
+                      onClick={handleAddEditingAnnouncementPollOption}
+                      disabled={editingAnnouncementPollOptionsInput.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS}
+                      style={{ minWidth: 'auto', width: 'fit-content', padding: '9px 10px', background: '#daf3ff' }}
+                    >
+                      Add Option
+                    </button>
+                    <div style={{ fontWeight: 700, fontSize: '0.75rem', opacity: 0.84 }}>
+                      Editing poll title or option text keeps existing votes. Only removed options lose their votes.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div
+                style={{
+                  border: '2px solid black',
+                  background: '#f9f9f9',
+                  padding: '10px',
+                  display: 'grid',
+                  gap: '7px'
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setEditingAnnouncementPhotoFile(event.target.files?.[0] ?? null)}
+                  style={{ width: '100%', padding: '8px 10px', background: 'white', border: '2px solid black' }}
+                />
+                <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.84 }}>
+                  {editingAnnouncementPhotoFile
+                    ? `Selected replacement photo: ${editingAnnouncementPhotoFile.name}`
+                    : editingAnnouncement.photoUrl
+                      ? 'Leave empty to keep current photo.'
+                      : 'Optional photo (jpg, png, webp)'}
+                </div>
+                {editingAnnouncement.photoUrl && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.78rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={editingAnnouncementRemovePhoto}
+                      onChange={(event) => setEditingAnnouncementRemovePhoto(event.target.checked)}
+                    />
+                    Remove current photo
+                  </label>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={handleCancelEditAnnouncement}
+                  disabled={announcementEditActionId === editingAnnouncement.id}
+                  style={{ minWidth: 'auto', width: 'fit-content', background: '#ececec' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={() => void handleSaveAnnouncementEdit()}
+                  disabled={announcementEditActionId === editingAnnouncement.id}
+                  style={{ minWidth: 'auto', width: 'fit-content', background: '#c8ffd0' }}
+                >
+                  {announcementEditActionId === editingAnnouncement.id ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </motion.div>
     </PortalLayout>
   )

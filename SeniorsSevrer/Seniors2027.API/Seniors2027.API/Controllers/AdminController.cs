@@ -419,14 +419,64 @@ public class AdminController(
 
         try
         {
-            if (!string.Equals(oldBody, body, StringComparison.Ordinal))
+            var oldPoll = AnnouncementPollParser.Parse(oldBody).Poll;
+            var nextPoll = AnnouncementPollParser.Parse(body).Poll;
+
+            var pollVotes = await _context.AnnouncementPollVotes
+                .Where(v => v.AnnouncementId == announcementId)
+                .ToListAsync();
+
+            if (pollVotes.Count > 0)
             {
-                var pollVotes = await _context.AnnouncementPollVotes
-                    .Where(v => v.AnnouncementId == announcementId)
-                    .ToListAsync();
-                if (pollVotes.Count > 0)
+                List<AnnouncementPollVote> votesToRemove;
+
+                if (nextPoll == null)
                 {
-                    _context.AnnouncementPollVotes.RemoveRange(pollVotes);
+                    // Poll was removed, so remove poll votes for this announcement.
+                    votesToRemove = pollVotes;
+                }
+                else
+                {
+                    // Keep votes while poll text is edited:
+                    // - same option labels keep their votes
+                    // - renamed options inherit votes from previous options
+                    // - removed options lose their votes
+                    // - newly added options start with zero votes
+                    var remap = oldPoll == null
+                        ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        : BuildPollOptionVoteRemap(oldPoll.Options, nextPoll.Options);
+
+                    votesToRemove = new List<AnnouncementPollVote>();
+                    foreach (var vote in pollVotes)
+                    {
+                        var currentOption = vote.Option?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(currentOption))
+                        {
+                            votesToRemove.Add(vote);
+                            continue;
+                        }
+
+                        if (remap.TryGetValue(currentOption, out var remappedOption))
+                        {
+                            vote.Option = remappedOption;
+                            continue;
+                        }
+
+                        var canonicalCurrentOption = nextPoll.Options
+                            .FirstOrDefault(option => string.Equals(option, currentOption, StringComparison.OrdinalIgnoreCase));
+                        if (!string.IsNullOrWhiteSpace(canonicalCurrentOption))
+                        {
+                            vote.Option = canonicalCurrentOption;
+                            continue;
+                        }
+
+                        votesToRemove.Add(vote);
+                    }
+                }
+
+                if (votesToRemove.Count > 0)
+                {
+                    _context.AnnouncementPollVotes.RemoveRange(votesToRemove);
                 }
             }
 
@@ -879,5 +929,50 @@ public class AdminController(
         {
             // No-op: deleting DB records is the primary action.
         }
+    }
+
+    private static Dictionary<string, string> BuildPollOptionVoteRemap(
+        IReadOnlyList<string> oldOptions,
+        IReadOnlyList<string> newOptions)
+    {
+        var remap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var usedNewIndexes = new HashSet<int>();
+
+        // First pass: map options that still exist by label (stable votes).
+        for (var oldIndex = 0; oldIndex < oldOptions.Count; oldIndex += 1)
+        {
+            var oldOption = oldOptions[oldIndex];
+            var exactNewIndex = -1;
+
+            for (var newIndex = 0; newIndex < newOptions.Count; newIndex += 1)
+            {
+                if (usedNewIndexes.Contains(newIndex)) continue;
+                if (!string.Equals(oldOption, newOptions[newIndex], StringComparison.OrdinalIgnoreCase)) continue;
+
+                exactNewIndex = newIndex;
+                break;
+            }
+
+            if (exactNewIndex < 0) continue;
+
+            remap[oldOption] = newOptions[exactNewIndex];
+            usedNewIndexes.Add(exactNewIndex);
+        }
+
+        // Second pass: for renamed options, map remaining old options to remaining new options by order.
+        var unmatchedOldOptions = oldOptions
+            .Where(oldOption => !remap.ContainsKey(oldOption))
+            .ToList();
+        var unmatchedNewOptions = newOptions
+            .Where((_, index) => !usedNewIndexes.Contains(index))
+            .ToList();
+        var fallbackCount = Math.Min(unmatchedOldOptions.Count, unmatchedNewOptions.Count);
+
+        for (var index = 0; index < fallbackCount; index += 1)
+        {
+            remap[unmatchedOldOptions[index]] = unmatchedNewOptions[index];
+        }
+
+        return remap;
     }
 }
