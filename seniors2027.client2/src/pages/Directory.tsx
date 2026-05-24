@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import PortalLayout from '../components/PortalLayout'
-import { getMeRequest, getUsersRequest, type DirectoryUser } from '../lib/authApi'
+import { getUsersRequest, type DirectoryUser } from '../lib/authApi'
 import { Search } from 'lucide-react'
 
 const PAGE_SIZE = 20
@@ -16,7 +16,6 @@ export default function Directory() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 480)
   const [users, setUsers] = useState<DirectoryUser[]>([])
-  const [myUserId, setMyUserId] = useState<number | null>(null)
   const [searchInput, setSearchInput] = useState(persistedDirectoryState.search)
   const [debouncedSearch, setDebouncedSearch] = useState(persistedDirectoryState.search)
   const [pageNumber, setPageNumber] = useState(persistedDirectoryState.page)
@@ -30,16 +29,6 @@ export default function Directory() {
     }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [])
-
-  useEffect(() => {
-    const fetchMe = async () => {
-      const meResult = await getMeRequest()
-      if (meResult.ok && meResult.data?.id) {
-        setMyUserId(meResult.data.id)
-      }
-    }
-    void fetchMe()
   }, [])
 
   useEffect(() => {
@@ -87,22 +76,16 @@ export default function Directory() {
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true)
-      const result = await getUsersRequest(pageNumber, PAGE_SIZE, debouncedSearch, myUserId)
+      const result = await getUsersRequest(pageNumber, PAGE_SIZE, debouncedSearch)
       if (result.ok && result.data) {
-        if (result.data.length === 0 && pageNumber > 1) {
+        if (result.data.pageNumber !== pageNumber) {
           setLoading(false)
-          setPageNumber((prev) => Math.max(1, prev - 1))
+          setPageNumber(result.data.pageNumber)
           return
         }
 
-        setUsers(result.data)
-
-        if (result.data.length < PAGE_SIZE) {
-          setHasNextPage(false)
-        } else {
-          const nextPageProbe = await getUsersRequest(pageNumber + 1, 1, debouncedSearch, myUserId)
-          setHasNextPage(nextPageProbe.ok && (nextPageProbe.data?.length ?? 0) > 0)
-        }
+        setUsers(result.data.items)
+        setHasNextPage(result.data.hasNextPage)
       } else {
         setUsers([])
         setHasNextPage(false)
@@ -110,7 +93,7 @@ export default function Directory() {
       setLoading(false)
     }
     void fetchUsers()
-  }, [pageNumber, myUserId, debouncedSearch])
+  }, [pageNumber, debouncedSearch])
 
   const isPreviousDisabled = pageNumber === 1 || loading
   const isNextDisabled = loading || !hasNextPage || users.length === 0

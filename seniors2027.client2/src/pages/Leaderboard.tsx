@@ -62,8 +62,8 @@ export default function Leaderboard() {
           return
         }
 
-        allUsers.push(...result.data)
-        if (result.data.length < USERS_PAGE_SIZE) break
+        allUsers.push(...result.data.items)
+        if (!result.data.hasNextPage) break
       }
 
       if (cancelled) return

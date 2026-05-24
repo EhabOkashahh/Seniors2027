@@ -176,6 +176,16 @@ export type NoteItem = {
   sender: NoteSender
 }
 
+export type PagedResult<T> = {
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+  items: T[]
+}
+
 export type PagedNotes = {
   pageNumber: number
   pageSize: number
@@ -275,9 +285,8 @@ export type PortalEventItem = {
 export async function getUsersRequest(
   pageNumber: number = 1,
   pageSize: number = 10,
-  search: string = '',
-  excludeUserId?: number | null
-): Promise<ApiResult<DirectoryUser[]>> {
+  search: string = ''
+): Promise<ApiResult<PagedResult<DirectoryUser>>> {
   try {
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
@@ -288,9 +297,6 @@ export async function getUsersRequest(
     })
 
     if (search.trim()) params.set('search', search.trim())
-    if (excludeUserId && Number.isInteger(excludeUserId) && excludeUserId > 0) {
-      params.set('excludeUserId', String(excludeUserId))
-    }
 
     const response = await fetch(`${API_BASE_URL}/api/users?${params.toString()}`, {
       headers: {
@@ -303,7 +309,7 @@ export async function getUsersRequest(
       return { ok: false, error: message }
     }
 
-    const data = (await response.json()) as DirectoryUser[]
+    const data = (await response.json()) as PagedResult<DirectoryUser>
     return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
@@ -1095,7 +1101,7 @@ export async function getAdminUsersRequest(
   pageNumber: number = 1,
   pageSize: number = 20,
   search: string = ''
-): Promise<ApiResult<AdminUser[]>> {
+): Promise<ApiResult<PagedResult<AdminUser>>> {
   try {
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
@@ -1118,7 +1124,7 @@ export async function getAdminUsersRequest(
       return { ok: false, error: message }
     }
 
-    const data = (await response.json()) as AdminUser[]
+    const data = (await response.json()) as PagedResult<AdminUser>
     return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }

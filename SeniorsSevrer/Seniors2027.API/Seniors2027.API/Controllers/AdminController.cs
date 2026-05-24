@@ -48,7 +48,7 @@ public class AdminController(
     }
 
     [HttpGet("users")]
-    public async Task<ActionResult<IReadOnlyList<AdminUserListItemDto>>> GetUsers(
+    public async Task<ActionResult<PagedResponseDto<AdminUserListItemDto>>> GetUsers(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null)
@@ -73,6 +73,13 @@ public class AdminController(
                 u.Email.Contains(normalized));
         }
 
+        var totalCount = await query.CountAsync();
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)pageSize);
+        if (pageNumber > totalPages)
+        {
+            pageNumber = totalPages;
+        }
+
         var users = await query
             .OrderBy(u => u.Id)
             .Skip((pageNumber - 1) * pageSize)
@@ -90,7 +97,16 @@ public class AdminController(
             })
             .ToListAsync();
 
-        return Ok(users);
+        return Ok(new PagedResponseDto<AdminUserListItemDto>
+        {
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = totalPages,
+            HasPreviousPage = pageNumber > 1,
+            HasNextPage = pageNumber < totalPages,
+            Items = users
+        });
     }
 
     [HttpGet("users/{userId:int}")]

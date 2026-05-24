@@ -49,7 +49,6 @@ import {
 } from '../lib/authApi'
 
 const USERS_PAGE_SIZE = 20
-const USERS_FETCH_SIZE = USERS_PAGE_SIZE + 1
 const REQUESTS_SYNC_INTERVAL_MS = 5000
 const MEMORYBOARD_SYNC_INTERVAL_MS = 5000
 const MAX_ANNOUNCEMENT_POLL_OPTIONS = 6
@@ -159,7 +158,7 @@ export default function AdminJoinRequests() {
     setUsersLoading(true)
     setUsersMessage(null)
 
-    const result = await getAdminUsersRequest(pageNumber, USERS_FETCH_SIZE, search)
+    const result = await getAdminUsersRequest(pageNumber, USERS_PAGE_SIZE, search)
     if (!result.ok || !result.data) {
       setAdminUsers([])
       setUsersHasNextPage(false)
@@ -168,8 +167,8 @@ export default function AdminJoinRequests() {
       return
     }
 
-    setUsersHasNextPage(result.data.length > USERS_PAGE_SIZE)
-    setAdminUsers(result.data.slice(0, USERS_PAGE_SIZE))
+    setUsersHasNextPage(result.data.hasNextPage)
+    setAdminUsers(result.data.items)
     setUsersLoading(false)
   }, [])
 

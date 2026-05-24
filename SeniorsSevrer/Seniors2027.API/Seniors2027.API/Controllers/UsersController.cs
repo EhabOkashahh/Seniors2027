@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Seniors2027.API.Extensions;
+using Seniors2027.BLL.DTOs;
 using Seniors2027.DAL.Data;
 using Seniors2027.DAL.Entities;
 using System.Text.Json;
@@ -21,11 +22,10 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult> GetUsers(
+    public async Task<ActionResult<PagedResponseDto<DirectoryUserListItemDto>>> GetUsers(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
-        [FromQuery] string? search = null,
-        [FromQuery] int? excludeUserId = null)
+        [FromQuery] string? search = null)
     {
         if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
 
@@ -37,17 +37,19 @@ public class UsersController : ControllerBase
             .Where(u => u.Id != currentUserId)
             .AsQueryable();
 
-        if (excludeUserId.HasValue && excludeUserId.Value > 0)
-        {
-            query = query.Where(u => u.Id != excludeUserId.Value);
-        }
-
         if (!string.IsNullOrWhiteSpace(search))
         {
             var normalized = search.Trim();
             query = query.Where(u =>
                 (u.Username != null && u.Username.Contains(normalized)) ||
                 u.Email.Contains(normalized));
+        }
+
+        var totalCount = await query.CountAsync();
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)pageSize);
+        if (pageNumber > totalPages)
+        {
+            pageNumber = totalPages;
         }
 
         var users = await query
@@ -64,17 +66,26 @@ public class UsersController : ControllerBase
             })
             .ToListAsync();
 
-        var mappedUsers = users
-            .Select(u => new
+        var items = users
+            .Select(u => new DirectoryUserListItemDto
             {
-                u.Id,
+                Id = u.Id,
                 Username = BuildDirectoryUsername(u.Username, u.Email, u.Id),
-                u.Points,
-                u.PhotoUrl
+                Points = u.Points,
+                PhotoUrl = u.PhotoUrl
             })
             .ToList();
 
-        return Ok(mappedUsers);
+        return Ok(new PagedResponseDto<DirectoryUserListItemDto>
+        {
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = totalPages,
+            HasPreviousPage = pageNumber > 1,
+            HasNextPage = pageNumber < totalPages,
+            Items = items
+        });
     }
 
     [HttpGet("{id:int}")]

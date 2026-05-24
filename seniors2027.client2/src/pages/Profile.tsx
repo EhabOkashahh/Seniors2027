@@ -221,11 +221,11 @@ export default function Profile() {
       while (!cancelled && pageNumber <= maxPages) {
         const pageResult = await getAdminUsersRequest(pageNumber, pageSize)
         if (cancelled) return
-        if (!pageResult.ok || !pageResult.data || pageResult.data.length === 0) break
+        if (!pageResult.ok || !pageResult.data || pageResult.data.items.length === 0) break
 
-        foundUser = pageResult.data.find((item) => item.id === userId) ?? null
+        foundUser = pageResult.data.items.find((item) => item.id === userId) ?? null
         if (foundUser) break
-        if (pageResult.data.length < pageSize) break
+        if (!pageResult.data.hasNextPage) break
 
         pageNumber += 1
       }
