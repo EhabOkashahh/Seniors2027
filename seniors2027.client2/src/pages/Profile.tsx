@@ -10,11 +10,13 @@ import {
   Pencil,
   Paperclip,
   Plus,
+  Share2,
   X
 } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import ImageCropEditorModal, { type ImageCropResult } from '../components/photo/ImageCropEditorModal'
+import SeniorStoryShareModal from '../components/story/SeniorStoryShareModal'
 import {
   checkMyUsernameAvailabilityRequest,
   deleteAdminUserRequest,
@@ -40,6 +42,7 @@ import {
   type PagedNotes,
   type User
 } from '../lib/authApi'
+import { buildShareableStoryUrl } from '../lib/storyShare'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 
 export default function Profile() {
@@ -47,6 +50,7 @@ export default function Profile() {
   const { id } = useParams()
   const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
+  const storyAutoOpenHandledRef = useRef(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [isTablet, setIsTablet] = useState(() => window.innerWidth <= 1360)
 
@@ -75,6 +79,7 @@ export default function Profile() {
   const [photoMessage, setPhotoMessage] = useState<string | null>(null)
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false)
   const [photoEditorSourceUrl, setPhotoEditorSourceUrl] = useState<string | null>(null)
+  const [storyShareModalOpen, setStoryShareModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [galleryLoading, setGalleryLoading] = useState(false)
@@ -376,6 +381,7 @@ export default function Profile() {
 
   const displayName = profileUser?.username ?? 'Senior'
   const displayPhoto = profileUser?.photoUrl || '/favicon.svg'
+  const mobileStoryOpenUrl = buildShareableStoryUrl(window.location.pathname, window.location.search)
   const profilePoints = Math.max(0, profileUser?.points ?? 0)
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
   const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
@@ -403,6 +409,20 @@ export default function Profile() {
   const closeExpandedGalleryPhoto = () => {
     setExpandedGalleryPhoto(null)
   }
+
+  useEffect(() => {
+    if (!isOwnProfile || storyAutoOpenHandledRef.current) return
+
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('openStoryShare') !== '1') return
+
+    storyAutoOpenHandledRef.current = true
+    params.delete('openStoryShare')
+    const nextSearch = params.toString()
+    const nextUrl = nextSearch ? `${window.location.pathname}?${nextSearch}` : window.location.pathname
+    window.history.replaceState({}, '', nextUrl)
+    setStoryShareModalOpen(true)
+  }, [isOwnProfile])
 
   const navigateExpandedGalleryPhoto = (direction: 'prev' | 'next') => {
     if (!expandedGalleryPhoto || galleryPhotos.length === 0) return
@@ -893,6 +913,32 @@ export default function Profile() {
               />
               {isOwnProfile && (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => setStoryShareModalOpen(true)}
+                    aria-label="Open story template"
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      bottom: '62px',
+                      borderRadius: '999px',
+                      border: '3px solid black',
+                      background: '#e4f5ff',
+                      boxShadow: '4px 4px 0 black',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      padding: '7px 10px',
+                      minWidth: 'auto',
+                      width: 'fit-content',
+                      fontSize: '0.72rem',
+                      fontWeight: 900
+                    }}
+                  >
+                    <Share2 size={14} />
+                    Story
+                  </button>
                   <button
                     type="button"
                     onClick={() => profilePhotoInputRef.current?.click()}
@@ -2126,6 +2172,14 @@ export default function Profile() {
         isSubmitting={photoUpdating}
         onCancel={handleClosePhotoEditor}
         onConfirm={handleApplyProfilePhoto}
+      />
+
+      <SeniorStoryShareModal
+        open={isOwnProfile && storyShareModalOpen}
+        onClose={() => setStoryShareModalOpen(false)}
+        initialName={displayName}
+        initialPhotoUrl={displayPhoto}
+        mobileOpenUrl={mobileStoryOpenUrl}
       />
     </PortalLayout>
   )

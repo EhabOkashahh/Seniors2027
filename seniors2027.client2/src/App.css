@@ -13,6 +13,14 @@
   --grid-color: rgba(0, 0, 0, 0.05);
 }
 
+@font-face {
+  font-family: 'Rocket Brush';
+  src: url('./assets/ROCKET BRUSH.OTF') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
