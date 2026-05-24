@@ -347,9 +347,6 @@ export default function SeniorStoryShareModal(props: SeniorStoryShareModalProps)
         >
           <div style={{ display: 'grid', gap: '2px' }}>
             <div style={{ fontWeight: 900, fontSize: '1rem', letterSpacing: '0.04em' }}>SENIOR STORY TEMPLATE</div>
-            <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.85 }}>
-              1080 x 1920 PNG | Mobile share sheet + desktop download fallback
-            </div>
           </div>
           <button
             type="button"
