@@ -440,6 +440,56 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
   position: relative;
 }
 
+.portal-feed-scroll {
+  max-height: clamp(320px, 58vh, 640px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 2px solid black;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 8px;
+  scrollbar-gutter: stable;
+}
+
+.portal-feed-scroll::-webkit-scrollbar {
+  width: 12px;
+}
+
+.portal-feed-scroll::-webkit-scrollbar-track {
+  background: #fff6de;
+  border-left: 2px solid black;
+}
+
+.portal-feed-scroll::-webkit-scrollbar-thumb {
+  background: #ffcb2f;
+  border: 2px solid black;
+}
+
+.portal-feed-scroll-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid black;
+  box-shadow: 4px 4px 0 black;
+  padding: 6px 9px;
+  font-weight: 900;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: center;
+  animation: portal-scroll-hint-nudge 1.15s ease-in-out infinite;
+}
+
+@keyframes portal-scroll-hint-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+
 .portal-sidebar {
   width: 260px;
   border-right: 5px solid var(--border-color);
@@ -571,6 +621,10 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
 }
 
 @media (max-width: 900px) {
+  .portal-feed-scroll {
+    max-height: 56vh;
+  }
+
   .portal-menu-toggle {
     display: inline-flex;
   }
