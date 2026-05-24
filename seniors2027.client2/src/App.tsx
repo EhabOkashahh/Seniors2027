@@ -4,6 +4,7 @@ import Onboarding from './pages/Onboarding'
 import Login from './pages/Login'
 import PortalHome from './pages/PortalHome'
 import Directory from './pages/Directory'
+import Leaderboard from './pages/Leaderboard'
 import Profile from './pages/Profile'
 import AdminJoinRequests from './pages/AdminJoinRequests'
 import MemoryBoard from './pages/MemoryBoard'
@@ -68,6 +69,14 @@ function App() {
           element={
             <PrivateRoute>
               <Directory />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <PrivateRoute>
+              <Leaderboard />
             </PrivateRoute>
           }
         />
