@@ -15,4 +15,5 @@ public class AppUpdatesHub : Hub
     public const string PortalContentUpdatedEvent = "PortalContentUpdated";
     public const string MemoryBoardUpdatedEvent = "MemoryBoardUpdated";
     public const string JoinRequestsUpdatedEvent = "JoinRequestsUpdated";
+    public const string UserPointsUpdatedEvent = "UserPointsUpdated";
 }

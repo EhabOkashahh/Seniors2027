@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Seniors2027.API.Extensions;
 using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
+using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Data;
 using Seniors2027.DAL.Entities;
 

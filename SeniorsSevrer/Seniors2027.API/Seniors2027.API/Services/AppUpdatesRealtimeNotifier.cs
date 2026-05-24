@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Seniors2027.API.Hubs;
+using Seniors2027.BLL.Interfaces;
 
 namespace Seniors2027.API.Services;
 
@@ -55,6 +56,15 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
             () => _hubContext.Clients.All.SendAsync(AppUpdatesHub.JoinRequestsUpdatedEvent, cancellationToken),
             "Failed to broadcast join requests update.",
             cancellationToken);
+    }
+
+    public async Task NotifyUserPointsUpdatedAsync(int userId, int newPoints, CancellationToken cancellationToken = default)
+    {
+        await TryBroadcastAsync(
+            () => _hubContext.Clients.All.SendAsync(AppUpdatesHub.UserPointsUpdatedEvent, userId, newPoints, cancellationToken),
+            "Failed to broadcast user points update for user {UserId}.",
+            cancellationToken,
+            userId);
     }
 
     private async Task TryBroadcastAsync(

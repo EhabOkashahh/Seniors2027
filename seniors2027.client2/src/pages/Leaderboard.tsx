@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import { getUsersRequest, type DirectoryUser } from '../lib/authApi'
+import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
+import { getCurrentUserId } from '../lib/session'
 import firstRankBadge from '../assets/1.svg'
 import secondRankBadge from '../assets/2.svg'
 import thirdRankBadge from '../assets/3.svg'
@@ -42,6 +44,7 @@ export default function Leaderboard() {
   const [users, setUsers] = useState<DirectoryUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const currentUserId = useMemo(() => getCurrentUserId(), [])
 
   useEffect(() => {
     let cancelled = false
@@ -75,8 +78,15 @@ export default function Leaderboard() {
 
     void fetchAllUsers()
 
+    const unsubscribeRealtime = subscribeAppUpdatesRealtime({
+      onUserPointsUpdated: (userId, points) => {
+        setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, points } : u)))
+      }
+    })
+
     return () => {
       cancelled = true
+      unsubscribeRealtime()
     }
   }, [])
 
@@ -117,99 +127,114 @@ export default function Leaderboard() {
             ) : rankedUsers.length === 0 ? (
               <p style={{ padding: '18px', fontWeight: 900 }}>No users found.</p>
             ) : (
-              rankedUsers.map((user) => {
-                const rankBadge = podiumBadges[user.rank]
-                return (
-                  <div
-                    key={user.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(`/profile/${user.id}`)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        navigate(`/profile/${user.id}`)
-                      }
-                    }}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '74px minmax(0, 1fr) auto',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '12px 14px',
-                      borderTop: '2px solid black',
-                      cursor: 'pointer',
-                      background: user.rank <= 3 ? '#fffceb' : 'white'
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'grid',
-                        placeItems: 'center',
-                        minHeight: '36px',
-                        fontWeight: 900,
-                        fontSize: '1.08rem'
-                      }}
-                    >
-                      {rankBadge ? (
-                        <img
-                          src={rankBadge}
-                          alt={`Rank ${user.rank}`}
-                          style={{ width: '34px', height: '34px', objectFit: 'contain' }}
-                        />
-                      ) : (
-                        <span>{user.rank}</span>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                      <div
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <AnimatePresence initial={false}>
+                  {rankedUsers.map((user) => {
+                    const rankBadge = podiumBadges[user.rank]
+                    const isCurrentUser = user.id === currentUserId
+                    return (
+                      <motion.div
+                        key={user.id}
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{
+                          layout: { type: 'spring', stiffness: 300, damping: 30 },
+                          opacity: { duration: 0.2 }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => navigate(`/profile/${user.id}`)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            navigate(`/profile/${user.id}`)
+                          }
+                        }}
                         style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '50%',
-                          border: '2px solid black',
-                          overflow: 'hidden',
-                          background: '#ededed',
                           display: 'grid',
-                          placeItems: 'center',
-                          flexShrink: 0
+                          gridTemplateColumns: '74px minmax(0, 1fr) auto',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px 14px',
+                          borderTop: '2px solid black',
+                          cursor: 'pointer',
+                          background: isCurrentUser ? '#e1f5fe' : user.rank <= 3 ? '#fffceb' : 'white',
+                          position: 'relative',
+                          zIndex: isCurrentUser ? 1 : 0
                         }}
                       >
-                        {user.photoUrl ? (
-                          <img
-                            src={user.photoUrl}
-                            alt={user.username}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        ) : (
-                          <span style={{ fontWeight: 900 }}>
-                            {user.username.charAt(0).toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <p
+                        <div
                           style={{
-                            margin: 0,
+                            display: 'grid',
+                            placeItems: 'center',
+                            minHeight: '36px',
                             fontWeight: 900,
-                            textTransform: 'uppercase',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
+                            fontSize: '1.08rem'
                           }}
                         >
-                          {user.username}
-                        </p>
-                      </div>
-                    </div>
+                          {rankBadge ? (
+                            <img
+                              src={rankBadge}
+                              alt={`Rank ${user.rank}`}
+                              style={{ width: '34px', height: '34px', objectFit: 'contain' }}
+                            />
+                          ) : (
+                            <span>{user.rank}</span>
+                          )}
+                        </div>
 
-                    <div style={{ textAlign: 'right', fontWeight: 900, whiteSpace: 'nowrap' }}>
-                      {user.safePoints} pts
-                    </div>
-                  </div>
-                )
-              })
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: '44px',
+                              height: '44px',
+                              borderRadius: '50%',
+                              border: '2px solid black',
+                              overflow: 'hidden',
+                              background: '#ededed',
+                              display: 'grid',
+                              placeItems: 'center',
+                              flexShrink: 0
+                            }}
+                          >
+                            {user.photoUrl ? (
+                              <img
+                                src={user.photoUrl}
+                                alt={user.username}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <span style={{ fontWeight: 900 }}>
+                                {user.username.charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <p
+                              style={{
+                                margin: 0,
+                                fontWeight: 900,
+                                textTransform: 'uppercase',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                            >
+                              {user.username} {isCurrentUser && '(YOU)'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right', fontWeight: 900, whiteSpace: 'nowrap' }}>
+                          {user.safePoints} pts
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </AnimatePresence>
+              </div>
             )}
           </div>
         </div>

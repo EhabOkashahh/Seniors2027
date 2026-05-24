@@ -10,10 +10,12 @@ public class DailyHighlightService : IDailyHighlightService
 {
     private const int HighlightPointsAward = 2;
     private readonly AppDbContext _context;
+    private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier;
 
-    public DailyHighlightService(AppDbContext context)
+    public DailyHighlightService(AppDbContext context, IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier)
     {
         _context = context;
+        _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
     }
 
     public async Task<DailyHighlightDto> AddHighlightAsync(int userId, string photoUrl)
@@ -42,6 +44,7 @@ public class DailyHighlightService : IDailyHighlightService
         await _context.DailyHighlights.AddAsync(highlight);
         user.Points += HighlightPointsAward;
         await _context.SaveChangesAsync();
+        await _appUpdatesRealtimeNotifier.NotifyUserPointsUpdatedAsync(user.Id, user.Points);
 
         return new DailyHighlightDto
         {
@@ -108,6 +111,11 @@ public class DailyHighlightService : IDailyHighlightService
         _context.DailyHighlights.Remove(highlight);
         _context.GalleryPhotos.Remove(highlight.GalleryPhoto);
         await _context.SaveChangesAsync();
+
+        if (shouldRevertPoints)
+        {
+            await _appUpdatesRealtimeNotifier.NotifyUserPointsUpdatedAsync(highlight.User.Id, highlight.User.Points);
+        }
 
         return deletedDto;
     }

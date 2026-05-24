@@ -13,6 +13,19 @@ export function getStoredRole(): AppUserRole | null {
   return null
 }
 
+export function getCurrentUserId(): number | null {
+  const token = getAuthToken()
+  if (!token) return null
+  const payload = parseJwtPayload(token)
+  const idValue =
+    readString(payload, 'nameid') ??
+    readString(payload, 'http://schemas.microsoft.com/ws/2008/06/identity/claims/nameid')
+
+  if (!idValue) return null
+  const id = parseInt(idValue, 10)
+  return isNaN(id) ? null : id
+}
+
 export function getRoleFromToken(token: string): AppUserRole | null {
   const payload = parseJwtPayload(token)
   const roleValue =

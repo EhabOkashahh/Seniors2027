@@ -1,4 +1,4 @@
-namespace Seniors2027.API.Services;
+namespace Seniors2027.BLL.Interfaces;
 
 public interface IAppUpdatesRealtimeNotifier
 {
@@ -7,4 +7,5 @@ public interface IAppUpdatesRealtimeNotifier
     Task NotifyPortalContentUpdatedAsync(CancellationToken cancellationToken = default);
     Task NotifyMemoryBoardUpdatedAsync(CancellationToken cancellationToken = default);
     Task NotifyJoinRequestsUpdatedAsync(CancellationToken cancellationToken = default);
+    Task NotifyUserPointsUpdatedAsync(int userId, int newPoints, CancellationToken cancellationToken = default);
 }

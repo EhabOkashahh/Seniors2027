@@ -10,10 +10,12 @@ public class NoteService : INoteService
 {
     private const int NotePointsAward = 1;
     private readonly AppDbContext _context;
+    private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier;
 
-    public NoteService(AppDbContext context)
+    public NoteService(AppDbContext context, IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier)
     {
         _context = context;
+        _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
     }
 
     public async Task<NoteDto> CreateNoteAsync(int senderId, CreateNoteDto dto)
@@ -38,6 +40,7 @@ public class NoteService : INoteService
         await _context.Notes.AddAsync(note);
         sender.Points += NotePointsAward;
         await _context.SaveChangesAsync();
+        await _appUpdatesRealtimeNotifier.NotifyUserPointsUpdatedAsync(sender.Id, sender.Points);
 
         return new NoteDto
         {
@@ -137,6 +140,12 @@ public class NoteService : INoteService
 
         _context.Notes.Remove(note);
         await _context.SaveChangesAsync();
+
+        if (sender != null)
+        {
+            await _appUpdatesRealtimeNotifier.NotifyUserPointsUpdatedAsync(sender.Id, sender.Points);
+        }
+
         return true;
     }
 }
