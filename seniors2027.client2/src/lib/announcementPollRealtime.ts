@@ -25,12 +25,14 @@ export function subscribeAnnouncementPollRealtime(onUpdated: (announcementId: nu
     onUpdated(0)
   })
 
-  void connection.start().catch(() => {
+  const startPromise = connection.start().catch(() => {
     // Keep normal polling fallback when realtime cannot connect.
   })
 
   return () => {
     connection.off(ANNOUNCEMENT_POLL_UPDATED_EVENT)
-    void connection.stop()
+    void startPromise.finally(() => {
+      void connection.stop().catch(() => {})
+    })
   }
 }

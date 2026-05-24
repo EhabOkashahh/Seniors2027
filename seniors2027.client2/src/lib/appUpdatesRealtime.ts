@@ -79,8 +79,7 @@ export function subscribeAppUpdatesRealtime(handlers: AppUpdatesRealtimeHandlers
     handlers.onReconnected?.()
   })
 
-  void connection
-    .start()
+  const startPromise = connection.start()
     .then(() => {
       if (!closed) {
         handlers.onConnected?.()
@@ -113,6 +112,8 @@ export function subscribeAppUpdatesRealtime(handlers: AppUpdatesRealtimeHandlers
       connection.off(APP_UPDATES_EVENTS.joinRequestsUpdated)
     }
 
-    void connection.stop()
+    void startPromise.finally(() => {
+      void connection.stop().catch(() => {})
+    })
   }
 }

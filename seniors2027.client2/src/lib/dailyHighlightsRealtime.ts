@@ -26,7 +26,7 @@ export function subscribeDailyHighlightsRealtime(onUpdated: () => void): () => v
     onUpdated()
   })
 
-  void connection
+  const startPromise = connection
     .start()
     .then(() => {
       if (!closed) {
@@ -40,6 +40,8 @@ export function subscribeDailyHighlightsRealtime(onUpdated: () => void): () => v
   return () => {
     closed = true
     connection.off(HIGHLIGHTS_UPDATED_EVENT)
-    void connection.stop()
+    void startPromise.finally(() => {
+      void connection.stop().catch(() => {})
+    })
   }
 }
