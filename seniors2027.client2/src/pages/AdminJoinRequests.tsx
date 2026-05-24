@@ -502,12 +502,15 @@ export default function AdminJoinRequests() {
 
   const handleStartEditAnnouncement = (announcement: AnnouncementItem) => {
     const parsed = parseAnnouncementBody(announcement.body)
+    const pollQuestion = announcement.poll?.question ?? parsed.poll?.question ?? ''
+    const pollOptions = announcement.poll?.options?.map((option) => option.label) ?? parsed.poll?.options ?? []
+
     setEditingAnnouncementId(announcement.id)
     setEditingAnnouncementTitleInput(announcement.title)
     setEditingAnnouncementBodyInput(parsed.body)
-    setEditingAnnouncementPollEnabled(Boolean(parsed.poll))
-    setEditingAnnouncementPollQuestionInput(parsed.poll?.question ?? '')
-    setEditingAnnouncementPollOptionsInput(parsed.poll?.options?.length ? parsed.poll.options : ['', ''])
+    setEditingAnnouncementPollEnabled(Boolean(announcement.poll ?? parsed.poll))
+    setEditingAnnouncementPollQuestionInput(pollQuestion)
+    setEditingAnnouncementPollOptionsInput(pollOptions.length > 0 ? pollOptions : ['', ''])
     setEditingAnnouncementPhotoFile(null)
     setEditingAnnouncementRemovePhoto(false)
   }
