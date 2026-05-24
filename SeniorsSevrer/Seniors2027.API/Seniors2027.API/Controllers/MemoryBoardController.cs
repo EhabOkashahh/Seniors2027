@@ -24,6 +24,8 @@ public class MemoryBoardController(
     [HttpGet("photos")]
     public async Task<ActionResult<IReadOnlyList<MemoryBoardPhotoDto>>> GetApprovedPhotos([FromQuery] int maxCount = 2000)
     {
+        if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
+
         var safeMaxCount = maxCount < 1 ? 200 : Math.Min(maxCount, 5000);
 
         var items = await _context.MemoryBoardPhotos
@@ -35,16 +37,13 @@ public class MemoryBoardController(
             .Select(p => new MemoryBoardPhotoDto
             {
                 Id = p.Id,
-                UserId = p.UserId,
                 Username = p.User.Username,
                 PhotoUrl = p.PhotoUrl,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt,
                 ExifTakenAtUtc = p.ExifTakenAtUtc,
                 SortDateUtc = p.ExifTakenAtUtc ?? p.CreatedAt,
-                ReviewedAtUtc = p.ReviewedAtUtc,
-                ReviewedByUserId = p.ReviewedByUserId,
-                ReviewedByUsername = p.ReviewedByUser != null ? p.ReviewedByUser.Username : null
+                IsOwnedByCurrentUser = p.UserId == currentUserId
             })
             .ToListAsync();
 
@@ -80,16 +79,13 @@ public class MemoryBoardController(
             .Select(p => new MemoryBoardPhotoDto
             {
                 Id = p.Id,
-                UserId = p.UserId,
                 Username = p.User.Username,
                 PhotoUrl = p.PhotoUrl,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt,
                 ExifTakenAtUtc = p.ExifTakenAtUtc,
                 SortDateUtc = p.ExifTakenAtUtc ?? p.CreatedAt,
-                ReviewedAtUtc = p.ReviewedAtUtc,
-                ReviewedByUserId = p.ReviewedByUserId,
-                ReviewedByUsername = p.ReviewedByUser != null ? p.ReviewedByUser.Username : null
+                IsOwnedByCurrentUser = p.UserId == userId
             })
             .ToListAsync();
 
@@ -145,16 +141,13 @@ public class MemoryBoardController(
             .Select(p => new MemoryBoardPhotoDto
             {
                 Id = p.Id,
-                UserId = p.UserId,
                 Username = p.User.Username,
                 PhotoUrl = p.PhotoUrl,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt,
                 ExifTakenAtUtc = p.ExifTakenAtUtc,
                 SortDateUtc = p.ExifTakenAtUtc ?? p.CreatedAt,
-                ReviewedAtUtc = p.ReviewedAtUtc,
-                ReviewedByUserId = p.ReviewedByUserId,
-                ReviewedByUsername = p.ReviewedByUser != null ? p.ReviewedByUser.Username : null
+                IsOwnedByCurrentUser = p.UserId == userId
             })
             .FirstAsync();
 

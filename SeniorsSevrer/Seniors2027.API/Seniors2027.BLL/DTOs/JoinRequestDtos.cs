@@ -9,9 +9,6 @@ public class JoinRequestDto
     public required string Email { get; set; }
     public JoinRequestStatus Status { get; set; }
     public DateTime RequestedAt { get; set; }
-    public DateTime? ReviewedAt { get; set; }
-    public string? ReviewedByUsername { get; set; }
-    public int? ApprovedUserId { get; set; }
 }
 
 public class ReviewJoinRequestDto

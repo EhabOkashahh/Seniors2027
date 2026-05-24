@@ -33,14 +33,16 @@ public class DailyHighlightsController : ControllerBase
     [HttpGet("active")]
     public async Task<ActionResult<IReadOnlyList<DailyHighlightDto>>> GetActive([FromQuery] int maxCount = 0)
     {
-        var highlights = await _dailyHighlightService.GetActiveHighlightsAsync(maxCount);
+        if (!User.TryGetUserId(out var requesterUserId)) return Unauthorized();
+        var highlights = await _dailyHighlightService.GetActiveHighlightsAsync(maxCount, requesterUserId);
         return Ok(highlights);
     }
 
     [HttpGet("archive")]
     public async Task<ActionResult<IReadOnlyList<DailyHighlightDto>>> GetArchive([FromQuery] int maxCount = 300)
     {
-        var highlights = await _dailyHighlightService.GetHighlightsArchiveAsync(maxCount);
+        if (!User.TryGetUserId(out var requesterUserId)) return Unauthorized();
+        var highlights = await _dailyHighlightService.GetHighlightsArchiveAsync(maxCount, requesterUserId);
         return Ok(highlights);
     }
 

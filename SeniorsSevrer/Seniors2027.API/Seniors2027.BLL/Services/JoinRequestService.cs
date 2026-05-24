@@ -38,10 +38,10 @@ public class JoinRequestService(IUnitOfWork unitOfWork) : IJoinRequestService
         }
 
         await _unitOfWork.CompleteAsync();
-        return await MapToDtoAsync(request);
+        return MapToDto(request);
     }
 
-    public async Task<IReadOnlyList<JoinRequestDto>> GetJoinRequestsAsync(JoinRequestStatus? status = null)
+    public Task<IReadOnlyList<JoinRequestDto>> GetJoinRequestsAsync(JoinRequestStatus? status = null)
     {
         var query = _unitOfWork.Repository<JoinRequest>()
             .Find(x => !status.HasValue || x.Status == status.Value)
@@ -51,10 +51,10 @@ public class JoinRequestService(IUnitOfWork unitOfWork) : IJoinRequestService
         var items = new List<JoinRequestDto>(query.Count);
         foreach (var item in query)
         {
-            items.Add(await MapToDtoAsync(item));
+            items.Add(MapToDto(item));
         }
 
-        return items;
+        return Task.FromResult<IReadOnlyList<JoinRequestDto>>(items);
     }
 
     public async Task<JoinRequestDto> ReviewJoinRequestAsync(int requestId, JoinRequestDecision decision, int reviewerUserId)
@@ -123,28 +123,18 @@ public class JoinRequestService(IUnitOfWork unitOfWork) : IJoinRequestService
         _unitOfWork.Repository<JoinRequest>().Update(request);
         await _unitOfWork.CompleteAsync();
 
-        return await MapToDtoAsync(request);
+        return MapToDto(request);
     }
 
-    private async Task<JoinRequestDto> MapToDtoAsync(JoinRequest request)
+    private static JoinRequestDto MapToDto(JoinRequest request)
     {
-        string? reviewedByUsername = null;
-        if (request.ReviewedByUserId.HasValue)
-        {
-            var reviewer = await _unitOfWork.Repository<User>().GetByIdAsync(request.ReviewedByUserId.Value);
-            reviewedByUsername = reviewer?.Username;
-        }
-
         return new JoinRequestDto
         {
             Id = request.Id,
             Name = BuildRequestDisplayName(request.Email),
             Email = request.Email,
             Status = request.Status,
-            RequestedAt = request.RequestedAt,
-            ReviewedAt = request.ReviewedAt,
-            ReviewedByUsername = reviewedByUsername,
-            ApprovedUserId = request.ApprovedUserId
+            RequestedAt = request.RequestedAt
         };
     }
 

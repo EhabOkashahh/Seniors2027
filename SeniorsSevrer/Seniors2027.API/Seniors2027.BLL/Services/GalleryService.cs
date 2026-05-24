@@ -33,9 +33,7 @@ public class GalleryService : IGalleryService
         return new GalleryPhotoDto
         {
             Id = photo.Id,
-            UserId = photo.UserId,
-            PhotoUrl = photo.PhotoUrl,
-            CreatedAt = photo.CreatedAt
+            PhotoUrl = photo.PhotoUrl
         };
     }
 
@@ -48,9 +46,7 @@ public class GalleryService : IGalleryService
             .Select(p => new GalleryPhotoDto
             {
                 Id = p.Id,
-                UserId = p.UserId,
-                PhotoUrl = p.PhotoUrl,
-                CreatedAt = p.CreatedAt
+                PhotoUrl = p.PhotoUrl
             })
             .ToListAsync();
     }
@@ -68,9 +64,7 @@ public class GalleryService : IGalleryService
         var deletedPhoto = new GalleryPhotoDto
         {
             Id = photo.Id,
-            UserId = photo.UserId,
-            PhotoUrl = photo.PhotoUrl,
-            CreatedAt = photo.CreatedAt
+            PhotoUrl = photo.PhotoUrl
         };
 
         _context.GalleryPhotos.Remove(photo);

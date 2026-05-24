@@ -27,7 +27,6 @@ import {
   getPortalEventsRequest,
   getMeRequest,
   getReceivedNotesPageRequest,
-  getUserByIdRequest,
   getActiveDailyHighlightsRequest,
   getHighlightsArchiveRequest,
   voteAnnouncementPollRequest,
@@ -93,7 +92,6 @@ export default function PortalHome() {
   const [highlightsMessage, setHighlightsMessage] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [genderByUserId, setGenderByUserId] = useState<Record<number, string>>({})
   const [monthlyDumpOpen, setMonthlyDumpOpen] = useState(false)
   const [monthlyDumpLoading, setMonthlyDumpLoading] = useState(false)
   const [monthlyDumpMessage, setMonthlyDumpMessage] = useState<string | null>(null)
@@ -378,47 +376,12 @@ export default function PortalHome() {
     void run()
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-
-    const run = async () => {
-      const missingIds = Array.from(new Set(highlights.map((item) => item.user.id)))
-        .filter((id) => genderByUserId[id] === undefined)
-
-      if (missingIds.length === 0) return
-
-      const pairs = await Promise.all(
-        missingIds.map(async (id) => {
-          const result = await getUserByIdRequest(id)
-          return { id, gender: result.ok && result.data ? result.data.gender : '' }
-        })
-      )
-
-      if (cancelled) return
-
-      setGenderByUserId((prev) => {
-        const next = { ...prev }
-        for (const pair of pairs) {
-          next[pair.id] = pair.gender
-        }
-        return next
-      })
-    }
-
-    void run()
-    return () => {
-      cancelled = true
-    }
-  }, [highlights, genderByUserId])
-
   const current = highlights[activeIndex] ?? null
   const latestPreviewHighlights = highlights.slice(0, 4)
   const currentReactions = current?.reactions ?? []
   const loveReactions = currentReactions.filter((reaction) => reaction.type === 'Love')
   const ahahaReactions = currentReactions.filter((reaction) => reaction.type === 'Ahaha')
-  const currentUserReaction = currentUserId === null
-    ? null
-    : currentReactions.find((reaction) => reaction.userId === currentUserId)?.type ?? null
+  const currentUserReaction = currentReactions.find((reaction) => reaction.isCurrentUser)?.type ?? null
   const isReactingCurrent = current !== null && reactingHighlightId === current.id
 
   useEffect(() => {
@@ -474,8 +437,8 @@ export default function PortalHome() {
   }
 
   const handleDeleteCurrentHighlight = async () => {
-    if (!current || currentUserId === null) return
-    if (!isAdmin && current.userId !== currentUserId) return
+    if (!current) return
+    if (!isAdmin && !current.isOwnedByCurrentUser) return
 
     setDeletingHighlight(true)
     setHighlightsMessage(null)
@@ -1591,7 +1554,7 @@ export default function PortalHome() {
                         <GenderCapAvatar
                           src={current?.user.photoUrl || '/favicon.svg'}
                           alt={current?.user.username || 'Senior'}
-                          gender={current ? genderByUserId[current.user.id] : null}
+                          gender={current?.user.gender ?? null}
                           containerStyle={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid black' }}
                           imageStyle={{ borderRadius: '50%' }}
                           capScale={0.75}
@@ -1681,7 +1644,7 @@ export default function PortalHome() {
               ) : (
                 currentReactions.map((reaction: DailyHighlightReaction) => (
                   <div
-                    key={`${reaction.id}-${reaction.userId}`}
+                    key={reaction.id}
                     style={{
                       border: '2px solid black',
                       background: '#fff',
@@ -1911,7 +1874,7 @@ export default function PortalHome() {
                   transformOrigin: flipDirection === 'next' ? 'right center' : 'left center'
                 }}
               />
-              {current && currentUserId !== null && (current.userId === currentUserId || isAdmin) && (
+              {current && (current.isOwnedByCurrentUser || isAdmin) && (
                 <button
                   type="button"
                   className="neo-btn"
@@ -1944,7 +1907,7 @@ export default function PortalHome() {
               <GenderCapAvatar
                 src={current?.user.photoUrl || '/favicon.svg'}
                 alt={current?.user.username || 'Senior'}
-                gender={current ? genderByUserId[current.user.id] : null}
+                gender={current?.user.gender ?? null}
                 containerStyle={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black' }}
                 imageStyle={{ borderRadius: '50%' }}
                 capScale={0.75}

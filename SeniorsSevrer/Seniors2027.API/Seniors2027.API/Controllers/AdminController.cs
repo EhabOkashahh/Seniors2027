@@ -678,6 +678,8 @@ public class AdminController(
         [FromQuery] MemoryBoardPhotoStatus status = MemoryBoardPhotoStatus.Pending,
         [FromQuery] int maxCount = 200)
     {
+        if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
+
         var safeMaxCount = maxCount < 1 ? 50 : Math.Min(maxCount, 1000);
 
         var query = _context.MemoryBoardPhotos
@@ -700,16 +702,13 @@ public class AdminController(
             .Select(p => new MemoryBoardPhotoDto
             {
                 Id = p.Id,
-                UserId = p.UserId,
                 Username = p.User.Username,
                 PhotoUrl = p.PhotoUrl,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt,
                 ExifTakenAtUtc = p.ExifTakenAtUtc,
                 SortDateUtc = p.ExifTakenAtUtc ?? p.CreatedAt,
-                ReviewedAtUtc = p.ReviewedAtUtc,
-                ReviewedByUserId = p.ReviewedByUserId,
-                ReviewedByUsername = p.ReviewedByUser != null ? p.ReviewedByUser.Username : null
+                IsOwnedByCurrentUser = p.UserId == currentUserId
             })
             .ToListAsync();
 
@@ -732,7 +731,6 @@ public class AdminController(
 
         if (dto.Decision == MemoryBoardPhotoDecision.Reject)
         {
-            var reviewedAtUtc = DateTime.UtcNow;
             var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
             var hasLocalPhoto = TryGetLocalSeniorsPhotoPath(photo.PhotoUrl, photosDirectory, out var localPhotoPath);
 
@@ -747,16 +745,13 @@ public class AdminController(
             var rejected = new MemoryBoardPhotoDto
             {
                 Id = photo.Id,
-                UserId = photo.UserId,
                 Username = photo.User.Username,
                 PhotoUrl = photo.PhotoUrl,
                 Status = MemoryBoardPhotoStatus.Rejected,
                 CreatedAt = photo.CreatedAt,
                 ExifTakenAtUtc = photo.ExifTakenAtUtc,
                 SortDateUtc = photo.ExifTakenAtUtc ?? photo.CreatedAt,
-                ReviewedAtUtc = reviewedAtUtc,
-                ReviewedByUserId = reviewerUserId,
-                ReviewedByUsername = null
+                IsOwnedByCurrentUser = photo.UserId == reviewerUserId
             };
 
             return Ok(rejected);
@@ -774,16 +769,13 @@ public class AdminController(
             .Select(p => new MemoryBoardPhotoDto
             {
                 Id = p.Id,
-                UserId = p.UserId,
                 Username = p.User.Username,
                 PhotoUrl = p.PhotoUrl,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt,
                 ExifTakenAtUtc = p.ExifTakenAtUtc,
                 SortDateUtc = p.ExifTakenAtUtc ?? p.CreatedAt,
-                ReviewedAtUtc = p.ReviewedAtUtc,
-                ReviewedByUserId = p.ReviewedByUserId,
-                ReviewedByUsername = p.ReviewedByUser != null ? p.ReviewedByUser.Username : null
+                IsOwnedByCurrentUser = p.UserId == reviewerUserId
             })
             .FirstAsync();
 

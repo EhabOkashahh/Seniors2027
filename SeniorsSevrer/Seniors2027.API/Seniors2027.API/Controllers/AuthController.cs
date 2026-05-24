@@ -187,9 +187,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
                 cancellationToken: HttpContext.RequestAborted);
             return Ok(new
             {
-                photoUrl = storedPhoto.PhotoUrl,
-                savedFileName = storedPhoto.FileName,
-                savedPath = storedPhoto.FilePath
+                photoUrl = storedPhoto.PhotoUrl
             });
         }
         catch (InvalidOperationException ex)
@@ -238,9 +236,7 @@ public class AuthController(IAuthService _authService, IUnitOfWork _unitOfWork, 
 
         return Ok(new
         {
-            photoUrl = storedPhoto.PhotoUrl,
-            savedFileName = storedPhoto.FileName,
-            savedPath = storedPhoto.FilePath
+            photoUrl = storedPhoto.PhotoUrl
         });
     }
 

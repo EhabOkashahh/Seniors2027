@@ -46,22 +46,20 @@ public class DailyHighlightService : IDailyHighlightService
         return new DailyHighlightDto
         {
             Id = highlight.Id,
-            UserId = highlight.UserId,
-            GalleryPhotoId = highlight.GalleryPhotoId,
             PhotoUrl = galleryPhoto.PhotoUrl,
             CreatedAt = highlight.CreatedAt,
-            ExpiresAt = highlight.ExpiresAt,
+            IsOwnedByCurrentUser = true,
             User = new DailyHighlightUserDto
             {
-                Id = user.Id,
                 Username = user.Username,
-                PhotoUrl = user.PhotoUrl
+                PhotoUrl = user.PhotoUrl,
+                Gender = user.Gender.ToString()
             },
             Reactions = new List<DailyHighlightReactionDto>()
         };
     }
 
-    public async Task<IReadOnlyList<DailyHighlightDto>> GetActiveHighlightsAsync(int maxCount)
+    public async Task<IReadOnlyList<DailyHighlightDto>> GetActiveHighlightsAsync(int maxCount, int? requesterUserId = null)
     {
         var now = DateTime.UtcNow;
 
@@ -76,10 +74,10 @@ public class DailyHighlightService : IDailyHighlightService
 
         var highlights = await query.ToListAsync();
 
-        return highlights.Select(MapToDto).ToList();
+        return highlights.Select(h => MapToDto(h, requesterUserId)).ToList();
     }
 
-    public async Task<IReadOnlyList<DailyHighlightDto>> GetHighlightsArchiveAsync(int maxCount)
+    public async Task<IReadOnlyList<DailyHighlightDto>> GetHighlightsArchiveAsync(int maxCount, int? requesterUserId = null)
     {
         var safeMax = maxCount < 1 ? 120 : Math.Min(maxCount, 1000);
 
@@ -88,7 +86,7 @@ public class DailyHighlightService : IDailyHighlightService
             .Take(safeMax)
             .ToListAsync();
 
-        return highlights.Select(MapToDto).ToList();
+        return highlights.Select(h => MapToDto(h, requesterUserId)).ToList();
     }
 
     public async Task<DailyHighlightDto?> DeleteHighlightAsync(int highlightId, int requesterUserId, bool requesterIsAdmin = false)
@@ -100,7 +98,7 @@ public class DailyHighlightService : IDailyHighlightService
         if (!requesterIsAdmin && highlight.UserId != requesterUserId) return null;
         var shouldRevertPoints = DateTime.UtcNow < highlight.ExpiresAt;
 
-        var deletedDto = MapToDto(highlight);
+        var deletedDto = MapToDto(highlight, requesterUserId);
 
         if (shouldRevertPoints)
         {
@@ -150,7 +148,7 @@ public class DailyHighlightService : IDailyHighlightService
         var updated = await QueryHighlightsWithRelations()
             .FirstOrDefaultAsync(h => h.Id == highlightId);
 
-        return updated == null ? null : MapToDto(updated);
+        return updated == null ? null : MapToDto(updated, userId);
     }
 
     public async Task<int> CleanupExpiredHighlightsAsync()
@@ -179,33 +177,30 @@ public class DailyHighlightService : IDailyHighlightService
         return asNoTracking ? query.AsNoTracking() : query;
     }
 
-    private static DailyHighlightDto MapToDto(DailyHighlight highlight)
+    private static DailyHighlightDto MapToDto(DailyHighlight highlight, int? requesterUserId = null)
     {
         return new DailyHighlightDto
         {
             Id = highlight.Id,
-            UserId = highlight.UserId,
-            GalleryPhotoId = highlight.GalleryPhotoId,
             PhotoUrl = highlight.GalleryPhoto.PhotoUrl,
             CreatedAt = highlight.CreatedAt,
-            ExpiresAt = highlight.ExpiresAt,
+            IsOwnedByCurrentUser = requesterUserId.HasValue && highlight.UserId == requesterUserId.Value,
             User = new DailyHighlightUserDto
             {
-                Id = highlight.User.Id,
                 Username = highlight.User.Username,
-                PhotoUrl = highlight.User.PhotoUrl
+                PhotoUrl = highlight.User.PhotoUrl,
+                Gender = highlight.User.Gender.ToString()
             },
             Reactions = highlight.Reactions
                 .OrderByDescending(r => r.CreatedAt)
                 .Select(r => new DailyHighlightReactionDto
                 {
                     Id = r.Id,
-                    UserId = r.UserId,
                     Type = r.Type,
                     CreatedAt = r.CreatedAt,
+                    IsCurrentUser = requesterUserId.HasValue && r.UserId == requesterUserId.Value,
                     User = new DailyHighlightReactionUserDto
                     {
-                        Id = r.User.Id,
                         Username = r.User.Username,
                         PhotoUrl = r.User.PhotoUrl
                     }

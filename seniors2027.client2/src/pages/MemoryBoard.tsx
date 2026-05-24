@@ -33,7 +33,6 @@ export default function MemoryBoard() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [myUploadsLoading, setMyUploadsLoading] = useState(false)
-  const [myUserId, setMyUserId] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
@@ -77,7 +76,6 @@ export default function MemoryBoard() {
     const run = async () => {
       const meResult = await getMeRequest()
       if (meResult.ok && meResult.data) {
-        setMyUserId(meResult.data.id)
         setIsAdmin(meResult.data.role === 'Admin')
       }
     }
@@ -431,8 +429,7 @@ export default function MemoryBoard() {
                               const absoluteIndex = boardPageStartIndex + index
                               const pose = getMemoryCardPose(item, index)
                               const pinColor = PHOTO_PIN_COLORS[(item.id + absoluteIndex) % PHOTO_PIN_COLORS.length]
-                              const isOwnedByMe = myUserId !== null && item.userId === myUserId
-                              const canDeletePhoto = isAdmin || isOwnedByMe
+                              const canDeletePhoto = isAdmin || item.isOwnedByCurrentUser
                               const isDeleting = deleteActionId === item.id
 
                               return (
@@ -815,7 +812,7 @@ type MemoryCardPose = {
 function getMemoryCardPose(photo: MemoryBoardPhoto, indexOnPage: number): MemoryCardPose {
   const dateSeed = Date.parse(photo.exifTakenAtUtc ?? photo.sortDateUtc ?? photo.createdAt)
   const safeDateSeed = Number.isNaN(dateSeed) ? 0 : dateSeed
-  const baseSeed = `${photo.id}:${photo.userId}:${safeDateSeed}:${photo.photoUrl.length}`
+  const baseSeed = `${photo.id}:${photo.username}:${safeDateSeed}:${photo.photoUrl.length}`
   const rotationRand = seededUnitRandom(`rot-${baseSeed}`)
   const offsetXRand = seededUnitRandom(`x-${baseSeed}`)
   const offsetYRand = seededUnitRandom(`y-${baseSeed}`)
@@ -868,6 +865,6 @@ function seededUnitRandom(seedText: string): number {
 }
 
 function getMemoryBoardStableRandomOrder(photo: MemoryBoardPhoto): number {
-  const seed = `order:${photo.id}:${photo.userId}:${photo.createdAt}:${photo.photoUrl.length}`
+  const seed = `order:${photo.id}:${photo.username}:${photo.createdAt}:${photo.photoUrl.length}`
   return seededUnitRandom(seed)
 }

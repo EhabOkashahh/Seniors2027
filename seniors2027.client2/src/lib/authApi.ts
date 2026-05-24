@@ -150,9 +150,6 @@ export type JoinRequestItem = {
   email: string
   status: JoinRequestStatus
   requestedAt: string
-  reviewedAt?: string | null
-  reviewedByUsername?: string | null
-  approvedUserId?: number | null
 }
 
 export type AdminUser = {
@@ -189,40 +186,35 @@ export type PagedNotes = {
 
 export type GalleryPhoto = {
   id: number
-  userId: number
   photoUrl: string
-  createdAt: string
 }
 
 export type DailyHighlightUser = {
-  id: number
   username: string
   photoUrl?: string | null
+  gender?: string | null
 }
 
 export type DailyHighlightReactionType = 'Love' | 'Ahaha'
 
 export type DailyHighlightReactionUser = {
-  id: number
   username: string
   photoUrl?: string | null
 }
 
 export type DailyHighlightReaction = {
   id: number
-  userId: number
   type: DailyHighlightReactionType
   createdAt: string
+  isCurrentUser: boolean
   user: DailyHighlightReactionUser
 }
 
 export type DailyHighlight = {
   id: number
-  userId: number
-  galleryPhotoId: number
   photoUrl: string
   createdAt: string
-  expiresAt: string
+  isOwnedByCurrentUser: boolean
   user: DailyHighlightUser
   reactions: DailyHighlightReaction[]
 }
@@ -232,16 +224,13 @@ export type MemoryBoardPhotoDecision = 'Approve' | 'Reject'
 
 export type MemoryBoardPhoto = {
   id: number
-  userId: number
   username: string
   photoUrl: string
   status: MemoryBoardPhotoStatus
   createdAt: string
   exifTakenAtUtc?: string | null
   sortDateUtc: string
-  reviewedAtUtc?: string | null
-  reviewedByUserId?: number | null
-  reviewedByUsername?: string | null
+  isOwnedByCurrentUser: boolean
 }
 
 export type AnnouncementItem = {

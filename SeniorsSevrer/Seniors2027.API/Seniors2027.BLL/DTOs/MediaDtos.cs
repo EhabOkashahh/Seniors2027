@@ -4,21 +4,18 @@ using Seniors2027.DAL.Entities;
 public class GalleryPhotoDto
 {
     public int Id { get; set; }
-    public int UserId { get; set; }
     public string PhotoUrl { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; }
 }
 
 public class DailyHighlightUserDto
 {
-    public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string? PhotoUrl { get; set; }
+    public string? Gender { get; set; }
 }
 
 public class DailyHighlightReactionUserDto
 {
-    public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string? PhotoUrl { get; set; }
 }
@@ -26,20 +23,18 @@ public class DailyHighlightReactionUserDto
 public class DailyHighlightReactionDto
 {
     public int Id { get; set; }
-    public int UserId { get; set; }
     public DailyHighlightReactionType Type { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool IsCurrentUser { get; set; }
     public DailyHighlightReactionUserDto User { get; set; } = new();
 }
 
 public class DailyHighlightDto
 {
     public int Id { get; set; }
-    public int UserId { get; set; }
-    public int GalleryPhotoId { get; set; }
     public string PhotoUrl { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
-    public DateTime ExpiresAt { get; set; }
+    public bool IsOwnedByCurrentUser { get; set; }
     public DailyHighlightUserDto User { get; set; } = new();
     public List<DailyHighlightReactionDto> Reactions { get; set; } = new();
 }
@@ -58,14 +53,11 @@ public class ReviewMemoryBoardPhotoDto
 public class MemoryBoardPhotoDto
 {
     public int Id { get; set; }
-    public int UserId { get; set; }
     public string Username { get; set; } = string.Empty;
     public string PhotoUrl { get; set; } = string.Empty;
     public MemoryBoardPhotoStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ExifTakenAtUtc { get; set; }
     public DateTime SortDateUtc { get; set; }
-    public DateTime? ReviewedAtUtc { get; set; }
-    public int? ReviewedByUserId { get; set; }
-    public string? ReviewedByUsername { get; set; }
+    public bool IsOwnedByCurrentUser { get; set; }
 }
