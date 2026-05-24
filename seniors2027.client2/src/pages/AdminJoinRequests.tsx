@@ -97,6 +97,9 @@ export default function AdminJoinRequests() {
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<number | null>(null)
   const [editingAnnouncementTitleInput, setEditingAnnouncementTitleInput] = useState('')
   const [editingAnnouncementBodyInput, setEditingAnnouncementBodyInput] = useState('')
+  const [editingAnnouncementPollEnabled, setEditingAnnouncementPollEnabled] = useState(false)
+  const [editingAnnouncementPollQuestionInput, setEditingAnnouncementPollQuestionInput] = useState('')
+  const [editingAnnouncementPollOptionsInput, setEditingAnnouncementPollOptionsInput] = useState<string[]>(['', ''])
   const [editingAnnouncementPhotoFile, setEditingAnnouncementPhotoFile] = useState<File | null>(null)
   const [editingAnnouncementRemovePhoto, setEditingAnnouncementRemovePhoto] = useState(false)
   const [announcementEditActionId, setAnnouncementEditActionId] = useState<number | null>(null)
@@ -476,6 +479,9 @@ export default function AdminJoinRequests() {
     setEditingAnnouncementId(announcement.id)
     setEditingAnnouncementTitleInput(announcement.title)
     setEditingAnnouncementBodyInput(parsed.body)
+    setEditingAnnouncementPollEnabled(Boolean(parsed.poll))
+    setEditingAnnouncementPollQuestionInput(parsed.poll?.question ?? '')
+    setEditingAnnouncementPollOptionsInput(parsed.poll?.options?.length ? parsed.poll.options : ['', ''])
     setEditingAnnouncementPhotoFile(null)
     setEditingAnnouncementRemovePhoto(false)
   }
@@ -484,8 +490,29 @@ export default function AdminJoinRequests() {
     setEditingAnnouncementId(null)
     setEditingAnnouncementTitleInput('')
     setEditingAnnouncementBodyInput('')
+    setEditingAnnouncementPollEnabled(false)
+    setEditingAnnouncementPollQuestionInput('')
+    setEditingAnnouncementPollOptionsInput(['', ''])
     setEditingAnnouncementPhotoFile(null)
     setEditingAnnouncementRemovePhoto(false)
+  }
+
+  const handleEditingAnnouncementPollOptionChange = (index: number, value: string) => {
+    setEditingAnnouncementPollOptionsInput((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)))
+  }
+
+  const handleAddEditingAnnouncementPollOption = () => {
+    setEditingAnnouncementPollOptionsInput((prev) => {
+      if (prev.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS) return prev
+      return [...prev, '']
+    })
+  }
+
+  const handleRemoveEditingAnnouncementPollOption = (index: number) => {
+    setEditingAnnouncementPollOptionsInput((prev) => {
+      if (prev.length <= 2) return prev
+      return prev.filter((_, itemIndex) => itemIndex !== index)
+    })
   }
 
   const handleSaveAnnouncementEdit = async () => {
@@ -493,26 +520,32 @@ export default function AdminJoinRequests() {
 
     const title = editingAnnouncementTitleInput.trim()
     const body = editingAnnouncementBodyInput.trim()
+    const pollQuestion = editingAnnouncementPollQuestionInput.trim()
+    const pollOptions = normalizePollOptions(editingAnnouncementPollOptionsInput)
 
     if (!title || !body) {
       setAnnouncementsMessage('Announcement title and body are required.')
       return
     }
 
-    const existing = announcements.find((item) => item.id === editingAnnouncementId)
-    if (!existing) {
-      setAnnouncementsMessage('Announcement no longer exists.')
-      handleCancelEditAnnouncement()
-      return
+    if (editingAnnouncementPollEnabled) {
+      if (!pollQuestion) {
+        setAnnouncementsMessage('Poll question is required when poll is enabled.')
+        return
+      }
+
+      if (pollOptions.length < 2) {
+        setAnnouncementsMessage('Poll requires at least 2 unique options.')
+        return
+      }
     }
 
-    const existingParsed = parseAnnouncementBody(existing.body)
-    const bodyWithExistingPoll = buildAnnouncementBodyWithPoll(
+    const nextBody = buildAnnouncementBodyWithPoll(
       body,
-      existingParsed.poll
+      editingAnnouncementPollEnabled
         ? {
-            question: existingParsed.poll.question,
-            options: existingParsed.poll.options
+            question: pollQuestion,
+            options: pollOptions
           }
         : null
     )
@@ -523,7 +556,7 @@ export default function AdminJoinRequests() {
       editingAnnouncementId,
       {
         title,
-        body: bodyWithExistingPoll,
+        body: nextBody,
         removePhoto: editingAnnouncementRemovePhoto
       },
       editingAnnouncementPhotoFile
@@ -1553,9 +1586,78 @@ export default function AdminJoinRequests() {
                                     rows={4}
                                     style={{ width: '100%', padding: '9px 10px', background: 'white', resize: 'vertical' }}
                                   />
-                                  {activePoll && (
-                                    <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.84 }}>
-                                      Poll settings stay unchanged during this edit.
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.82rem' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={editingAnnouncementPollEnabled}
+                                      onChange={(event) => setEditingAnnouncementPollEnabled(event.target.checked)}
+                                    />
+                                    Edit poll settings
+                                  </label>
+                                  {editingAnnouncementPollEnabled && (
+                                    <div
+                                      style={{
+                                        border: '2px solid black',
+                                        background: '#fff6cf',
+                                        boxShadow: '3px 3px 0 black',
+                                        padding: '8px',
+                                        display: 'grid',
+                                        gap: '7px'
+                                      }}
+                                    >
+                                      <input
+                                        type="text"
+                                        placeholder="Poll question"
+                                        value={editingAnnouncementPollQuestionInput}
+                                        onChange={(event) => setEditingAnnouncementPollQuestionInput(event.target.value)}
+                                        style={{ width: '100%', padding: '8px 10px', background: 'white' }}
+                                      />
+                                      <div style={{ display: 'grid', gap: '6px' }}>
+                                        {editingAnnouncementPollOptionsInput.map((option, index) => (
+                                          <div
+                                            key={`editing-announcement-poll-option-${announcement.id}-${index}`}
+                                            style={{
+                                              display: 'grid',
+                                              gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+                                              gap: '6px'
+                                            }}
+                                          >
+                                            <input
+                                              type="text"
+                                              placeholder={`Option ${index + 1}`}
+                                              value={option}
+                                              onChange={(event) => handleEditingAnnouncementPollOptionChange(index, event.target.value)}
+                                              style={{ width: '100%', padding: '8px 10px', background: 'white' }}
+                                            />
+                                            <button
+                                              type="button"
+                                              className="neo-btn"
+                                              onClick={() => handleRemoveEditingAnnouncementPollOption(index)}
+                                              disabled={editingAnnouncementPollOptionsInput.length <= 2}
+                                              style={{
+                                                minWidth: 'auto',
+                                                width: isMobile ? '100%' : 'fit-content',
+                                                padding: '8px 10px',
+                                                background: '#ffd7d7'
+                                              }}
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                        ))}
+                                        <button
+                                          type="button"
+                                          className="neo-btn"
+                                          onClick={handleAddEditingAnnouncementPollOption}
+                                          disabled={editingAnnouncementPollOptionsInput.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS}
+                                          style={{ minWidth: 'auto', width: 'fit-content', padding: '8px 10px', background: '#daf3ff' }}
+                                        >
+                                          Add Option
+                                        </button>
+                                      </div>
+                                      <div style={{ fontWeight: 700, fontSize: '0.72rem', opacity: 0.84 }}>
+                                        Updating poll settings resets current votes for this announcement.
+                                      </div>
                                     </div>
                                   )}
                                   <input
