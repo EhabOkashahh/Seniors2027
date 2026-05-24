@@ -490,7 +490,6 @@ public class AdminController(
                 Details = e.Details,
                 PhotoUrl = e.PhotoUrl,
                 CreatedAt = e.CreatedAt,
-                CreatedByUserId = e.CreatedByUserId,
                 CreatedByUsername = e.CreatedByUser.Username
             })
             .ToListAsync();
@@ -564,7 +563,6 @@ public class AdminController(
                 Details = e.Details,
                 PhotoUrl = e.PhotoUrl,
                 CreatedAt = e.CreatedAt,
-                CreatedByUserId = e.CreatedByUserId,
                 CreatedByUsername = e.CreatedByUser.Username
             })
             .FirstAsync();
@@ -652,7 +650,6 @@ public class AdminController(
             Details = portalEvent.Details,
             PhotoUrl = portalEvent.PhotoUrl,
             CreatedAt = portalEvent.CreatedAt,
-            CreatedByUserId = portalEvent.CreatedByUserId,
             CreatedByUsername = portalEvent.CreatedByUser.Username
         });
     }

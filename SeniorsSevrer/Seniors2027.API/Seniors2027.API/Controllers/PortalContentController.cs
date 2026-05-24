@@ -22,6 +22,8 @@ public class PortalContentController(
     [HttpGet("announcements")]
     public async Task<ActionResult<IReadOnlyList<AnnouncementDto>>> GetAnnouncements([FromQuery] int maxCount = 10)
     {
+        if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
+
         var safeMaxCount = maxCount < 1 ? 5 : Math.Min(maxCount, 100);
 
         var announcements = await _context.Announcements
@@ -49,7 +51,7 @@ public class PortalContentController(
                 var votes = votesByAnnouncementId.TryGetValue(a.Id, out var value)
                     ? value
                     : Array.Empty<AnnouncementPollVote>();
-                return AnnouncementPollMapper.ToAnnouncementDto(a, votes);
+                return AnnouncementPollMapper.ToAnnouncementDto(a, votes, currentUserId);
             })
             .ToList();
 
@@ -114,7 +116,7 @@ public class PortalContentController(
             .Where(v => v.AnnouncementId == announcementId)
             .ToListAsync();
 
-        var mappedAnnouncement = AnnouncementPollMapper.ToAnnouncementDto(updatedAnnouncement, updatedVotes);
+        var mappedAnnouncement = AnnouncementPollMapper.ToAnnouncementDto(updatedAnnouncement, updatedVotes, userId);
         return Ok(mappedAnnouncement);
     }
 
@@ -148,7 +150,6 @@ public class PortalContentController(
                 Details = e.Details,
                 PhotoUrl = e.PhotoUrl,
                 CreatedAt = e.CreatedAt,
-                CreatedByUserId = e.CreatedByUserId,
                 CreatedByUsername = e.CreatedByUser.Username
             })
             .ToListAsync();

@@ -1043,10 +1043,10 @@ export default function PortalHome() {
                             }
                           : null
                       )
-                      const currentUserSelectedOption = currentUserId === null || !activePoll
+                      const currentUserSelectedOption = !activePoll
                         ? null
                         : activePoll.options.find((option) =>
-                          option.voters.some((voter) => voter.userId === currentUserId)
+                          option.voters.some((voter) => voter.isCurrentUser)
                         )?.label ?? null
                       const totalPollVotes = activePoll?.options.reduce((sum, option) => sum + option.voteCount, 0) ?? 0
                       const isVotingOnAnnouncement = announcementPollActionId === announcement.id
@@ -1217,7 +1217,7 @@ export default function PortalHome() {
                                         ) : (
                                           pollOption.voters.map((voter) => (
                                             <div
-                                              key={`poll-voter-${announcement.id}-${optionIndex}-${voter.userId}`}
+                                              key={`poll-voter-${announcement.id}-${optionIndex}-${voter.username}-${voter.votedAt}`}
                                               style={{
                                                 border: '1px solid black',
                                                 padding: '4px 6px',
@@ -1256,7 +1256,12 @@ export default function PortalHome() {
                                                   {voter.username.charAt(0).toUpperCase()}
                                                 </div>
                                               )}
-                                              <span>{voter.username}</span>
+                                              <div style={{ display: 'grid', gap: '1px' }}>
+                                                <span>{voter.username}</span>
+                                                <span style={{ fontSize: '0.68rem', opacity: 0.75 }}>
+                                                  {formatDateTime(voter.votedAt)}
+                                                </span>
+                                              </div>
                                             </div>
                                           ))
                                         )}

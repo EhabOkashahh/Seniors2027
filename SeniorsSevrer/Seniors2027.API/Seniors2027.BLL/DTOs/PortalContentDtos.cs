@@ -6,7 +6,6 @@ public class AnnouncementDto
     public string Title { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
     public string? PhotoUrl { get; set; }
-    public int CreatedByUserId { get; set; }
     public string CreatedByUsername { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public AnnouncementPollDto? Poll { get; set; }
@@ -45,9 +44,10 @@ public class AnnouncementPollOptionDto
 
 public class AnnouncementPollVoterDto
 {
-    public int UserId { get; set; }
     public string Username { get; set; } = string.Empty;
     public string? PhotoUrl { get; set; }
+    public DateTime VotedAt { get; set; }
+    public bool IsCurrentUser { get; set; }
 }
 
 public class PortalEventDto
@@ -58,7 +58,6 @@ public class PortalEventDto
     public string? Location { get; set; }
     public string? Details { get; set; }
     public string? PhotoUrl { get; set; }
-    public int CreatedByUserId { get; set; }
     public string CreatedByUsername { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }

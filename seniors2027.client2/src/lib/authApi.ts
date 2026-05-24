@@ -250,7 +250,6 @@ export type AnnouncementItem = {
   body: string
   photoUrl?: string | null
   createdAt: string
-  createdByUserId: number
   createdByUsername: string
   poll?: AnnouncementPollItem | null
 }
@@ -267,9 +266,10 @@ export type AnnouncementPollOptionItem = {
 }
 
 export type AnnouncementPollVoterItem = {
-  userId: number
   username: string
   photoUrl?: string | null
+  votedAt: string
+  isCurrentUser: boolean
 }
 
 export type PortalEventItem = {
@@ -280,7 +280,6 @@ export type PortalEventItem = {
   details?: string | null
   photoUrl?: string | null
   createdAt: string
-  createdByUserId: number
   createdByUsername: string
 }
 

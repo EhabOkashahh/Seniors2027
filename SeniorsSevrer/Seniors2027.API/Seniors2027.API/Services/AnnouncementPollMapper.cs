@@ -7,10 +7,11 @@ public static class AnnouncementPollMapper
 {
     public static AnnouncementDto ToAnnouncementDto(
         Announcement announcement,
-        IReadOnlyList<AnnouncementPollVote> votes)
+        IReadOnlyList<AnnouncementPollVote> votes,
+        int? currentUserId = null)
     {
         var parsed = AnnouncementPollParser.Parse(announcement.Body);
-        var poll = BuildPollDto(parsed.Poll, votes);
+        var poll = BuildPollDto(parsed.Poll, votes, currentUserId);
 
         return new AnnouncementDto
         {
@@ -19,7 +20,6 @@ public static class AnnouncementPollMapper
             Body = parsed.Body,
             PhotoUrl = NormalizePhotoUrl(announcement.PhotoUrl),
             CreatedAt = announcement.CreatedAt,
-            CreatedByUserId = announcement.CreatedByUserId,
             CreatedByUsername = announcement.CreatedByUser.Username,
             Poll = poll
         };
@@ -27,7 +27,8 @@ public static class AnnouncementPollMapper
 
     private static AnnouncementPollDto? BuildPollDto(
         ParsedAnnouncementPollDefinition? parsedPoll,
-        IReadOnlyList<AnnouncementPollVote> votes)
+        IReadOnlyList<AnnouncementPollVote> votes,
+        int? currentUserId)
     {
         if (parsedPoll == null) return null;
 
@@ -37,15 +38,16 @@ public static class AnnouncementPollMapper
             var optionVotes = votes
                 .Where(v => string.Equals(v.Option, option, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(v => v.User.Username, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(v => v.UserId)
+                .ThenBy(v => v.UpdatedAt)
                 .ToList();
 
             var voters = optionVotes
                 .Select(v => new AnnouncementPollVoterDto
                 {
-                    UserId = v.UserId,
                     Username = v.User.Username,
-                    PhotoUrl = NormalizePhotoUrl(v.User.PhotoUrl)
+                    PhotoUrl = NormalizePhotoUrl(v.User.PhotoUrl),
+                    VotedAt = v.UpdatedAt,
+                    IsCurrentUser = currentUserId.HasValue && v.UserId == currentUserId.Value
                 })
                 .ToList();
 

@@ -1553,10 +1553,13 @@ export default function AdminJoinRequests() {
                                             ) : (
                                               pollOption.voters.map((voter) => (
                                                 <div
-                                                  key={`admin-announcement-poll-voter-${announcement.id}-${optionIndex}-${voter.userId}`}
+                                                  key={`admin-announcement-poll-voter-${announcement.id}-${optionIndex}-${voter.username}-${voter.votedAt}`}
                                                   style={{ border: '1px solid black', background: '#fff', padding: '3px 6px' }}
                                                 >
-                                                  {voter.username}
+                                                  <div style={{ display: 'grid', gap: '2px' }}>
+                                                    <span>{voter.username}</span>
+                                                    <span style={{ fontSize: '0.68rem', opacity: 0.75 }}>{formatDateTime(voter.votedAt)}</span>
+                                                  </div>
                                                 </div>
                                               ))
                                             )}
