@@ -1257,6 +1257,49 @@ export async function createAdminAnnouncementRequest(
   }
 }
 
+export async function updateAdminAnnouncementRequest(
+  announcementId: number,
+  payload: {
+    title: string
+    body: string
+    removePhoto?: boolean
+  },
+  photoFile?: File | null
+): Promise<ApiResult<AnnouncementItem>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const formData = new FormData()
+    formData.append('title', payload.title.trim())
+    formData.append('body', payload.body.trim())
+    if (payload.removePhoto) {
+      formData.append('removePhoto', 'true')
+    }
+    if (photoFile) {
+      formData.append('photo', photoFile)
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/announcements/${announcementId}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as AnnouncementItem
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
 export async function deleteAdminAnnouncementRequest(announcementId: number): Promise<ApiResult<null>> {
   try {
     const token = getAuthToken()
@@ -1339,6 +1382,63 @@ export async function createAdminEventRequest(payload: {
 
     const response = await fetch(`${API_BASE_URL}/api/admin/events`, {
       method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as PortalEventItem
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function updateAdminEventRequest(
+  eventId: number,
+  payload: {
+    title: string
+    eventDate: string
+    location?: string
+    details?: string
+    removePhoto?: boolean
+  },
+  photoFile?: File | null
+): Promise<ApiResult<PortalEventItem>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const formData = new FormData()
+    formData.append('title', payload.title.trim())
+    formData.append('eventDate', payload.eventDate)
+
+    const location = payload.location?.trim()
+    if (location) {
+      formData.append('location', location)
+    }
+
+    const details = payload.details?.trim()
+    if (details) {
+      formData.append('details', details)
+    }
+
+    if (payload.removePhoto) {
+      formData.append('removePhoto', 'true')
+    }
+
+    if (photoFile) {
+      formData.append('photo', photoFile)
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/events/${eventId}`, {
+      method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`
       },

@@ -18,6 +18,13 @@ public class CreateAnnouncementDto
     public string Body { get; set; } = string.Empty;
 }
 
+public class UpdateAnnouncementDto
+{
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public bool RemovePhoto { get; set; }
+}
+
 public class VoteAnnouncementPollDto
 {
     public string Option { get; set; } = string.Empty;
@@ -62,4 +69,13 @@ public class CreatePortalEventDto
     public DateTime EventDate { get; set; }
     public string? Location { get; set; }
     public string? Details { get; set; }
+}
+
+public class UpdatePortalEventDto
+{
+    public string Title { get; set; } = string.Empty;
+    public DateTime EventDate { get; set; }
+    public string? Location { get; set; }
+    public string? Details { get; set; }
+    public bool RemovePhoto { get; set; }
 }

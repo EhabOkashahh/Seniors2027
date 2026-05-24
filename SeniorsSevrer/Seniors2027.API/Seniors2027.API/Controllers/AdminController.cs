@@ -353,6 +353,94 @@ public class AdminController(
         return Ok(created);
     }
 
+    [HttpPut("announcements/{announcementId:int}")]
+    public async Task<ActionResult<AnnouncementDto>> UpdateAnnouncement(
+        int announcementId,
+        [FromForm] UpdateAnnouncementDto dto,
+        [FromForm] IFormFile? photo)
+    {
+        var announcement = await _context.Announcements
+            .Include(a => a.CreatedByUser)
+            .FirstOrDefaultAsync(a => a.Id == announcementId);
+        if (announcement == null) return NotFound();
+
+        var title = dto.Title?.Trim() ?? string.Empty;
+        var body = dto.Body?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(title)) return BadRequest("Announcement title is required.");
+        if (string.IsNullOrWhiteSpace(body)) return BadRequest("Announcement body is required.");
+
+        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+        var hasExistingLocalPhoto = TryGetLocalSeniorsPhotoPath(announcement.PhotoUrl, photosDirectory, out var existingLocalPhotoPath);
+
+        StoredPhotoInfo? storedPhoto = null;
+        if (photo != null)
+        {
+            try
+            {
+                storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
+                    photo,
+                    Request,
+                    cancellationToken: HttpContext.RequestAborted);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        var oldBody = announcement.Body;
+        announcement.Title = title;
+        announcement.Body = body;
+
+        if (dto.RemovePhoto)
+        {
+            announcement.PhotoUrl = null;
+        }
+
+        if (storedPhoto != null)
+        {
+            announcement.PhotoUrl = storedPhoto.PhotoUrl;
+        }
+
+        try
+        {
+            if (!string.Equals(oldBody, body, StringComparison.Ordinal))
+            {
+                var pollVotes = await _context.AnnouncementPollVotes
+                    .Where(v => v.AnnouncementId == announcementId)
+                    .ToListAsync();
+                if (pollVotes.Count > 0)
+                {
+                    _context.AnnouncementPollVotes.RemoveRange(pollVotes);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            if (storedPhoto != null)
+            {
+                TryDeleteFile(storedPhoto.FilePath);
+            }
+
+            throw;
+        }
+
+        if (hasExistingLocalPhoto && (dto.RemovePhoto || storedPhoto != null))
+        {
+            TryDeleteFile(existingLocalPhotoPath);
+        }
+
+        var updatedVotes = await _context.AnnouncementPollVotes
+            .AsNoTracking()
+            .Include(v => v.User)
+            .Where(v => v.AnnouncementId == announcementId)
+            .ToListAsync();
+
+        return Ok(AnnouncementPollMapper.ToAnnouncementDto(announcement, updatedVotes));
+    }
+
     [HttpDelete("announcements/{announcementId:int}")]
     public async Task<ActionResult> DeleteAnnouncement(int announcementId)
     {
@@ -482,6 +570,91 @@ public class AdminController(
             .FirstAsync();
 
         return Ok(created);
+    }
+
+    [HttpPut("events/{eventId:int}")]
+    public async Task<ActionResult<PortalEventDto>> UpdateEvent(
+        int eventId,
+        [FromForm] UpdatePortalEventDto dto,
+        [FromForm] IFormFile? photo)
+    {
+        var portalEvent = await _context.Events
+            .Include(e => e.CreatedByUser)
+            .FirstOrDefaultAsync(e => e.Id == eventId);
+        if (portalEvent == null) return NotFound();
+
+        var title = dto.Title?.Trim() ?? string.Empty;
+        var location = string.IsNullOrWhiteSpace(dto.Location) ? null : dto.Location.Trim();
+        var details = string.IsNullOrWhiteSpace(dto.Details) ? null : dto.Details.Trim();
+
+        if (string.IsNullOrWhiteSpace(title)) return BadRequest("Event title is required.");
+        if (dto.EventDate == default) return BadRequest("Event date is required.");
+
+        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
+        var hasExistingLocalPhoto = TryGetLocalSeniorsPhotoPath(portalEvent.PhotoUrl, photosDirectory, out var existingLocalPhotoPath);
+
+        StoredPhotoInfo? storedPhoto = null;
+        if (photo != null)
+        {
+            try
+            {
+                storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
+                    photo,
+                    Request,
+                    cancellationToken: HttpContext.RequestAborted);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        portalEvent.Title = title;
+        portalEvent.EventDate = dto.EventDate;
+        portalEvent.Location = location;
+        portalEvent.Details = details;
+
+        if (dto.RemovePhoto)
+        {
+            portalEvent.PhotoUrl = null;
+        }
+
+        if (storedPhoto != null)
+        {
+            portalEvent.PhotoUrl = storedPhoto.PhotoUrl;
+        }
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            if (storedPhoto != null)
+            {
+                TryDeleteFile(storedPhoto.FilePath);
+            }
+
+            throw;
+        }
+
+        if (hasExistingLocalPhoto && (dto.RemovePhoto || storedPhoto != null))
+        {
+            TryDeleteFile(existingLocalPhotoPath);
+        }
+
+        return Ok(new PortalEventDto
+        {
+            Id = portalEvent.Id,
+            Title = portalEvent.Title,
+            EventDate = portalEvent.EventDate,
+            Location = portalEvent.Location,
+            Details = portalEvent.Details,
+            PhotoUrl = portalEvent.PhotoUrl,
+            CreatedAt = portalEvent.CreatedAt,
+            CreatedByUserId = portalEvent.CreatedByUserId,
+            CreatedByUsername = portalEvent.CreatedByUser.Username
+        });
     }
 
     [HttpDelete("events/{eventId:int}")]

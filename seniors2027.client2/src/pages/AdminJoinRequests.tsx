@@ -37,6 +37,8 @@ import {
   reviewAdminMemoryBoardPhotoRequest,
   reviewJoinRequestRequest,
   setAdminUserLockRequest,
+  updateAdminAnnouncementRequest,
+  updateAdminEventRequest,
   type AdminUser,
   type AnnouncementItem,
   type JoinRequestDecision,
@@ -92,6 +94,20 @@ export default function AdminJoinRequests() {
   const [eventDetailsInput, setEventDetailsInput] = useState('')
   const [eventPhotoFile, setEventPhotoFile] = useState<File | null>(null)
   const [announcementsMessage, setAnnouncementsMessage] = useState<string | null>(null)
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState<number | null>(null)
+  const [editingAnnouncementTitleInput, setEditingAnnouncementTitleInput] = useState('')
+  const [editingAnnouncementBodyInput, setEditingAnnouncementBodyInput] = useState('')
+  const [editingAnnouncementPhotoFile, setEditingAnnouncementPhotoFile] = useState<File | null>(null)
+  const [editingAnnouncementRemovePhoto, setEditingAnnouncementRemovePhoto] = useState(false)
+  const [announcementEditActionId, setAnnouncementEditActionId] = useState<number | null>(null)
+  const [editingEventId, setEditingEventId] = useState<number | null>(null)
+  const [editingEventTitleInput, setEditingEventTitleInput] = useState('')
+  const [editingEventDateInput, setEditingEventDateInput] = useState('')
+  const [editingEventLocationInput, setEditingEventLocationInput] = useState('')
+  const [editingEventDetailsInput, setEditingEventDetailsInput] = useState('')
+  const [editingEventPhotoFile, setEditingEventPhotoFile] = useState<File | null>(null)
+  const [editingEventRemovePhoto, setEditingEventRemovePhoto] = useState(false)
+  const [eventEditActionId, setEventEditActionId] = useState<number | null>(null)
 
   const [memoryBoardPendingPhotos, setMemoryBoardPendingPhotos] = useState<MemoryBoardPhoto[]>([])
   const [memoryBoardApprovedPhotos, setMemoryBoardApprovedPhotos] = useState<MemoryBoardPhoto[]>([])
@@ -453,6 +469,133 @@ export default function AdminJoinRequests() {
       eventPhotoInputRef.current.value = ''
     }
     setAnnouncementsMessage('Event published.')
+  }
+
+  const handleStartEditAnnouncement = (announcement: AnnouncementItem) => {
+    const parsed = parseAnnouncementBody(announcement.body)
+    setEditingAnnouncementId(announcement.id)
+    setEditingAnnouncementTitleInput(announcement.title)
+    setEditingAnnouncementBodyInput(parsed.body)
+    setEditingAnnouncementPhotoFile(null)
+    setEditingAnnouncementRemovePhoto(false)
+  }
+
+  const handleCancelEditAnnouncement = () => {
+    setEditingAnnouncementId(null)
+    setEditingAnnouncementTitleInput('')
+    setEditingAnnouncementBodyInput('')
+    setEditingAnnouncementPhotoFile(null)
+    setEditingAnnouncementRemovePhoto(false)
+  }
+
+  const handleSaveAnnouncementEdit = async () => {
+    if (editingAnnouncementId === null) return
+
+    const title = editingAnnouncementTitleInput.trim()
+    const body = editingAnnouncementBodyInput.trim()
+
+    if (!title || !body) {
+      setAnnouncementsMessage('Announcement title and body are required.')
+      return
+    }
+
+    const existing = announcements.find((item) => item.id === editingAnnouncementId)
+    if (!existing) {
+      setAnnouncementsMessage('Announcement no longer exists.')
+      handleCancelEditAnnouncement()
+      return
+    }
+
+    const existingParsed = parseAnnouncementBody(existing.body)
+    const bodyWithExistingPoll = buildAnnouncementBodyWithPoll(
+      body,
+      existingParsed.poll
+        ? {
+            question: existingParsed.poll.question,
+            options: existingParsed.poll.options
+          }
+        : null
+    )
+
+    setAnnouncementEditActionId(editingAnnouncementId)
+    setAnnouncementsMessage(null)
+    const result = await updateAdminAnnouncementRequest(
+      editingAnnouncementId,
+      {
+        title,
+        body: bodyWithExistingPoll,
+        removePhoto: editingAnnouncementRemovePhoto
+      },
+      editingAnnouncementPhotoFile
+    )
+    setAnnouncementEditActionId(null)
+
+    if (!result.ok || !result.data) {
+      setAnnouncementsMessage(result.error ?? 'Could not update announcement.')
+      return
+    }
+
+    setAnnouncements((prev) => prev.map((item) => (item.id === editingAnnouncementId ? result.data! : item)))
+    setAnnouncementsMessage('Announcement updated.')
+    handleCancelEditAnnouncement()
+  }
+
+  const handleStartEditEvent = (eventItem: PortalEventItem) => {
+    setEditingEventId(eventItem.id)
+    setEditingEventTitleInput(eventItem.title)
+    setEditingEventDateInput(toDateInputValue(eventItem.eventDate))
+    setEditingEventLocationInput(eventItem.location ?? '')
+    setEditingEventDetailsInput(eventItem.details ?? '')
+    setEditingEventPhotoFile(null)
+    setEditingEventRemovePhoto(false)
+  }
+
+  const handleCancelEditEvent = () => {
+    setEditingEventId(null)
+    setEditingEventTitleInput('')
+    setEditingEventDateInput('')
+    setEditingEventLocationInput('')
+    setEditingEventDetailsInput('')
+    setEditingEventPhotoFile(null)
+    setEditingEventRemovePhoto(false)
+  }
+
+  const handleSaveEventEdit = async () => {
+    if (editingEventId === null) return
+
+    const title = editingEventTitleInput.trim()
+    const eventDate = editingEventDateInput.trim()
+    const location = editingEventLocationInput.trim()
+    const details = editingEventDetailsInput.trim()
+
+    if (!title || !eventDate) {
+      setAnnouncementsMessage('Event name and event date are required.')
+      return
+    }
+
+    setEventEditActionId(editingEventId)
+    setAnnouncementsMessage(null)
+    const result = await updateAdminEventRequest(
+      editingEventId,
+      {
+        title,
+        eventDate,
+        location,
+        details,
+        removePhoto: editingEventRemovePhoto
+      },
+      editingEventPhotoFile
+    )
+    setEventEditActionId(null)
+
+    if (!result.ok || !result.data) {
+      setAnnouncementsMessage(result.error ?? 'Could not update event.')
+      return
+    }
+
+    setEvents((prev) => prev.map((item) => (item.id === editingEventId ? result.data! : item)))
+    setAnnouncementsMessage('Event updated.')
+    handleCancelEditEvent()
   }
 
   const handleDeleteAnnouncement = async (announcementId: number) => {
@@ -1394,16 +1537,93 @@ export default function AdminJoinRequests() {
                               <div style={{ fontSize: '0.78rem', fontWeight: 700, opacity: 0.75 }}>
                                 {new Date(announcement.createdAt).toLocaleString()}
                               </div>
-                              <button
-                                type="button"
-                                className="neo-btn"
-                                onClick={() => void handleDeleteAnnouncement(announcement.id)}
-                                disabled={announcementActionId === announcement.id}
-                                style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
-                              >
-                                <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                {announcementActionId === announcement.id ? 'Deleting...' : 'Delete'}
-                              </button>
+                              {editingAnnouncementId === announcement.id && (
+                                <div style={{ border: '2px dashed black', padding: '10px', background: '#f7faff', display: 'grid', gap: '8px' }}>
+                                  <input
+                                    type="text"
+                                    placeholder="Announcement title"
+                                    value={editingAnnouncementTitleInput}
+                                    onChange={(event) => setEditingAnnouncementTitleInput(event.target.value)}
+                                    style={{ width: '100%', padding: '9px 10px', background: 'white' }}
+                                  />
+                                  <textarea
+                                    placeholder="Announcement body"
+                                    value={editingAnnouncementBodyInput}
+                                    onChange={(event) => setEditingAnnouncementBodyInput(event.target.value)}
+                                    rows={4}
+                                    style={{ width: '100%', padding: '9px 10px', background: 'white', resize: 'vertical' }}
+                                  />
+                                  {activePoll && (
+                                    <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.84 }}>
+                                      Poll settings stay unchanged during this edit.
+                                    </div>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(event) => setEditingAnnouncementPhotoFile(event.target.files?.[0] ?? null)}
+                                    style={{ width: '100%', padding: '8px 10px', background: 'white' }}
+                                  />
+                                  <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.84 }}>
+                                    {editingAnnouncementPhotoFile
+                                      ? `Selected replacement photo: ${editingAnnouncementPhotoFile.name}`
+                                      : announcement.photoUrl
+                                        ? 'Leave empty to keep current photo.'
+                                        : 'Optional photo (jpg, png, webp)'}
+                                  </div>
+                                  {announcement.photoUrl && (
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.78rem' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={editingAnnouncementRemovePhoto}
+                                        onChange={(event) => setEditingAnnouncementRemovePhoto(event.target.checked)}
+                                      />
+                                      Remove current photo
+                                    </label>
+                                  )}
+                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      className="neo-btn"
+                                      onClick={() => void handleSaveAnnouncementEdit()}
+                                      disabled={announcementEditActionId === announcement.id}
+                                      style={{ minWidth: 'auto', width: 'fit-content', background: '#d7ffd8' }}
+                                    >
+                                      {announcementEditActionId === announcement.id ? 'Saving...' : 'Save'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="neo-btn"
+                                      onClick={handleCancelEditAnnouncement}
+                                      disabled={announcementEditActionId === announcement.id}
+                                      style={{ minWidth: 'auto', width: 'fit-content', background: '#efefef' }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  className="neo-btn"
+                                  onClick={() => handleStartEditAnnouncement(announcement)}
+                                  disabled={announcementActionId === announcement.id || announcementEditActionId === announcement.id}
+                                  style={{ minWidth: 'auto', width: 'fit-content', background: '#daf3ff' }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="neo-btn"
+                                  onClick={() => void handleDeleteAnnouncement(announcement.id)}
+                                  disabled={announcementActionId === announcement.id || announcementEditActionId === announcement.id}
+                                  style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
+                                >
+                                  <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                  {announcementActionId === announcement.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                              </div>
                             </div>
                           )
                         })()
@@ -1440,16 +1660,101 @@ export default function AdminJoinRequests() {
                           <div style={{ fontSize: '0.78rem', fontWeight: 700, opacity: 0.75 }}>
                             Published {new Date(eventItem.createdAt).toLocaleString()}
                           </div>
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            onClick={() => void handleDeleteEvent(eventItem.id)}
-                            disabled={eventActionId === eventItem.id}
-                            style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
-                          >
-                            <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                            {eventActionId === eventItem.id ? 'Deleting...' : 'Delete'}
-                          </button>
+                          {editingEventId === eventItem.id && (
+                            <div style={{ border: '2px dashed black', padding: '10px', background: '#f7faff', display: 'grid', gap: '8px' }}>
+                              <input
+                                type="text"
+                                placeholder="Event title"
+                                value={editingEventTitleInput}
+                                onChange={(event) => setEditingEventTitleInput(event.target.value)}
+                                style={{ width: '100%', padding: '9px 10px', background: 'white' }}
+                              />
+                              <input
+                                type="date"
+                                value={editingEventDateInput}
+                                onChange={(event) => setEditingEventDateInput(event.target.value)}
+                                style={{ width: '100%', padding: '9px 10px', background: 'white' }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Location (optional)"
+                                value={editingEventLocationInput}
+                                onChange={(event) => setEditingEventLocationInput(event.target.value)}
+                                style={{ width: '100%', padding: '9px 10px', background: 'white' }}
+                              />
+                              <textarea
+                                placeholder="Event details (optional)"
+                                value={editingEventDetailsInput}
+                                onChange={(event) => setEditingEventDetailsInput(event.target.value)}
+                                rows={4}
+                                style={{ width: '100%', padding: '9px 10px', background: 'white', resize: 'vertical' }}
+                              />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(event) => setEditingEventPhotoFile(event.target.files?.[0] ?? null)}
+                                style={{ width: '100%', padding: '8px 10px', background: 'white' }}
+                              />
+                              <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.84 }}>
+                                {editingEventPhotoFile
+                                  ? `Selected replacement photo: ${editingEventPhotoFile.name}`
+                                  : eventItem.photoUrl
+                                    ? 'Leave empty to keep current photo.'
+                                    : 'Optional photo (jpg, png, webp)'}
+                              </div>
+                              {eventItem.photoUrl && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.78rem' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={editingEventRemovePhoto}
+                                    onChange={(event) => setEditingEventRemovePhoto(event.target.checked)}
+                                  />
+                                  Remove current photo
+                                </label>
+                              )}
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  className="neo-btn"
+                                  onClick={() => void handleSaveEventEdit()}
+                                  disabled={eventEditActionId === eventItem.id}
+                                  style={{ minWidth: 'auto', width: 'fit-content', background: '#d7ffd8' }}
+                                >
+                                  {eventEditActionId === eventItem.id ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="neo-btn"
+                                  onClick={handleCancelEditEvent}
+                                  disabled={eventEditActionId === eventItem.id}
+                                  style={{ minWidth: 'auto', width: 'fit-content', background: '#efefef' }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              onClick={() => handleStartEditEvent(eventItem)}
+                              disabled={eventActionId === eventItem.id || eventEditActionId === eventItem.id}
+                              style={{ minWidth: 'auto', width: 'fit-content', background: '#daf3ff' }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              onClick={() => void handleDeleteEvent(eventItem.id)}
+                              disabled={eventActionId === eventItem.id || eventEditActionId === eventItem.id}
+                              style={{ minWidth: 'auto', width: 'fit-content', background: '#ffcece' }}
+                            >
+                              <Trash2 size={13} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                              {eventActionId === eventItem.id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
@@ -1468,6 +1773,15 @@ function formatEventDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function toDateInputValue(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = String(date.getFullYear())
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function formatDateTime(value: string): string {
