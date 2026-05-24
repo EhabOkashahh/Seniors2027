@@ -6,6 +6,7 @@ import {
   Image as ImageIcon,
   Award,
   BookOpen,
+  Camera,
   GripVertical,
   Pencil,
   Paperclip,
@@ -954,7 +955,7 @@ export default function Profile() {
                       padding: 0
                     }}
                   >
-                    <Pencil size={16} />
+                    <Camera size={16} />
                   </button>
                   <input
                     type="file"
@@ -2183,6 +2184,7 @@ export default function Profile() {
 type SocialPlatform =
   | 'instagram'
   | 'facebook'
+  | 'snapchat'
   | 'twitter'
   | 'youtube'
   | 'spotify'
@@ -2260,6 +2262,7 @@ function detectSocialPlatform(link: string): SocialPlatform {
 
     if (hostname.includes('instagram.')) return 'instagram'
     if (hostname.includes('facebook.')) return 'facebook'
+    if (hostname.includes('snapchat.')) return 'snapchat'
     if (hostname === 'x.com' || hostname.endsWith('.x.com') || hostname.includes('twitter.')) return 'twitter'
     if (hostname.includes('youtube.') || hostname === 'youtu.be') return 'youtube'
     if (hostname.includes('spotify.')) return 'spotify'
@@ -2283,6 +2286,8 @@ function getSocialPlatformTheme(platform: SocialPlatform): { background: string 
       return { background: 'linear-gradient(135deg, #feda75 0%, #fa7e1e 28%, #d62976 55%, #962fbf 78%, #4f5bd5 100%)' }
     case 'facebook':
       return { background: '#1877f2' }
+    case 'snapchat':
+      return { background: '#fffc00' }
     case 'twitter':
       return { background: '#111111' }
     case 'youtube':
@@ -2314,6 +2319,8 @@ function getSocialPlatformIconUrl(platform: SocialPlatform): string | null {
       return 'https://cdn.simpleicons.org/instagram/ffffff'
     case 'facebook':
       return 'https://cdn.simpleicons.org/facebook/ffffff'
+    case 'snapchat':
+      return 'https://cdn.simpleicons.org/snapchat/111111'
     case 'twitter':
       return 'https://cdn.simpleicons.org/x/ffffff'
     case 'youtube':
@@ -2348,6 +2355,7 @@ function getLocalPlatformFallbackIconUrl(platform: SocialPlatform): string {
   const labelMap: Record<SocialPlatform, string> = {
     instagram: 'IG',
     facebook: 'f',
+    snapchat: 'SC',
     twitter: 'X',
     youtube: 'YT',
     spotify: 'SP',
@@ -2377,6 +2385,7 @@ function getWebsiteFaviconUrl(link: string): string | null {
     const preferredDomains: Partial<Record<SocialPlatform, string>> = {
       instagram: 'instagram.com',
       facebook: 'facebook.com',
+      snapchat: 'snapchat.com',
       twitter: 'x.com',
       youtube: 'youtube.com',
       spotify: 'spotify.com',
