@@ -279,6 +279,9 @@ export async function getUsersRequest(
   excludeUserId?: number | null
 ): Promise<ApiResult<DirectoryUser[]>> {
   try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
     const params = new URLSearchParams({
       pageNumber: String(pageNumber),
       pageSize: String(pageSize)
@@ -289,7 +292,11 @@ export async function getUsersRequest(
       params.set('excludeUserId', String(excludeUserId))
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/users?${params.toString()}`)
+    const response = await fetch(`${API_BASE_URL}/api/users?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
 
     if (!response.ok) {
       const message = await safeError(response)
@@ -305,7 +312,14 @@ export async function getUsersRequest(
 
 export async function getUserByIdRequest(id: number): Promise<ApiResult<User>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/${id}`)
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
 
     if (!response.ok) {
       const message = await safeError(response)

@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Seniors2027.API.Extensions;
 using Seniors2027.DAL.Data;
 using Seniors2027.DAL.Entities;
 using System.Text.Json;
@@ -8,6 +10,7 @@ namespace Seniors2027.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class UsersController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -24,11 +27,14 @@ public class UsersController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] int? excludeUserId = null)
     {
+        if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
+
         pageNumber = pageNumber < 1 ? 1 : pageNumber;
         pageSize = pageSize < 1 ? 10 : Math.Min(pageSize, 100);
 
         var query = _context.Users
             .AsNoTracking()
+            .Where(u => u.Id != currentUserId)
             .AsQueryable();
 
         if (excludeUserId.HasValue && excludeUserId.Value > 0)
