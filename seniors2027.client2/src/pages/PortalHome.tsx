@@ -1933,8 +1933,12 @@ export default function PortalHome() {
               style={{
                 marginTop: '8px',
                 padding: 0,
-                display: 'grid',
-                gap: '6px'
+                display: 'flex',
+                flexDirection: 'row-reverse',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+                flexWrap: 'wrap'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', flexWrap: 'wrap' }}>
@@ -1981,7 +1985,18 @@ export default function PortalHome() {
               </div>
             </div>
 
-            <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px' }}>
+            <div
+              style={{
+                marginTop: '8px',
+                marginBottom: '8px',
+                padding: '4px 8px',
+                paddingInline: '6px',
+                display: 'grid',
+                gridTemplateColumns: '1fr auto 1fr',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
               <div style={{ display: 'inline-flex', gap: '4px', justifySelf: 'start' }}>
                 <button
                   type="button"
