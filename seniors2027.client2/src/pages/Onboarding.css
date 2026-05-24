@@ -179,6 +179,18 @@
 
 .step-caption { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; opacity: 0.68; }
 
+.mobile-step-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-step-actions .neo-btn {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 10px;
+}
+
 .retro-upload {
   display: block;
   width: 100%;
@@ -223,6 +235,12 @@
   .retro-input { height: 58px; font-size: 0.92rem; }
   .retro-upload { min-height: 180px; }
   .retro-upload-placeholder { min-height: 150px; }
+}
+
+@media (max-width: 360px) {
+  .mobile-step-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .manual-step-note {

@@ -239,7 +239,8 @@ export default function Login() {
     {
       key: 'email',
       title: 'Email',
-      subtitle: 'Type your email then scroll.',
+      subtitle: 'Type your email then continue.',
+      mobileCtaLabel: 'Send OTP',
       content: (
         <div>
           <RetroInput

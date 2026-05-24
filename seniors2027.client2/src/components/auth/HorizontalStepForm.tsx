@@ -17,6 +17,7 @@ type StepItem = {
   content: ReactNode | ((controls: StepRenderControls) => ReactNode)
   hideHint?: boolean
   disableForwardScroll?: boolean
+  mobileCtaLabel?: string
 }
 
 type HorizontalStepFormProps = {
@@ -33,6 +34,7 @@ const SCROLL_LOCK_MS = 720
 const NAV_COOLDOWN_MS = 760
 const WHEEL_THRESHOLD = 78
 const WHEEL_IDLE_MS = 140
+const PHONE_MEDIA_QUERY = '(max-width: 640px)'
 
 export default function HorizontalStepForm({
   heading,
@@ -47,6 +49,7 @@ export default function HorizontalStepForm({
   const [error, setError] = useState<string | null>(null)
   const [isLocked, setIsLocked] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPhone, setIsPhone] = useState(() => window.matchMedia(PHONE_MEDIA_QUERY).matches)
   const wheelBufferRef = useRef(0)
   const wheelIdleTimerRef = useRef<number | null>(null)
   const touchStartXRef = useRef<number | null>(null)
@@ -60,6 +63,19 @@ export default function HorizontalStepForm({
   const currentStepConfig = steps[currentStep]
 
   const stepTitle = useMemo(() => steps[currentStep]?.title ?? '', [currentStep, steps])
+
+  useEffect(() => {
+    const mediaQueryList = window.matchMedia(PHONE_MEDIA_QUERY)
+    const onChange = (event: MediaQueryListEvent) => {
+      setIsPhone(event.matches)
+    }
+
+    setIsPhone(mediaQueryList.matches)
+    mediaQueryList.addEventListener('change', onChange)
+    return () => {
+      mediaQueryList.removeEventListener('change', onChange)
+    }
+  }, [])
 
   const clearWheelIdleTimer = () => {
     if (wheelIdleTimerRef.current !== null) {
@@ -144,6 +160,7 @@ export default function HorizontalStepForm({
     const onWheel = (event: WheelEvent) => {
       const targetNode = event.target as Node | null
       if (!containerRef.current || !targetNode || !containerRef.current.contains(targetNode)) return
+      if (isPhone) return
 
       event.preventDefault()
       if (isLocked || isSubmitting) return
@@ -178,6 +195,7 @@ export default function HorizontalStepForm({
       const active = document.activeElement
       if (!containerRef.current || !active || !containerRef.current.contains(active)) return
       if (isLocked || isSubmitting) return
+      if (isPhone) return
 
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'Enter') {
         event.preventDefault()
@@ -197,13 +215,14 @@ export default function HorizontalStepForm({
       window.removeEventListener('keydown', onKeyDown)
       clearWheelIdleTimer()
     }
-  }, [isLocked, isSubmitting, currentStep, isLastStep, currentStepConfig])
+  }, [isLocked, isSubmitting, currentStep, isLastStep, currentStepConfig, isPhone])
 
   const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     touchStartXRef.current = event.touches[0].clientX
   }
 
   const onTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    if (isPhone) return
     if (touchStartXRef.current === null || isLocked || isSubmitting || !canNavigateNow()) return
 
     const deltaX = touchStartXRef.current - event.changedTouches[0].clientX
@@ -226,6 +245,8 @@ export default function HorizontalStepForm({
     stepIndex: currentStep,
     isLastStep
   }
+
+  const mobilePrimaryLabel = currentStepConfig?.mobileCtaLabel ?? (isLastStep ? 'Submit' : 'Next')
 
   useEffect(() => {
     const previousTotalSteps = previousTotalStepsRef.current
@@ -291,7 +312,7 @@ export default function HorizontalStepForm({
               <div className="form-step-body">
                 {typeof step.content === 'function' ? step.content(controls) : step.content}
               </div>
-              {!step.hideHint && (
+              {!isPhone && !step.hideHint && (
                 <div className="scroll-hint" aria-hidden="true">
                   <span>Scroll down to continue</span>
                   <motion.span
@@ -303,13 +324,31 @@ export default function HorizontalStepForm({
                   </motion.span>
                 </div>
               )}
-              {index === currentStep && step.disableForwardScroll && (
+              {!isPhone && index === currentStep && step.disableForwardScroll && (
                 <p className="manual-step-note">Scroll up to go back. Continue button moves forward.</p>
               )}
             </div>
           ))}
         </motion.div>
       </div>
+
+      {isPhone && (
+        <div className="mobile-step-actions">
+          <button type="button" className="neo-btn" onClick={attemptBack} disabled={isSubmitting}>
+            Back
+          </button>
+          <button
+            type="button"
+            className="neo-btn primary-btn"
+            onClick={() => {
+              void attemptNext()
+            }}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Please wait...' : mobilePrimaryLabel}
+          </button>
+        </div>
+      )}
 
       <span className="step-caption">Current: {stepTitle}</span>
     </motion.section>
