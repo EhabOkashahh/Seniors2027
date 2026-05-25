@@ -76,7 +76,7 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
             };
 
             await using var sourceStream = photo.OpenReadStream();
-            using var image = await Image.LoadAsync(decoderOptions, sourceStream, cancellationToken);
+            using var image = await Image.LoadAsync<Rgba32>(decoderOptions, sourceStream, cancellationToken);
             exifTakenAtUtc = TryExtractExifDateTakenUtc(image.Metadata.ExifProfile);
 
             image.Mutate(ctx =>
@@ -106,7 +106,8 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
                 Quality = profile.OutputWebpQuality
             };
 
-            await image.SaveAsWebpAsync(filePath, encoder, cancellationToken);
+            using var flattenedImage = FlattenToOpaqueRgb(image);
+            await flattenedImage.SaveAsWebpAsync(filePath, encoder, cancellationToken);
         }
         catch (ImageFormatException)
         {
@@ -118,7 +119,7 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         return new StoredPhotoInfo(fileName, filePath, photoUrl, exifTakenAtUtc);
     }
 
-    private static void ApplyDailyHighlightCaptionOverlay(Image image, ImageCaptionOverlayRequest captionOverlay)
+    private static void ApplyDailyHighlightCaptionOverlay(Image<Rgba32> image, ImageCaptionOverlayRequest captionOverlay)
     {
         var captionText = captionOverlay.CaptionText.Trim();
         if (string.IsNullOrWhiteSpace(captionText))
@@ -157,6 +158,13 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
             ctx.Fill(new Rgba32(0, 0, 0, DailyHighlightCaptionAlpha), new RectangleF(0f, barTop, image.Width, barHeight));
             ctx.DrawText(new RichTextOptions(textOptions) { Origin = new PointF(image.Width / 2f, textOriginY) }, captionText, Color.White);
         });
+    }
+
+    private static Image<Rgb24> FlattenToOpaqueRgb(Image<Rgba32> source)
+    {
+        var output = new Image<Rgb24>(source.Width, source.Height, new Rgb24(255, 255, 255));
+        output.Mutate(ctx => ctx.DrawImage(source, 1f));
+        return output;
     }
 
     private static Font ResolveCaptionFont(float fontSize, bool prefersArabic)
