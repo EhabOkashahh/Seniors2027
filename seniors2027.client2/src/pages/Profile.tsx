@@ -1558,10 +1558,12 @@ export default function Profile() {
                               background: currentReactionType === 'Love' ? '#ffd6df' : '#fff',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px'
+                              gap: '4px',
+                              boxShadow: 'none',
+                              border: '1.5px solid black'
                             }}
                           >
-                            <Heart size={14} color="#e5486f" fill="#ff6b8a" />
+                            <Heart size={14} strokeWidth={1.5} color="#e5486f" fill="#ff6b8a" />
                             <span>{loveCount}</span>
                           </button>
                           <button
@@ -1581,10 +1583,12 @@ export default function Profile() {
                               background: currentReactionType === 'Ahaha' ? '#ffeab0' : '#fff',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px'
+                              gap: '4px',
+                              boxShadow: 'none',
+                              border: '1.5px solid black'
                             }}
                           >
-                            <Laugh size={14} color="#d97706" />
+                            <Laugh size={14} strokeWidth={1.5} color="#d97706" />
                             <span>{ahahaCount}</span>
                           </button>
                           <button
@@ -1597,9 +1601,9 @@ export default function Profile() {
                             }}
                             disabled={noteReactions.length === 0}
                             aria-label="Show reactions"
-                            style={{ minWidth: 'auto', padding: '6px 8px' }}
+                            style={{ minWidth: 'auto', padding: '6px 8px', boxShadow: 'none', border: '1.5px solid black' }}
                           >
-                            <Eye size={14} />
+                            <Eye size={14} strokeWidth={1.5} />
                           </button>
                         </div>
                         {canDeleteNote(note) && (
@@ -1621,10 +1625,12 @@ export default function Profile() {
                               background: '#ff8f8f',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              justifyContent: 'center'
+                              justifyContent: 'center',
+                              boxShadow: 'none',
+                              border: '1.5px solid black'
                             }}
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={14} strokeWidth={1.5} />
                           </button>
                         )}
                       </div>
@@ -2221,10 +2227,12 @@ export default function Profile() {
                                 background: currentReactionType === 'Love' ? '#ffd6df' : '#fff',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '4px'
+                                gap: '4px',
+                                boxShadow: 'none',
+                                border: '1.5px solid black'
                               }}
                             >
-                              <Heart size={14} color="#e5486f" fill="#ff6b8a" />
+                              <Heart size={14} strokeWidth={1.5} color="#e5486f" fill="#ff6b8a" />
                               <span>{loveCount}</span>
                             </button>
                             <button
@@ -2244,10 +2252,12 @@ export default function Profile() {
                                 background: currentReactionType === 'Ahaha' ? '#ffeab0' : '#fff',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '4px'
+                                gap: '4px',
+                                boxShadow: 'none',
+                                border: '1.5px solid black'
                               }}
                             >
-                              <Laugh size={14} color="#d97706" />
+                              <Laugh size={14} strokeWidth={1.5} color="#d97706" />
                               <span>{ahahaCount}</span>
                             </button>
                             <button
@@ -2260,9 +2270,9 @@ export default function Profile() {
                               }}
                               disabled={noteReactions.length === 0}
                               aria-label="Show reactions"
-                              style={{ minWidth: 'auto', padding: '6px 8px' }}
+                              style={{ minWidth: 'auto', padding: '6px 8px', boxShadow: 'none', border: '1.5px solid black' }}
                             >
-                              <Eye size={14} />
+                              <Eye size={14} strokeWidth={1.5} />
                             </button>
                           </div>
                           {canDeleteNote(note) && (
@@ -2284,10 +2294,12 @@ export default function Profile() {
                               background: '#ff8f8f',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              justifyContent: 'center'
+                              justifyContent: 'center',
+                              boxShadow: 'none',
+                              border: '1.5px solid black'
                             }}
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={14} strokeWidth={1.5} />
                           </button>
                           )}
                         </div>
