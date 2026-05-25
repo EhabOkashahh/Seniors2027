@@ -73,6 +73,23 @@ function isLikelyRtlText(value: string): boolean {
   return false
 }
 
+function hasLatinText(value: string): boolean {
+  for (const char of value) {
+    if ((char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z') || (char >= '\u00C0' && char <= '\u024F')) {
+      return true
+    }
+  }
+  return false
+}
+
+function getCaptionDir(value: string): 'rtl' | 'ltr' | 'auto' {
+  const hasArabic = isLikelyRtlText(value)
+  const hasLatin = hasLatinText(value)
+  if (hasArabic && hasLatin) return 'auto'
+  if (hasArabic) return 'rtl'
+  return 'ltr'
+}
+
 type MonthlyDumpEntry =
   | { id: string; kind: 'note'; createdAt: string; note: NoteItem }
   | { id: string; kind: 'highlight'; createdAt: string; highlight: DailyHighlight }
@@ -2330,6 +2347,7 @@ export default function PortalHome() {
                   {highlightComposerCaption.trim() && (
                     <div
                       ref={highlightComposerCaptionRef}
+                      dir={getCaptionDir(highlightComposerCaption)}
                       onPointerDown={handleHighlightCaptionPointerDown}
                       onPointerMove={handleHighlightCaptionPointerMove}
                       onPointerUp={handleHighlightCaptionPointerUp}
@@ -2352,7 +2370,6 @@ export default function PortalHome() {
                         touchAction: 'none',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
-                        direction: isLikelyRtlText(highlightComposerCaption) ? 'rtl' : 'ltr',
                         unicodeBidi: 'plaintext'
                       }}
                     >

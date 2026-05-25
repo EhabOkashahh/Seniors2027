@@ -127,7 +127,8 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
             return;
         }
 
-        var isArabicText = ContainsArabicCharacters(captionText);
+        var textDirectionKind = DetectCaptionDirectionKind(captionText);
+        var isArabicText = textDirectionKind is CaptionDirectionKind.Rtl or CaptionDirectionKind.Mixed;
         var fontSize = Math.Max(20f, MathF.Min(56f, image.Width * 0.058f));
         var font = ResolveCaptionFont(fontSize, isArabicText);
         var fallbackFamilies = ResolveCaptionFallbackFamilies(isArabicText, font.Family);
@@ -139,8 +140,8 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
             WrappingLength = Math.Max(120, image.Width - 56),
             LineSpacing = 1.04f,
             Origin = PointF.Empty,
-            TextDirection = isArabicText ? TextDirection.RightToLeft : TextDirection.Auto,
-            WordBreaking = WordBreaking.BreakWord,
+            TextDirection = textDirectionKind == CaptionDirectionKind.Rtl ? TextDirection.RightToLeft : TextDirection.Auto,
+            WordBreaking = WordBreaking.Standard,
             FallbackFontFamilies = fallbackFamilies
         };
 
@@ -219,6 +220,34 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         }
 
         return false;
+    }
+
+    private static bool ContainsLatinCharacters(string value)
+    {
+        foreach (var ch in value)
+        {
+            if (ch is >= 'A' and <= 'Z') return true;
+            if (ch is >= 'a' and <= 'z') return true;
+            if (ch is >= '\u00C0' and <= '\u024F') return true;
+        }
+
+        return false;
+    }
+
+    private static CaptionDirectionKind DetectCaptionDirectionKind(string value)
+    {
+        var hasArabic = ContainsArabicCharacters(value);
+        var hasLatin = ContainsLatinCharacters(value);
+        if (hasArabic && hasLatin) return CaptionDirectionKind.Mixed;
+        if (hasArabic) return CaptionDirectionKind.Rtl;
+        return CaptionDirectionKind.Ltr;
+    }
+
+    private enum CaptionDirectionKind
+    {
+        Ltr = 0,
+        Rtl = 1,
+        Mixed = 2
     }
 
     private static ImageProcessingProfile ResolveProfile(ImageUploadPurpose purpose) =>
