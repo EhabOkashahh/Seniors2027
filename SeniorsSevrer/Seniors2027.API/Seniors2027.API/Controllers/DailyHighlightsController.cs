@@ -50,20 +50,33 @@ public class DailyHighlightsController : ControllerBase
     }
 
     [HttpPost("upload")]
-    public async Task<ActionResult<DailyHighlightDto>> UploadDailyHighlight([FromForm] IFormFile photo)
+    public async Task<ActionResult<DailyHighlightDto>> UploadDailyHighlight([FromForm] UploadDailyHighlightRequest requestDto)
     {
-        if (photo == null || photo.Length == 0) return BadRequest("Photo is required.");
+        if (requestDto.Photo == null || requestDto.Photo.Length == 0) return BadRequest("Photo is required.");
 
         if (!User.TryGetUserId(out var userId)) return Unauthorized();
+        if (requestDto.CaptionText is { Length: > 120 })
+        {
+            return BadRequest("Caption must be 120 characters or less.");
+        }
+
+        ImageCaptionOverlayRequest? captionOverlay = null;
+        var captionText = requestDto.CaptionText?.Trim();
+        if (!string.IsNullOrWhiteSpace(captionText))
+        {
+            var normalizedY = Math.Clamp(requestDto.CaptionYPercent ?? 0.72, 0d, 1d);
+            captionOverlay = new ImageCaptionOverlayRequest(captionText, normalizedY);
+        }
 
         StoredPhotoInfo storedPhoto;
         try
         {
             storedPhoto = await _imageUploadProcessor.SaveProcessedPhotoAsync(
-                photo,
+                requestDto.Photo,
                 Request,
                 ImageUploadPurpose.DailyHighlight,
-                HttpContext.RequestAborted);
+                HttpContext.RequestAborted,
+                captionOverlay);
         }
         catch (InvalidOperationException ex)
         {
@@ -161,4 +174,11 @@ public class DailyHighlightsController : ControllerBase
 public class ToggleDailyHighlightReactionRequest
 {
     public DailyHighlightReactionType Type { get; set; }
+}
+
+public class UploadDailyHighlightRequest
+{
+    public IFormFile? Photo { get; set; }
+    public string? CaptionText { get; set; }
+    public double? CaptionYPercent { get; set; }
 }

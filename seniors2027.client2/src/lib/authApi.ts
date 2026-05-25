@@ -711,13 +711,26 @@ export async function getActiveDailyHighlightsRequest(maxCount: number = 0): Pro
   }
 }
 
-export async function uploadDailyHighlightRequest(file: File): Promise<ApiResult<DailyHighlight>> {
+export async function uploadDailyHighlightRequest(payload: {
+  file: File
+  captionText?: string
+  captionYPercent?: number
+}): Promise<ApiResult<DailyHighlight>> {
   try {
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const formData = new FormData()
-    formData.append('photo', file)
+    formData.append('photo', payload.file)
+
+    const trimmedCaption = payload.captionText?.trim()
+    if (trimmedCaption) {
+      formData.append('captionText', trimmedCaption)
+      if (typeof payload.captionYPercent === 'number' && Number.isFinite(payload.captionYPercent)) {
+        const normalizedY = Math.min(1, Math.max(0, payload.captionYPercent))
+        formData.append('captionYPercent', normalizedY.toString())
+      }
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/upload`, {
       method: 'POST',

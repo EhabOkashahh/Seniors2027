@@ -15,8 +15,13 @@ public interface IImageUploadProcessor
         IFormFile photo,
         HttpRequest request,
         ImageUploadPurpose purpose = ImageUploadPurpose.Standard,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        ImageCaptionOverlayRequest? captionOverlay = null);
 }
+
+public sealed record ImageCaptionOverlayRequest(
+    string CaptionText,
+    double VerticalPositionPercent);
 
 public sealed record StoredPhotoInfo(
     string FileName,

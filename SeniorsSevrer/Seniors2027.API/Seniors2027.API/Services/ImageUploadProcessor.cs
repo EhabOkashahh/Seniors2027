@@ -1,7 +1,10 @@
+using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
+using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using System.Globalization;
 
@@ -34,7 +37,8 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         IFormFile photo,
         HttpRequest request,
         ImageUploadPurpose purpose = ImageUploadPurpose.Standard,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ImageCaptionOverlayRequest? captionOverlay = null)
     {
         if (photo == null || photo.Length == 0)
         {
@@ -91,6 +95,11 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
                 });
             });
 
+            if (purpose == ImageUploadPurpose.DailyHighlight && captionOverlay is not null)
+            {
+                ApplyDailyHighlightCaptionOverlay(image, captionOverlay);
+            }
+
             var encoder = new WebpEncoder
             {
                 Quality = profile.OutputWebpQuality
@@ -106,6 +115,68 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         var baseUrl = $"{request.Scheme}://{request.Host}";
         var photoUrl = $"{baseUrl}/SeniorsPhotos/{fileName}";
         return new StoredPhotoInfo(fileName, filePath, photoUrl, exifTakenAtUtc);
+    }
+
+    private static void ApplyDailyHighlightCaptionOverlay(Image image, ImageCaptionOverlayRequest captionOverlay)
+    {
+        var captionText = captionOverlay.CaptionText.Trim();
+        if (string.IsNullOrWhiteSpace(captionText))
+        {
+            return;
+        }
+
+        var fontSize = Math.Max(20f, MathF.Min(56f, image.Width * 0.058f));
+        var font = ResolveCaptionFont(fontSize);
+
+        var textOptions = new RichTextOptions(font)
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            WrappingLength = Math.Max(120, image.Width - 56),
+            LineSpacing = 1.04f,
+            Origin = PointF.Empty
+        };
+
+        var measuredText = TextMeasurer.MeasureSize(captionText, textOptions);
+        var barPaddingY = MathF.Max(12f, image.Height * 0.018f);
+        var barHeight = MathF.Min(image.Height * 0.36f, MathF.Max(52f, measuredText.Height + (barPaddingY * 2f)));
+
+        var maxTop = MathF.Max(0f, image.Height - barHeight);
+        var normalizedY = Math.Clamp((float)captionOverlay.VerticalPositionPercent, 0f, 1f);
+        var barTop = Math.Clamp(normalizedY * image.Height, 0f, maxTop);
+        var textOriginY = barTop + MathF.Max(0f, (barHeight - measuredText.Height) / 2f);
+
+        image.Mutate(ctx =>
+        {
+            ctx.Fill(new Rgba32(0, 0, 0, 128), new RectangleF(0f, barTop, image.Width, barHeight));
+            ctx.DrawText(new RichTextOptions(textOptions) { Origin = new PointF(image.Width / 2f, textOriginY) }, captionText, Color.White);
+        });
+    }
+
+    private static Font ResolveCaptionFont(float fontSize)
+    {
+        var preferredFamilies = new[]
+        {
+            "Arial Black",
+            "Segoe UI Black",
+            "Arial",
+            "Segoe UI"
+        };
+
+        foreach (var familyName in preferredFamilies)
+        {
+            if (SystemFonts.TryGet(familyName, out var family))
+            {
+                return family.CreateFont(fontSize, FontStyle.Bold);
+            }
+        }
+
+        foreach (var fallbackFamily in SystemFonts.Collection.Families)
+        {
+            return fallbackFamily.CreateFont(fontSize, FontStyle.Bold);
+        }
+
+        throw new InvalidOperationException("No system font is available for caption rendering.");
     }
 
     private static ImageProcessingProfile ResolveProfile(ImageUploadPurpose purpose) =>

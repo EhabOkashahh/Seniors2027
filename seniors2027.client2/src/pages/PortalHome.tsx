@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -60,6 +60,9 @@ const LOGO_FIREWORK_PARTICLES = [
   { x: -46, y: 78, c: '#d0ff7a' },
   { x: -92, y: 42, c: '#ff7f7f' }
 ]
+const HIGHLIGHT_CAPTION_MAX_LENGTH = 120
+const HIGHLIGHT_CAPTION_DEFAULT_Y = 0.72
+const HIGHLIGHT_CAPTION_MAX_Y = 0.88
 
 type MonthlyDumpEntry =
   | { id: string; kind: 'note'; createdAt: string; note: NoteItem }
@@ -97,6 +100,13 @@ export default function PortalHome() {
   const [flipDirection, setFlipDirection] = useState<'next' | 'prev'>('next')
   const [loadingHighlights, setLoadingHighlights] = useState(true)
   const [uploadingHighlight, setUploadingHighlight] = useState(false)
+  const [isHighlightComposerOpen, setIsHighlightComposerOpen] = useState(false)
+  const [highlightComposerFile, setHighlightComposerFile] = useState<File | null>(null)
+  const [highlightComposerPreviewUrl, setHighlightComposerPreviewUrl] = useState<string | null>(null)
+  const [highlightComposerCaption, setHighlightComposerCaption] = useState('')
+  const [highlightComposerCaptionYPercent, setHighlightComposerCaptionYPercent] = useState(HIGHLIGHT_CAPTION_DEFAULT_Y)
+  const [highlightComposerError, setHighlightComposerError] = useState<string | null>(null)
+  const [isHighlightCaptionDragging, setIsHighlightCaptionDragging] = useState(false)
   const [deletingHighlight, setDeletingHighlight] = useState(false)
   const [reactingHighlightId, setReactingHighlightId] = useState<number | null>(null)
   const [isHighlightReactionsOpen, setIsHighlightReactionsOpen] = useState(false)
@@ -116,7 +126,10 @@ export default function PortalHome() {
   useGlobalToastMessage(portalContentMessage, setPortalContentMessage)
   useGlobalToastMessage(highlightsMessage, setHighlightsMessage)
   useGlobalToastMessage(monthlyDumpMessage, setMonthlyDumpMessage)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const highlightComposerFileInputRef = useRef<HTMLInputElement>(null)
+  const highlightComposerPreviewRef = useRef<HTMLDivElement>(null)
+  const highlightComposerCaptionRef = useRef<HTMLDivElement>(null)
+  const highlightCaptionDragRef = useRef<{ pointerId: number; offsetY: number } | null>(null)
   const highlightsRef = useRef<DailyHighlight[]>([])
   const activeIndexRef = useRef(0)
   const monthlyDumpAudioContextRef = useRef<AudioContext | null>(null)
@@ -142,6 +155,14 @@ export default function PortalHome() {
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (highlightComposerPreviewUrl) {
+        URL.revokeObjectURL(highlightComposerPreviewUrl)
+      }
+    }
+  }, [highlightComposerPreviewUrl])
 
   const fetchHighlights = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -419,28 +440,144 @@ export default function PortalHome() {
     goPrevBy(1)
   }
 
-  const handleUploadHighlight = async (file: File) => {
+  const resetHighlightComposer = useCallback(() => {
+    if (highlightComposerPreviewUrl) {
+      URL.revokeObjectURL(highlightComposerPreviewUrl)
+    }
+    setHighlightComposerFile(null)
+    setHighlightComposerPreviewUrl(null)
+    setHighlightComposerCaption('')
+    setHighlightComposerCaptionYPercent(HIGHLIGHT_CAPTION_DEFAULT_Y)
+    setHighlightComposerError(null)
+    setIsHighlightCaptionDragging(false)
+    highlightCaptionDragRef.current = null
+  }, [highlightComposerPreviewUrl])
+
+  const handleCloseHighlightComposer = useCallback(() => {
+    setIsHighlightComposerOpen(false)
+    resetHighlightComposer()
+  }, [resetHighlightComposer])
+
+  const clampHighlightCaptionYPercent = useCallback(
+    (value: number) => Math.min(HIGHLIGHT_CAPTION_MAX_Y, Math.max(0, value)),
+    []
+  )
+
+  const updateHighlightCaptionYFromPointer = useCallback(
+    (clientY: number, pointerOffsetY: number) => {
+      const preview = highlightComposerPreviewRef.current
+      const caption = highlightComposerCaptionRef.current
+      if (!preview || !caption) return
+
+      const previewRect = preview.getBoundingClientRect()
+      const captionRect = caption.getBoundingClientRect()
+      const maxTop = Math.max(0, previewRect.height - captionRect.height)
+      const rawTop = clientY - previewRect.top - pointerOffsetY
+      const clampedTop = Math.min(Math.max(0, rawTop), maxTop)
+      const percentFromTop = previewRect.height > 0 ? clampedTop / previewRect.height : 0
+      setHighlightComposerCaptionYPercent(clampHighlightCaptionYPercent(percentFromTop))
+    },
+    [clampHighlightCaptionYPercent]
+  )
+
+  const handleHighlightCaptionPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!highlightComposerPreviewUrl) return
+    if (!highlightComposerCaption.trim()) return
+    const caption = highlightComposerCaptionRef.current
+    if (!caption) return
+
+    const captionRect = caption.getBoundingClientRect()
+    const offsetY = event.clientY - captionRect.top
+    highlightCaptionDragRef.current = { pointerId: event.pointerId, offsetY }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setIsHighlightCaptionDragging(true)
+  }
+
+  const handleHighlightCaptionPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = highlightCaptionDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    updateHighlightCaptionYFromPointer(event.clientY, drag.offsetY)
+  }
+
+  const handleHighlightCaptionPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = highlightCaptionDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    highlightCaptionDragRef.current = null
+    setIsHighlightCaptionDragging(false)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const handleSelectHighlightComposerImage = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setHighlightComposerError('Only image files are allowed.')
+      return
+    }
+
+    if (highlightComposerPreviewUrl) {
+      URL.revokeObjectURL(highlightComposerPreviewUrl)
+    }
+
+    setHighlightComposerError(null)
+    setHighlightComposerFile(file)
+    setHighlightComposerPreviewUrl(URL.createObjectURL(file))
+  }
+
+  const handleUploadHighlight = async (
+    file: File,
+    captionText?: string,
+    captionYPercent?: number
+  ): Promise<boolean> => {
     setUploadingHighlight(true)
     setHighlightsMessage(null)
 
     try {
-      const result = await uploadDailyHighlightRequest(file)
+      const normalizedCaptionText = captionText?.trim()
+      const result = await uploadDailyHighlightRequest({
+        file,
+        captionText: normalizedCaptionText,
+        captionYPercent:
+          normalizedCaptionText && typeof captionYPercent === 'number'
+            ? clampHighlightCaptionYPercent(captionYPercent)
+            : undefined
+      })
       const createdHighlight = result.data
 
       if (!result.ok || !createdHighlight) {
         setHighlightsMessage(result.error ?? 'Could not upload highlight.')
-        return
+        return false
       }
 
       setHighlights((prev) => [createdHighlight, ...prev])
       setActiveIndex(0)
       setFlipDirection('next')
       setHighlightsMessage('Daily highlight added. It will expire automatically after 24h.')
+      return true
     } catch {
       setHighlightsMessage('Could not upload highlight. Please try another photo.')
+      return false
     } finally {
       setUploadingHighlight(false)
     }
+  }
+
+  const handleSubmitHighlightComposer = async () => {
+    if (!highlightComposerFile) {
+      setHighlightComposerError('Please add an image first.')
+      return
+    }
+
+    const captionText = highlightComposerCaption.trim()
+    const succeeded = await handleUploadHighlight(
+      highlightComposerFile,
+      captionText ? captionText : undefined,
+      captionText ? highlightComposerCaptionYPercent : undefined
+    )
+
+    if (!succeeded) return
+    setIsHighlightComposerOpen(false)
+    resetHighlightComposer()
   }
 
   const handleDeleteCurrentHighlight = async () => {
@@ -1495,24 +1632,15 @@ export default function PortalHome() {
                     type="button"
                     className="neo-btn"
                     disabled={uploadingHighlight}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                      setIsHighlightComposerOpen(true)
+                      setHighlightComposerError(null)
+                    }}
                     style={{ padding: '10px 14px', fontSize: '0.85rem', minWidth: 'auto' }}
                   >
                     <Upload size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
                     {uploadingHighlight ? 'Uploading...' : 'Add Today'}
                   </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      e.target.value = ''
-                      if (!file) return
-                      void handleUploadHighlight(file)
-                    }}
-                  />
                   <div style={{ fontSize: '0.8rem', fontWeight: 900, opacity: 0.74 }}>
                     {highlights.length} active
                   </div>
@@ -2074,6 +2202,238 @@ export default function PortalHome() {
               </button>
             </div>
 
+          </motion.div>
+        </div>
+      )}
+
+      {isHighlightComposerOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1260,
+            background: 'rgba(0, 0, 0, 0.66)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={handleCloseHighlightComposer}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 14, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              width: isMobile ? 'min(96vw, 640px)' : 'min(760px, 96vw)',
+              background: '#fffbe8',
+              border: '4px solid black',
+              boxShadow: '10px 10px 0 black',
+              padding: isMobile ? '12px' : '16px',
+              display: 'grid',
+              gap: '10px',
+              maxHeight: '94vh',
+              overflowY: 'auto'
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 900, letterSpacing: '0.04em' }}>ADD TODAY HIGHLIGHT</div>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={handleCloseHighlightComposer}
+                disabled={uploadingHighlight}
+                style={{ minWidth: 'auto', padding: '7px 10px' }}
+              >
+                Close
+              </button>
+            </div>
+
+            <input
+              ref={highlightComposerFileInputRef}
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (!file) return
+                handleSelectHighlightComposerImage(file)
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={() => highlightComposerFileInputRef.current?.click()}
+                disabled={uploadingHighlight}
+                style={{ minWidth: 'auto', padding: '8px 12px' }}
+              >
+                <Upload size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                Add Image
+              </button>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, opacity: 0.8 }}>
+                {highlightComposerFile ? highlightComposerFile.name : 'No image selected yet'}
+              </div>
+            </div>
+
+            <div
+              style={{
+                border: '2px solid black',
+                background: '#0f0f0f',
+                padding: '10px',
+                minHeight: '220px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {!highlightComposerPreviewUrl ? (
+                <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.85rem', textAlign: 'center', opacity: 0.84 }}>
+                  Select an image to preview and place your optional caption.
+                </div>
+              ) : (
+                <div
+                  ref={highlightComposerPreviewRef}
+                  style={{
+                    position: 'relative',
+                    display: 'inline-block',
+                    lineHeight: 0,
+                    maxWidth: '100%',
+                    touchAction: 'none'
+                  }}
+                >
+                  <img
+                    src={highlightComposerPreviewUrl}
+                    alt="Highlight preview"
+                    style={{
+                      display: 'block',
+                      maxWidth: 'min(100%, 620px)',
+                      maxHeight: '56vh',
+                      width: 'auto',
+                      height: 'auto'
+                    }}
+                  />
+                  {highlightComposerCaption.trim() && (
+                    <div
+                      ref={highlightComposerCaptionRef}
+                      onPointerDown={handleHighlightCaptionPointerDown}
+                      onPointerMove={handleHighlightCaptionPointerMove}
+                      onPointerUp={handleHighlightCaptionPointerUp}
+                      onPointerCancel={handleHighlightCaptionPointerUp}
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: `${highlightComposerCaptionYPercent * 100}%`,
+                        transform: 'translateY(0)',
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        color: '#fff',
+                        padding: '10px 14px',
+                        textAlign: 'center',
+                        fontWeight: 900,
+                        letterSpacing: '0.01em',
+                        lineHeight: 1.25,
+                        cursor: isHighlightCaptionDragging ? 'grabbing' : 'grab',
+                        userSelect: 'none',
+                        touchAction: 'none',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                      }}
+                    >
+                      {highlightComposerCaption}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gap: '8px' }}>
+              <label htmlFor="highlight-caption-input" style={{ fontWeight: 800, fontSize: '0.83rem' }}>
+                Caption (optional)
+              </label>
+              <textarea
+                id="highlight-caption-input"
+                value={highlightComposerCaption}
+                onChange={(event) => {
+                  setHighlightComposerError(null)
+                  setHighlightComposerCaption(event.target.value.slice(0, HIGHLIGHT_CAPTION_MAX_LENGTH))
+                }}
+                placeholder="Type caption text..."
+                rows={2}
+                style={{
+                  width: '100%',
+                  border: '2px solid black',
+                  padding: '9px 10px',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  resize: 'vertical',
+                  minHeight: '72px'
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'inline-flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="neo-btn"
+                    onClick={() =>
+                      setHighlightComposerCaptionYPercent((prev) => clampHighlightCaptionYPercent(prev - 0.04))
+                    }
+                    disabled={!highlightComposerCaption.trim()}
+                    style={{ minWidth: 'auto', padding: '7px 10px' }}
+                  >
+                    Move Up
+                  </button>
+                  <button
+                    type="button"
+                    className="neo-btn"
+                    onClick={() =>
+                      setHighlightComposerCaptionYPercent((prev) => clampHighlightCaptionYPercent(prev + 0.04))
+                    }
+                    disabled={!highlightComposerCaption.trim()}
+                    style={{ minWidth: 'auto', padding: '7px 10px' }}
+                  >
+                    Move Down
+                  </button>
+                </div>
+                <div style={{ fontWeight: 800, fontSize: '0.74rem', opacity: 0.78 }}>
+                  {highlightComposerCaption.length}/{HIGHLIGHT_CAPTION_MAX_LENGTH}
+                </div>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.72 }}>
+                Drag the caption bar inside the preview to place it vertically.
+              </div>
+              {highlightComposerError && (
+                <div style={{ border: '2px solid black', background: '#ffd9d9', padding: '8px 10px', fontWeight: 800, fontSize: '0.78rem' }}>
+                  {highlightComposerError}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={handleCloseHighlightComposer}
+                disabled={uploadingHighlight}
+                style={{ minWidth: 'auto', padding: '8px 12px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={() => void handleSubmitHighlightComposer()}
+                disabled={uploadingHighlight || !highlightComposerFile}
+                style={{ minWidth: 'auto', padding: '8px 12px' }}
+              >
+                {uploadingHighlight ? 'Uploading...' : 'Upload'}
+              </button>
+            </div>
           </motion.div>
         </div>
       )}
