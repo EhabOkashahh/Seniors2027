@@ -120,7 +120,7 @@ export default function Profile() {
   const [adminAccountActionRunning, setAdminAccountActionRunning] = useState(false)
   const [adminAccountMessage, setAdminAccountMessage] = useState<string | null>(null)
   const notesPreviewCount = 6
-  const notesBookPageSize = 6
+  const notesBookPageSize = isMobile ? 2 : 6
   const noteActionIconSize = 13
   const noteActionIconStyle = { width: noteActionIconSize, height: noteActionIconSize, flexShrink: 0, display: 'block' as const }
 
@@ -2163,7 +2163,7 @@ export default function Profile() {
                   transition={{ duration: 0.38, ease: [0.2, 0.8, 0.2, 1] }}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
                     gap: '14px',
                     alignItems: 'stretch'
                   }}
@@ -2214,8 +2214,17 @@ export default function Profile() {
                       </p>
                       <div style={{ marginTop: 'auto', display: 'grid', gap: '8px' }}>
                         <div style={{ fontSize: '0.8rem', opacity: 0.72, fontWeight: 700 }}>{formatNoteDate(note.createdAt)}</div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <div
+                          style={{
+                            display: isMobile ? 'grid' : 'flex',
+                            gridTemplateColumns: isMobile ? 'repeat(2, 40px)' : undefined,
+                            justifyContent: isMobile ? 'center' : 'space-between',
+                            alignItems: 'center',
+                            gap: '8px',
+                            flexWrap: isMobile ? undefined : 'wrap'
+                          }}
+                        >
+                          <div style={{ display: isMobile ? 'contents' : 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="neo-btn"
@@ -2227,19 +2236,23 @@ export default function Profile() {
                               disabled={isReacting}
                               aria-label={`Love reactions (${loveCount})`}
                               style={{
-                                minWidth: 'auto',
-                                padding: '6px 8px',
+                                minWidth: isMobile ? '40px' : 'auto',
+                                width: isMobile ? '40px' : undefined,
+                                height: isMobile ? '40px' : undefined,
+                                padding: isMobile ? 0 : '6px 8px',
                                 fontSize: '0.74rem',
                                 background: currentReactionType === 'Love' ? '#ffd6df' : '#fff',
                                 display: 'inline-flex',
                                 alignItems: 'center',
+                                justifyContent: 'center',
                                 gap: '4px',
                                 boxShadow: 'none',
-                                border: '1.5px solid black'
+                                border: '1.5px solid black',
+                                justifySelf: isMobile ? 'center' : undefined
                               }}
                             >
                               <Heart size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} color="#e5486f" fill="#ff6b8a" />
-                              <span>{loveCount}</span>
+                              {!isMobile && <span>{loveCount}</span>}
                             </button>
                             <button
                               type="button"
@@ -2252,19 +2265,23 @@ export default function Profile() {
                               disabled={isReacting}
                               aria-label={`Ahaha reactions (${ahahaCount})`}
                               style={{
-                                minWidth: 'auto',
-                                padding: '6px 8px',
+                                minWidth: isMobile ? '40px' : 'auto',
+                                width: isMobile ? '40px' : undefined,
+                                height: isMobile ? '40px' : undefined,
+                                padding: isMobile ? 0 : '6px 8px',
                                 fontSize: '0.74rem',
                                 background: currentReactionType === 'Ahaha' ? '#ffeab0' : '#fff',
                                 display: 'inline-flex',
                                 alignItems: 'center',
+                                justifyContent: 'center',
                                 gap: '4px',
                                 boxShadow: 'none',
-                                border: '1.5px solid black'
+                                border: '1.5px solid black',
+                                justifySelf: isMobile ? 'center' : undefined
                               }}
                             >
                               <Laugh size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} color="#d97706" />
-                              <span>{ahahaCount}</span>
+                              {!isMobile && <span>{ahahaCount}</span>}
                             </button>
                             <button
                               type="button"
@@ -2276,7 +2293,18 @@ export default function Profile() {
                               }}
                               disabled={noteReactions.length === 0}
                               aria-label="Show reactions"
-                              style={{ minWidth: 'auto', padding: '6px 8px', boxShadow: 'none', border: '1.5px solid black' }}
+                              style={{
+                                minWidth: isMobile ? '40px' : 'auto',
+                                width: isMobile ? '40px' : undefined,
+                                height: isMobile ? '40px' : undefined,
+                                padding: isMobile ? 0 : '6px 8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: 'none',
+                                border: '1.5px solid black',
+                                justifySelf: isMobile ? 'center' : undefined
+                              }}
                             >
                               <Eye size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} />
                             </button>
@@ -2294,15 +2322,16 @@ export default function Profile() {
                             aria-label={isDeleting ? 'Deleting note' : 'Delete note'}
                             style={{
                               minWidth: 'auto',
-                              width: '32px',
-                              height: '32px',
+                              width: isMobile ? '40px' : '32px',
+                              height: isMobile ? '40px' : '32px',
                               padding: 0,
                               background: '#ff8f8f',
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               boxShadow: 'none',
-                              border: '1.5px solid black'
+                              border: '1.5px solid black',
+                              justifySelf: isMobile ? 'center' : undefined
                             }}
                           >
                             <Trash2 size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} />

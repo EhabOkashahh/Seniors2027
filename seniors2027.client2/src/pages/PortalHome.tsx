@@ -1730,6 +1730,8 @@ export default function PortalHome() {
 
       {isHighlightReactionsOpen && current && (
         <div
+          role="dialog"
+          aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,
@@ -1853,6 +1855,8 @@ export default function PortalHome() {
 
       {monthlyDumpOpen && (
         <div
+          role="dialog"
+          aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,
@@ -1982,6 +1986,8 @@ export default function PortalHome() {
 
       {isArchiveOpen && highlights.length > 0 && (
         <div
+          role="dialog"
+          aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,

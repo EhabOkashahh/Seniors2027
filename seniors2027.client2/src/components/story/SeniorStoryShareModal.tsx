@@ -306,6 +306,8 @@ export default function SeniorStoryShareModal(props: SeniorStoryShareModalProps)
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,

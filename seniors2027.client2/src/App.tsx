@@ -55,10 +55,64 @@ function ScrollToTopOnRouteChange() {
   return null
 }
 
+function ModalScrollLockOnDialogOpen() {
+  useEffect(() => {
+    const htmlElement = document.documentElement
+    const bodyElement = document.body
+
+    const syncScrollLockState = () => {
+      const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'))
+      const hasOpenDialog = dialogs.some((dialog) => {
+        const style = window.getComputedStyle(dialog)
+        if (style.display === 'none' || style.visibility === 'hidden') return false
+        const bounds = dialog.getBoundingClientRect()
+        return bounds.width > 0 && bounds.height > 0
+      })
+
+      htmlElement.classList.toggle('modal-scroll-lock', hasOpenDialog)
+      bodyElement.classList.toggle('modal-scroll-lock', hasOpenDialog)
+
+      const portalMain = document.querySelector<HTMLElement>('.portal-main')
+      if (portalMain) {
+        portalMain.classList.toggle('modal-scroll-lock', hasOpenDialog)
+      }
+    }
+
+    syncScrollLockState()
+
+    const observer = new MutationObserver(() => {
+      syncScrollLockState()
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style', 'hidden', 'aria-hidden']
+    })
+
+    window.addEventListener('resize', syncScrollLockState)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', syncScrollLockState)
+      htmlElement.classList.remove('modal-scroll-lock')
+      bodyElement.classList.remove('modal-scroll-lock')
+      const portalMain = document.querySelector<HTMLElement>('.portal-main')
+      if (portalMain) {
+        portalMain.classList.remove('modal-scroll-lock')
+      }
+    }
+  }, [])
+
+  return null
+}
+
 function App() {
   return (
     <Router>
       <ScrollToTopOnRouteChange />
+      <ModalScrollLockOnDialogOpen />
       <Routes>
         <Route
           path="/"

@@ -578,6 +578,8 @@ export default function MemoryBoard() {
 
       {isMyUploadsOpen && !isAdmin && (
         <div
+          role="dialog"
+          aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,
@@ -698,6 +700,8 @@ export default function MemoryBoard() {
 
       {isViewerOpen && sortedPhotos[viewerIndex] && (
         <div
+          role="dialog"
+          aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,

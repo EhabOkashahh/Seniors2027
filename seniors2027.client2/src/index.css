@@ -13,3 +13,28 @@ body,
 body {
   min-height: 100vh;
 }
+
+html.modal-scroll-lock,
+body.modal-scroll-lock {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+.portal-main.modal-scroll-lock {
+  overflow: hidden !important;
+}
+
+@media (max-width: 900px) {
+  [role="dialog"][aria-modal="true"] {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [role="dialog"][aria-modal="true"][style*="inset: 0"] > * {
+    max-height: calc(100dvh - 24px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
