@@ -193,8 +193,8 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
     private static IReadOnlyList<FontFamily> ResolveCaptionFallbackFamilies(bool prefersArabic, FontFamily baseFamily)
     {
         var fallbackFamilyNames = prefersArabic
-            ? new[] { "Segoe UI", "Tahoma", "Arial", "Noto Naskh Arabic", "Noto Sans Arabic", "Arial Unicode MS" }
-            : new[] { "Segoe UI", "Arial", "Tahoma", "Noto Sans Arabic", "Noto Naskh Arabic" };
+            ? new[] { "Segoe UI", "Tahoma", "Arial", "Noto Naskh Arabic", "Noto Sans Arabic", "Arial Unicode MS", "Segoe UI Emoji" }
+            : new[] { "Segoe UI", "Arial", "Tahoma", "Noto Sans Arabic", "Noto Naskh Arabic", "Segoe UI Emoji" };
 
         var families = new List<FontFamily>();
         foreach (var familyName in fallbackFamilyNames)
