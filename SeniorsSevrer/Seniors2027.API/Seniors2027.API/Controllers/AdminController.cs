@@ -188,6 +188,14 @@ public class AdminController(
                 _context.DailyHighlightReactions.RemoveRange(userHighlightReactions);
             }
 
+            var userHighlightMentions = await _context.DailyHighlightMentions
+                .Where(m => m.MentionedUserId == userId)
+                .ToListAsync();
+            if (userHighlightMentions.Count > 0)
+            {
+                _context.DailyHighlightMentions.RemoveRange(userHighlightMentions);
+            }
+
             var userAnnouncementPollVotes = await _context.AnnouncementPollVotes
                 .Where(v => v.UserId == userId)
                 .ToListAsync();

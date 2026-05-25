@@ -32,6 +32,7 @@ import {
   deleteDailyHighlightRequest,
   getPortalAnnouncementsRequest,
   getPortalEventsRequest,
+  getUsersRequest,
   getMeRequest,
   getReceivedNotesPageRequest,
   getActiveDailyHighlightsRequest,
@@ -43,6 +44,7 @@ import {
   type DailyHighlight,
   type DailyHighlightReaction,
   type DailyHighlightReactionType,
+  type DirectoryUser,
   type NoteItem,
   type PortalEventItem,
   uploadDailyHighlightRequest
@@ -63,6 +65,8 @@ const LOGO_FIREWORK_PARTICLES = [
 const HIGHLIGHT_CAPTION_MAX_LENGTH = 120
 const HIGHLIGHT_CAPTION_DEFAULT_Y = 0.72
 const HIGHLIGHT_CAPTION_MAX_Y = 0.88
+const HIGHLIGHT_MAX_MENTIONS = 25
+const HIGHLIGHT_MENTION_SEARCH_RESULTS_LIMIT = 8
 
 function isLikelyRtlText(value: string): boolean {
   for (const char of value) {
@@ -131,6 +135,10 @@ export default function PortalHome() {
   const [highlightComposerPreviewUrl, setHighlightComposerPreviewUrl] = useState<string | null>(null)
   const [highlightComposerCaption, setHighlightComposerCaption] = useState('')
   const [highlightComposerCaptionYPercent, setHighlightComposerCaptionYPercent] = useState(HIGHLIGHT_CAPTION_DEFAULT_Y)
+  const [highlightMentionSearchInput, setHighlightMentionSearchInput] = useState('')
+  const [highlightMentionSearchResults, setHighlightMentionSearchResults] = useState<DirectoryUser[]>([])
+  const [highlightSelectedMentions, setHighlightSelectedMentions] = useState<DirectoryUser[]>([])
+  const [loadingHighlightMentionResults, setLoadingHighlightMentionResults] = useState(false)
   const [highlightComposerError, setHighlightComposerError] = useState<string | null>(null)
   const [isHighlightCaptionDragging, setIsHighlightCaptionDragging] = useState(false)
   const [deletingHighlight, setDeletingHighlight] = useState(false)
@@ -189,6 +197,45 @@ export default function PortalHome() {
       }
     }
   }, [highlightComposerPreviewUrl])
+
+  useEffect(() => {
+    if (!isHighlightComposerOpen) {
+      setHighlightMentionSearchResults([])
+      setLoadingHighlightMentionResults(false)
+      return
+    }
+
+    const normalizedQuery = highlightMentionSearchInput.trim()
+    if (!normalizedQuery) {
+      setHighlightMentionSearchResults([])
+      setLoadingHighlightMentionResults(false)
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      setLoadingHighlightMentionResults(true)
+      const result = await getUsersRequest(1, HIGHLIGHT_MENTION_SEARCH_RESULTS_LIMIT, normalizedQuery)
+      if (cancelled) return
+
+      if (result.ok && result.data) {
+        const selectedUserIds = new Set(highlightSelectedMentions.map((item) => item.id))
+        const usersExcludingCurrentAndSelected = result.data.items.filter(
+          (item) => item.id !== currentUserId && !selectedUserIds.has(item.id)
+        )
+        setHighlightMentionSearchResults(usersExcludingCurrentAndSelected)
+      } else {
+        setHighlightMentionSearchResults([])
+      }
+
+      setLoadingHighlightMentionResults(false)
+    }, 260)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [currentUserId, highlightMentionSearchInput, highlightSelectedMentions, isHighlightComposerOpen])
 
   const fetchHighlights = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -466,6 +513,20 @@ export default function PortalHome() {
     goPrevBy(1)
   }
 
+  const handleAddHighlightMention = (user: DirectoryUser) => {
+    setHighlightSelectedMentions((prev) => {
+      if (prev.some((item) => item.id === user.id)) return prev
+      if (prev.length >= HIGHLIGHT_MAX_MENTIONS) return prev
+      return [...prev, user]
+    })
+    setHighlightMentionSearchInput('')
+    setHighlightMentionSearchResults([])
+  }
+
+  const handleRemoveHighlightMention = (userId: number) => {
+    setHighlightSelectedMentions((prev) => prev.filter((item) => item.id !== userId))
+  }
+
   const resetHighlightComposer = useCallback(() => {
     if (highlightComposerPreviewUrl) {
       URL.revokeObjectURL(highlightComposerPreviewUrl)
@@ -474,6 +535,10 @@ export default function PortalHome() {
     setHighlightComposerPreviewUrl(null)
     setHighlightComposerCaption('')
     setHighlightComposerCaptionYPercent(HIGHLIGHT_CAPTION_DEFAULT_Y)
+    setHighlightMentionSearchInput('')
+    setHighlightMentionSearchResults([])
+    setHighlightSelectedMentions([])
+    setLoadingHighlightMentionResults(false)
     setHighlightComposerError(null)
     setIsHighlightCaptionDragging(false)
     highlightCaptionDragRef.current = null
@@ -553,7 +618,8 @@ export default function PortalHome() {
   const handleUploadHighlight = async (
     file: File,
     captionText?: string,
-    captionYPercent?: number
+    captionYPercent?: number,
+    mentionUserIds?: number[]
   ): Promise<boolean> => {
     setUploadingHighlight(true)
     setHighlightsMessage(null)
@@ -566,7 +632,8 @@ export default function PortalHome() {
         captionYPercent:
           normalizedCaptionText && typeof captionYPercent === 'number'
             ? clampHighlightCaptionYPercent(captionYPercent)
-            : undefined
+            : undefined,
+        mentionUserIds
       })
       const createdHighlight = result.data
 
@@ -594,11 +661,18 @@ export default function PortalHome() {
       return
     }
 
+    if (highlightSelectedMentions.length > HIGHLIGHT_MAX_MENTIONS) {
+      setHighlightComposerError(`You can mention up to ${HIGHLIGHT_MAX_MENTIONS} users.`)
+      return
+    }
+
     const captionText = highlightComposerCaption.trim()
+    const mentionUserIds = highlightSelectedMentions.map((item) => item.id)
     const succeeded = await handleUploadHighlight(
       highlightComposerFile,
       captionText ? captionText : undefined,
-      captionText ? highlightComposerCaptionYPercent : undefined
+      captionText ? highlightComposerCaptionYPercent : undefined,
+      mentionUserIds
     )
 
     if (!succeeded) return
@@ -2436,6 +2510,121 @@ export default function PortalHome() {
               <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.72 }}>
                 Drag the caption bar inside the preview to place it vertically.
               </div>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <label htmlFor="highlight-mention-input" style={{ fontWeight: 800, fontSize: '0.83rem' }}>
+                  Mention People (optional)
+                </label>
+                <input
+                  id="highlight-mention-input"
+                  type="text"
+                  value={highlightMentionSearchInput}
+                  onChange={(event) => {
+                    setHighlightComposerError(null)
+                    setHighlightMentionSearchInput(event.target.value)
+                  }}
+                  placeholder="Search users to mention..."
+                  disabled={highlightSelectedMentions.length >= HIGHLIGHT_MAX_MENTIONS}
+                  style={{
+                    width: '100%',
+                    border: '2px solid black',
+                    padding: '9px 10px',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    background: highlightSelectedMentions.length >= HIGHLIGHT_MAX_MENTIONS ? '#f4f4f4' : '#fff'
+                  }}
+                />
+                <div style={{ fontWeight: 700, fontSize: '0.75rem', opacity: 0.72 }}>
+                  {highlightSelectedMentions.length}/{HIGHLIGHT_MAX_MENTIONS} mentioned
+                </div>
+                {highlightSelectedMentions.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {highlightSelectedMentions.map((mentionedUser) => (
+                      <div
+                        key={`highlight-mention-${mentionedUser.id}`}
+                        style={{
+                          border: '1.5px solid black',
+                          background: '#fff',
+                          padding: '4px 6px',
+                          borderRadius: '999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          maxWidth: '100%'
+                        }}
+                      >
+                        <GenderCapAvatar
+                          src={mentionedUser.photoUrl || '/favicon.svg'}
+                          alt={mentionedUser.username}
+                          gender={null}
+                          fallbackText={mentionedUser.username.charAt(0).toUpperCase()}
+                          containerStyle={{ width: '22px', height: '22px', borderRadius: '50%', border: '1.5px solid black', background: '#fff' }}
+                          imageStyle={{ borderRadius: '50%' }}
+                          capScale={0.65}
+                        />
+                        <span style={{ fontWeight: 800, fontSize: '0.75rem', lineHeight: 1.1, overflowWrap: 'anywhere' }}>
+                          {mentionedUser.username}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveHighlightMention(mentionedUser.id)}
+                          aria-label={`Remove ${mentionedUser.username}`}
+                          style={{
+                            all: 'unset',
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '50%',
+                            border: '1px solid black',
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontWeight: 900,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {highlightMentionSearchInput.trim() && (
+                  <div style={{ border: '2px solid black', background: '#fff', maxHeight: '160px', overflowY: 'auto' }}>
+                    {loadingHighlightMentionResults ? (
+                      <div style={{ padding: '9px 10px', fontWeight: 700, fontSize: '0.8rem' }}>Searching...</div>
+                    ) : highlightMentionSearchResults.length === 0 ? (
+                      <div style={{ padding: '9px 10px', fontWeight: 700, fontSize: '0.8rem' }}>No users found.</div>
+                    ) : (
+                      highlightMentionSearchResults.map((mentionedUser) => (
+                        <button
+                          key={`highlight-mention-result-${mentionedUser.id}`}
+                          type="button"
+                          onClick={() => handleAddHighlightMention(mentionedUser)}
+                          style={{
+                            all: 'unset',
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 10px',
+                            borderBottom: '1px solid #d8d8d8',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <GenderCapAvatar
+                            src={mentionedUser.photoUrl || '/favicon.svg'}
+                            alt={mentionedUser.username}
+                            gender={null}
+                            fallbackText={mentionedUser.username.charAt(0).toUpperCase()}
+                            containerStyle={{ width: '26px', height: '26px', borderRadius: '50%', border: '1.5px solid black', background: '#fff' }}
+                            imageStyle={{ borderRadius: '50%' }}
+                            capScale={0.68}
+                          />
+                          <span style={{ fontWeight: 800, fontSize: '0.8rem' }}>{mentionedUser.username}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
               {highlightComposerError && (
                 <div style={{ border: '2px solid black', background: '#ffd9d9', padding: '8px 10px', fontWeight: 800, fontSize: '0.78rem' }}>
                   {highlightComposerError}
@@ -2571,7 +2760,7 @@ export default function PortalHome() {
               )}
             </div>
 
-            <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={(event) =>
@@ -2603,8 +2792,39 @@ export default function PortalHome() {
               >
                 {current?.user.username}
               </button>
-              <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.75 }}>
-                {formatDate(current?.createdAt)}
+              <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {current && current.mentionedUsers.length > 0 && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                    {current.mentionedUsers.map((mentionedUser) => (
+                      <button
+                        key={`archive-highlight-mentioned-${current.id}-${mentionedUser.id}`}
+                        type="button"
+                        onClick={(event) =>
+                          handleOpenUserWebsite(event, {
+                            id: mentionedUser.id,
+                            username: mentionedUser.username
+                          })
+                        }
+                        aria-label={`Open ${mentionedUser.username} website`}
+                        title={mentionedUser.username}
+                        style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                      >
+                        <GenderCapAvatar
+                          src={mentionedUser.photoUrl || '/favicon.svg'}
+                          alt={mentionedUser.username}
+                          gender={mentionedUser.gender ?? null}
+                          fallbackText={mentionedUser.username.charAt(0).toUpperCase()}
+                          containerStyle={{ width: '26px', height: '26px', borderRadius: '50%', border: '1.5px solid black', background: '#fff' }}
+                          imageStyle={{ borderRadius: '50%' }}
+                          capScale={0.68}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.75 }}>
+                  {formatDate(current?.createdAt)}
+                </div>
               </div>
             </div>
 

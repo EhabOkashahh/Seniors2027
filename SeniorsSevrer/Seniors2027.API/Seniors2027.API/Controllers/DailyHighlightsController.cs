@@ -60,6 +60,15 @@ public class DailyHighlightsController : ControllerBase
             return BadRequest("Caption must be 120 characters or less.");
         }
 
+        var mentionUserIds = requestDto.MentionUserIds?
+            .Where(id => id > 0 && id != userId)
+            .Distinct()
+            .ToList() ?? new List<int>();
+        if (mentionUserIds.Count > 25)
+        {
+            return BadRequest("You can mention up to 25 users per highlight.");
+        }
+
         ImageCaptionOverlayRequest? captionOverlay = null;
         var captionText = requestDto.CaptionText?.Trim();
         if (!string.IsNullOrWhiteSpace(captionText))
@@ -85,7 +94,7 @@ public class DailyHighlightsController : ControllerBase
 
         try
         {
-            var created = await _dailyHighlightService.AddHighlightAsync(userId, storedPhoto.PhotoUrl);
+            var created = await _dailyHighlightService.AddHighlightAsync(userId, storedPhoto.PhotoUrl, mentionUserIds);
             await _highlightsRealtimeNotifier.NotifyHighlightsUpdatedAsync(HttpContext.RequestAborted);
             await _appUpdatesRealtimeNotifier.NotifyDailyHighlightsUpdatedAsync(HttpContext.RequestAborted);
             return Ok(created);
@@ -181,4 +190,5 @@ public class UploadDailyHighlightRequest
     public IFormFile? Photo { get; set; }
     public string? CaptionText { get; set; }
     public double? CaptionYPercent { get; set; }
+    public List<int>? MentionUserIds { get; set; }
 }

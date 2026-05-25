@@ -18,7 +18,7 @@ public class DailyHighlightService : IDailyHighlightService
         _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
     }
 
-    public async Task<DailyHighlightDto> AddHighlightAsync(int userId, string photoUrl)
+    public async Task<DailyHighlightDto> AddHighlightAsync(int userId, string photoUrl, IReadOnlyCollection<int>? mentionUserIds = null)
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == userId)
@@ -41,25 +41,44 @@ public class DailyHighlightService : IDailyHighlightService
             ExpiresAt = now.AddHours(24)
         };
 
+        var normalizedMentionIds = mentionUserIds?
+            .Where(id => id > 0 && id != userId)
+            .Distinct()
+            .ToList() ?? new List<int>();
+
+        if (normalizedMentionIds.Count > 0)
+        {
+            var mentionedUsers = await _context.Users
+                .Where(u => normalizedMentionIds.Contains(u.Id))
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            if (mentionedUsers.Count != normalizedMentionIds.Count)
+            {
+                throw new InvalidOperationException("One or more mentioned users were not found.");
+            }
+
+            foreach (var mentionedUserId in normalizedMentionIds)
+            {
+                highlight.Mentions.Add(new DailyHighlightMention
+                {
+                    MentionedUserId = mentionedUserId,
+                    CreatedAt = now
+                });
+            }
+        }
+
         await _context.DailyHighlights.AddAsync(highlight);
         user.Points += HighlightPointsAward;
         await _context.SaveChangesAsync();
         await _appUpdatesRealtimeNotifier.NotifyUserPointsUpdatedAsync(user.Id, user.Points);
 
-        return new DailyHighlightDto
-        {
-            Id = highlight.Id,
-            PhotoUrl = galleryPhoto.PhotoUrl,
-            CreatedAt = highlight.CreatedAt,
-            IsOwnedByCurrentUser = true,
-            User = new DailyHighlightUserDto
-            {
-                Username = user.Username,
-                PhotoUrl = user.PhotoUrl,
-                Gender = user.Gender.ToString()
-            },
-            Reactions = new List<DailyHighlightReactionDto>()
-        };
+        var createdHighlight = await QueryHighlightsWithRelations()
+            .FirstOrDefaultAsync(h => h.Id == highlight.Id);
+
+        return createdHighlight == null
+            ? throw new InvalidOperationException("Could not load created highlight.")
+            : MapToDto(createdHighlight, userId);
     }
 
     public async Task<IReadOnlyList<DailyHighlightDto>> GetActiveHighlightsAsync(int maxCount, int? requesterUserId = null)
@@ -178,6 +197,8 @@ public class DailyHighlightService : IDailyHighlightService
         var query = _context.DailyHighlights
             .Include(h => h.User)
             .Include(h => h.GalleryPhoto)
+            .Include(h => h.Mentions)
+                .ThenInclude(m => m.MentionedUser)
             .Include(h => h.Reactions)
                 .ThenInclude(r => r.User)
             .AsQueryable();
@@ -199,6 +220,16 @@ public class DailyHighlightService : IDailyHighlightService
                 PhotoUrl = highlight.User.PhotoUrl,
                 Gender = highlight.User.Gender.ToString()
             },
+            MentionedUsers = highlight.Mentions
+                .OrderBy(m => m.CreatedAt)
+                .Select(m => new DailyHighlightMentionUserDto
+                {
+                    Id = m.MentionedUser.Id,
+                    Username = m.MentionedUser.Username,
+                    PhotoUrl = m.MentionedUser.PhotoUrl,
+                    Gender = m.MentionedUser.Gender.ToString()
+                })
+                .ToList(),
             Reactions = highlight.Reactions
                 .OrderByDescending(r => r.CreatedAt)
                 .Select(r => new DailyHighlightReactionDto

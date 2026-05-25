@@ -36,6 +36,7 @@ public class User
     public ICollection<GalleryPhoto> GalleryPhotos { get; set; } = new List<GalleryPhoto>();
     public ICollection<DailyHighlight> DailyHighlights { get; set; } = new List<DailyHighlight>();
     public ICollection<DailyHighlightReaction> DailyHighlightReactions { get; set; } = new List<DailyHighlightReaction>();
+    public ICollection<DailyHighlightMention> MentionedInDailyHighlights { get; set; } = new List<DailyHighlightMention>();
     public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
     public ICollection<AnnouncementPollVote> AnnouncementPollVotes { get; set; } = new List<AnnouncementPollVote>();
     public ICollection<PortalEvent> Events { get; set; } = new List<PortalEvent>();

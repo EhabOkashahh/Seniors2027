@@ -236,12 +236,20 @@ export type DailyHighlightReaction = {
   user: DailyHighlightReactionUser
 }
 
+export type DailyHighlightMentionUser = {
+  id: number
+  username: string
+  photoUrl?: string | null
+  gender?: string | null
+}
+
 export type DailyHighlight = {
   id: number
   photoUrl: string
   createdAt: string
   isOwnedByCurrentUser: boolean
   user: DailyHighlightUser
+  mentionedUsers: DailyHighlightMentionUser[]
   reactions: DailyHighlightReaction[]
 }
 
@@ -715,6 +723,7 @@ export async function uploadDailyHighlightRequest(payload: {
   file: File
   captionText?: string
   captionYPercent?: number
+  mentionUserIds?: number[]
 }): Promise<ApiResult<DailyHighlight>> {
   try {
     const token = getAuthToken()
@@ -730,6 +739,11 @@ export async function uploadDailyHighlightRequest(payload: {
         const normalizedY = Math.min(1, Math.max(0, payload.captionYPercent))
         formData.append('captionYPercent', normalizedY.toString())
       }
+    }
+
+    const mentionUserIds = payload.mentionUserIds?.filter((id, index, array) => id > 0 && array.indexOf(id) === index) ?? []
+    for (const mentionUserId of mentionUserIds) {
+      formData.append('mentionUserIds', String(mentionUserId))
     }
 
     const response = await fetch(`${API_BASE_URL}/api/dailyhighlights/upload`, {

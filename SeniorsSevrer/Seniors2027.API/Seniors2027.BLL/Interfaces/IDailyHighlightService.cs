@@ -5,7 +5,7 @@ namespace Seniors2027.BLL.Interfaces;
 
 public interface IDailyHighlightService
 {
-    Task<DailyHighlightDto> AddHighlightAsync(int userId, string photoUrl);
+    Task<DailyHighlightDto> AddHighlightAsync(int userId, string photoUrl, IReadOnlyCollection<int>? mentionUserIds = null);
     Task<IReadOnlyList<DailyHighlightDto>> GetActiveHighlightsAsync(int maxCount, int? requesterUserId = null);
     Task<IReadOnlyList<DailyHighlightDto>> GetHighlightsArchiveAsync(int maxCount, int? requesterUserId = null);
     Task<DailyHighlightDto?> DeleteHighlightAsync(int highlightId, int requesterUserId, bool requesterIsAdmin = false);

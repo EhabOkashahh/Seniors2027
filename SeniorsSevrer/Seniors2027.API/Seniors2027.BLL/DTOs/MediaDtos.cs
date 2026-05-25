@@ -29,6 +29,14 @@ public class DailyHighlightReactionDto
     public DailyHighlightReactionUserDto User { get; set; } = new();
 }
 
+public class DailyHighlightMentionUserDto
+{
+    public int Id { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
+    public string? Gender { get; set; }
+}
+
 public class DailyHighlightDto
 {
     public int Id { get; set; }
@@ -36,6 +44,7 @@ public class DailyHighlightDto
     public DateTime CreatedAt { get; set; }
     public bool IsOwnedByCurrentUser { get; set; }
     public DailyHighlightUserDto User { get; set; } = new();
+    public List<DailyHighlightMentionUserDto> MentionedUsers { get; set; } = new();
     public List<DailyHighlightReactionDto> Reactions { get; set; } = new();
 }
 

@@ -24,4 +24,5 @@ public class DailyHighlight
     public GalleryPhoto GalleryPhoto { get; set; } = null!;
 
     public ICollection<DailyHighlightReaction> Reactions { get; set; } = new List<DailyHighlightReaction>();
+    public ICollection<DailyHighlightMention> Mentions { get; set; } = new List<DailyHighlightMention>();
 }
