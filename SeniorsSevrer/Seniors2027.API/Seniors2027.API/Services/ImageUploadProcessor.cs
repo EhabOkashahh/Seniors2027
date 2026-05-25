@@ -13,6 +13,7 @@ namespace Seniors2027.API.Services;
 public sealed class ImageUploadProcessor : IImageUploadProcessor
 {
     private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    private const byte DailyHighlightCaptionAlpha = 112; // ~56% transparent black
     private static readonly ImageProcessingProfile StandardProfile = new(
         MaxUploadSizeBytes: 5 * 1024 * 1024,
         MaxImageDimension: 512,
@@ -125,8 +126,10 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
             return;
         }
 
+        var isArabicText = ContainsArabicCharacters(captionText);
         var fontSize = Math.Max(20f, MathF.Min(56f, image.Width * 0.058f));
-        var font = ResolveCaptionFont(fontSize);
+        var font = ResolveCaptionFont(fontSize, isArabicText);
+        var fallbackFamilies = ResolveCaptionFallbackFamilies(isArabicText, font.Family);
 
         var textOptions = new RichTextOptions(font)
         {
@@ -134,7 +137,10 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
             VerticalAlignment = VerticalAlignment.Top,
             WrappingLength = Math.Max(120, image.Width - 56),
             LineSpacing = 1.04f,
-            Origin = PointF.Empty
+            Origin = PointF.Empty,
+            TextDirection = isArabicText ? TextDirection.RightToLeft : TextDirection.Auto,
+            WordBreaking = WordBreaking.BreakWord,
+            FallbackFontFamilies = fallbackFamilies
         };
 
         var measuredText = TextMeasurer.MeasureSize(captionText, textOptions);
@@ -148,20 +154,16 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
 
         image.Mutate(ctx =>
         {
-            ctx.Fill(new Rgba32(0, 0, 0, 128), new RectangleF(0f, barTop, image.Width, barHeight));
+            ctx.Fill(new Rgba32(0, 0, 0, DailyHighlightCaptionAlpha), new RectangleF(0f, barTop, image.Width, barHeight));
             ctx.DrawText(new RichTextOptions(textOptions) { Origin = new PointF(image.Width / 2f, textOriginY) }, captionText, Color.White);
         });
     }
 
-    private static Font ResolveCaptionFont(float fontSize)
+    private static Font ResolveCaptionFont(float fontSize, bool prefersArabic)
     {
-        var preferredFamilies = new[]
-        {
-            "Arial Black",
-            "Segoe UI Black",
-            "Arial",
-            "Segoe UI"
-        };
+        var preferredFamilies = prefersArabic
+            ? new[] { "Segoe UI", "Tahoma", "Arial", "Noto Naskh Arabic", "Noto Sans Arabic" }
+            : new[] { "Arial Black", "Segoe UI Black", "Arial", "Segoe UI", "Tahoma" };
 
         foreach (var familyName in preferredFamilies)
         {
@@ -177,6 +179,38 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         }
 
         throw new InvalidOperationException("No system font is available for caption rendering.");
+    }
+
+    private static IReadOnlyList<FontFamily> ResolveCaptionFallbackFamilies(bool prefersArabic, FontFamily baseFamily)
+    {
+        var fallbackFamilyNames = prefersArabic
+            ? new[] { "Segoe UI", "Tahoma", "Arial", "Noto Naskh Arabic", "Noto Sans Arabic", "Arial Unicode MS" }
+            : new[] { "Segoe UI", "Arial", "Tahoma", "Noto Sans Arabic", "Noto Naskh Arabic" };
+
+        var families = new List<FontFamily>();
+        foreach (var familyName in fallbackFamilyNames)
+        {
+            if (!SystemFonts.TryGet(familyName, out var family)) continue;
+            if (family.Name.Equals(baseFamily.Name, StringComparison.OrdinalIgnoreCase)) continue;
+            if (families.Any(existing => existing.Name.Equals(family.Name, StringComparison.OrdinalIgnoreCase))) continue;
+            families.Add(family);
+        }
+
+        return families;
+    }
+
+    private static bool ContainsArabicCharacters(string value)
+    {
+        foreach (var ch in value)
+        {
+            if (ch is >= '\u0600' and <= '\u06FF') return true;
+            if (ch is >= '\u0750' and <= '\u077F') return true;
+            if (ch is >= '\u08A0' and <= '\u08FF') return true;
+            if (ch is >= '\uFB50' and <= '\uFDFF') return true;
+            if (ch is >= '\uFE70' and <= '\uFEFF') return true;
+        }
+
+        return false;
     }
 
     private static ImageProcessingProfile ResolveProfile(ImageUploadPurpose purpose) =>

@@ -64,6 +64,15 @@ const HIGHLIGHT_CAPTION_MAX_LENGTH = 120
 const HIGHLIGHT_CAPTION_DEFAULT_Y = 0.72
 const HIGHLIGHT_CAPTION_MAX_Y = 0.88
 
+function isLikelyRtlText(value: string): boolean {
+  for (const char of value) {
+    if ((char >= '\u0600' && char <= '\u06FF') || (char >= '\u0750' && char <= '\u077F') || (char >= '\u08A0' && char <= '\u08FF') || (char >= '\uFB50' && char <= '\uFDFF') || (char >= '\uFE70' && char <= '\uFEFF')) {
+      return true
+    }
+  }
+  return false
+}
+
 type MonthlyDumpEntry =
   | { id: string; kind: 'note'; createdAt: string; note: NoteItem }
   | { id: string; kind: 'highlight'; createdAt: string; highlight: DailyHighlight }
@@ -2331,7 +2340,7 @@ export default function PortalHome() {
                         right: 0,
                         top: `${highlightComposerCaptionYPercent * 100}%`,
                         transform: 'translateY(0)',
-                        background: 'rgba(0, 0, 0, 0.5)',
+                        background: 'rgba(0, 0, 0, 0.44)',
                         color: '#fff',
                         padding: '10px 14px',
                         textAlign: 'center',
@@ -2342,7 +2351,9 @@ export default function PortalHome() {
                         userSelect: 'none',
                         touchAction: 'none',
                         whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word'
+                        wordBreak: 'break-word',
+                        direction: isLikelyRtlText(highlightComposerCaption) ? 'rtl' : 'ltr',
+                        unicodeBidi: 'plaintext'
                       }}
                     >
                       {highlightComposerCaption}
@@ -2358,6 +2369,7 @@ export default function PortalHome() {
               </label>
               <textarea
                 id="highlight-caption-input"
+                dir="auto"
                 value={highlightComposerCaption}
                 onChange={(event) => {
                   setHighlightComposerError(null)
