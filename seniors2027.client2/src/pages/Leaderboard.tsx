@@ -12,6 +12,7 @@ import thirdRankBadge from '../assets/3.svg'
 
 const USERS_PAGE_SIZE = 100
 const MAX_USER_PAGES = 50
+const LEADERBOARD_PAGE_SIZE = 20
 
 const podiumBadges: Record<number, string> = {
   1: firstRankBadge,
@@ -45,6 +46,7 @@ export default function Leaderboard() {
   const [users, setUsers] = useState<DirectoryUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const currentUserId = useMemo(() => getCurrentUserId(), [])
 
   useEffect(() => {
@@ -100,6 +102,18 @@ export default function Leaderboard() {
     }))
   }, [users])
 
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(rankedUsers.length / LEADERBOARD_PAGE_SIZE)), [rankedUsers.length])
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages))
+  }, [totalPages])
+
+  const pageStartIndex = (currentPage - 1) * LEADERBOARD_PAGE_SIZE
+  const pagedRankedUsers = useMemo(
+    () => rankedUsers.slice(pageStartIndex, pageStartIndex + LEADERBOARD_PAGE_SIZE),
+    [pageStartIndex, rankedUsers]
+  )
+
   const handleOpenWebsite = (event: MouseEvent, user: RankedUser) => {
     event.stopPropagation()
     event.preventDefault()
@@ -142,7 +156,7 @@ export default function Leaderboard() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <AnimatePresence initial={false}>
-                  {rankedUsers.map((user) => {
+                  {pagedRankedUsers.map((user) => {
                     const rankBadge = podiumBadges[user.rank]
                     const isCurrentUser = user.id === currentUserId
                     return (
@@ -259,6 +273,47 @@ export default function Leaderboard() {
                     )
                   })}
                 </AnimatePresence>
+                {rankedUsers.length > LEADERBOARD_PAGE_SIZE && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      borderTop: '2px solid black',
+                      background: '#fafafa',
+                      flexWrap: 'wrap'
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>
+                      Showing {pageStartIndex + 1}-{Math.min(pageStartIndex + LEADERBOARD_PAGE_SIZE, rankedUsers.length)} of {rankedUsers.length}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="neo-btn"
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        style={{ minWidth: 'auto', padding: '7px 12px' }}
+                      >
+                        Prev
+                      </button>
+                      <div style={{ fontWeight: 900, minWidth: '88px', textAlign: 'center', fontSize: '0.86rem' }}>
+                        Page {currentPage} / {totalPages}
+                      </div>
+                      <button
+                        type="button"
+                        className="neo-btn"
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage >= totalPages}
+                        style={{ minWidth: 'auto', padding: '7px 12px' }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
