@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   BookImage,
@@ -23,6 +24,7 @@ import Logo from '../assets/Logo.png'
 import NoteAsset from '../assets/Asset1.svg'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { parseAnnouncementBody } from '../lib/announcementPoll'
+import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 import {
   deleteDailyHighlightRequest,
   getPortalAnnouncementsRequest,
@@ -69,6 +71,7 @@ type MonthlyDumpSpread = {
 }
 
 export default function PortalHome() {
+  const navigate = useNavigate()
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
   const [events, setEvents] = useState<PortalEventItem[]>([])
@@ -112,6 +115,15 @@ export default function PortalHome() {
   const monthlyDumpSpreads = useMemo(() => buildMonthlyDumpSpreads(monthlyDumpEntries), [monthlyDumpEntries])
   const monthlyDumpCurrentSpread = monthlyDumpSpreads[monthlyDumpBookPageIndex] ?? { left: [], right: [] }
   const monthlyDumpTotalSpreads = monthlyDumpSpreads.length
+
+  const handleOpenUserWebsite = (
+    event: MouseEvent,
+    identity: { id?: number | null; username?: string | null; socialLinks?: string[] | null }
+  ) => {
+    event.stopPropagation()
+    event.preventDefault()
+    void openUserWebsiteFromIdentity(identity, navigate)
+  }
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 760)
@@ -568,16 +580,40 @@ export default function PortalHome() {
             {entry.kind === 'note' ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <GenderCapAvatar
-                    src={entry.note.sender.photoUrl || '/favicon.svg'}
-                    alt={entry.note.sender.username}
-                    gender={null}
-                    fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
-                    containerStyle={{ width: '30px', height: '30px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
-                    imageStyle={{ borderRadius: '50%' }}
-                    capScale={0.72}
-                  />
-                  <div style={{ fontWeight: 900, fontSize: '0.82rem' }}>{entry.note.sender.username}</div>
+                  <button
+                    type="button"
+                    onClick={(event) =>
+                      handleOpenUserWebsite(event, {
+                        id: entry.note.sender.id,
+                        username: entry.note.sender.username
+                      })
+                    }
+                    aria-label={`Open ${entry.note.sender.username} website`}
+                    style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                  >
+                    <GenderCapAvatar
+                      src={entry.note.sender.photoUrl || '/favicon.svg'}
+                      alt={entry.note.sender.username}
+                      gender={null}
+                      fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
+                      containerStyle={{ width: '30px', height: '30px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
+                      imageStyle={{ borderRadius: '50%' }}
+                      capScale={0.72}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) =>
+                      handleOpenUserWebsite(event, {
+                        id: entry.note.sender.id,
+                        username: entry.note.sender.username
+                      })
+                    }
+                    aria-label={`Open ${entry.note.sender.username} website`}
+                    style={{ all: 'unset', fontWeight: 900, fontSize: '0.82rem', cursor: 'pointer' }}
+                  >
+                    {entry.note.sender.username}
+                  </button>
                 </div>
                 <div
                   style={{
@@ -601,6 +637,11 @@ export default function PortalHome() {
                 <img
                   src={entry.highlight.photoUrl}
                   alt={entry.highlight.user.username}
+                  onClick={(event) =>
+                    handleOpenUserWebsite(event, {
+                      username: entry.highlight.user.username
+                    })
+                  }
                   style={{
                     width: '100%',
                     height: '260px',
@@ -608,13 +649,31 @@ export default function PortalHome() {
                     border: '2px solid black',
                     boxShadow: '4px 4px 0 black',
                     background: '#e6f0ff',
-                    transform: pageSide === 'left' ? 'rotate(-0.8deg)' : 'rotate(0.8deg)'
+                    transform: pageSide === 'left' ? 'rotate(-0.8deg)' : 'rotate(0.8deg)',
+                    cursor: 'pointer'
                   }}
                 />
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.78rem' }}>
+                <button
+                  type="button"
+                  onClick={(event) =>
+                    handleOpenUserWebsite(event, {
+                      username: entry.highlight.user.username
+                    })
+                  }
+                  aria-label={`Open ${entry.highlight.user.username} website`}
+                  style={{
+                    all: 'unset',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 800,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer'
+                  }}
+                >
                   <UserRound size={13} />
                   {entry.highlight.user.username}
-                </div>
+                </button>
               </>
             )}
           </div>
@@ -1184,37 +1243,59 @@ export default function PortalHome() {
                                                       gap: '6px'
                                                     }}
                                                   >
-                                                    {voter.photoUrl ? (
-                                                      <img
-                                                        src={voter.photoUrl}
-                                                        alt={voter.username}
-                                                        style={{
-                                                          width: '20px',
-                                                          height: '20px',
-                                                          borderRadius: '50%',
-                                                          border: '1px solid black',
-                                                          objectFit: 'cover'
-                                                        }}
-                                                      />
-                                                    ) : (
-                                                      <div
-                                                        style={{
-                                                          width: '20px',
-                                                          height: '20px',
-                                                          borderRadius: '50%',
-                                                          border: '1px solid black',
-                                                          display: 'grid',
-                                                          placeItems: 'center',
-                                                          fontWeight: 900,
-                                                          fontSize: '0.65rem',
-                                                          background: '#f0f0f0'
-                                                        }}
-                                                      >
-                                                        {voter.username.charAt(0).toUpperCase()}
-                                                      </div>
-                                                    )}
+                                                    <button
+                                                      type="button"
+                                                      onClick={(event) =>
+                                                        handleOpenUserWebsite(event, {
+                                                          username: voter.username
+                                                        })
+                                                      }
+                                                      aria-label={`Open ${voter.username} website`}
+                                                      style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                                                    >
+                                                      {voter.photoUrl ? (
+                                                        <img
+                                                          src={voter.photoUrl}
+                                                          alt={voter.username}
+                                                          style={{
+                                                            width: '20px',
+                                                            height: '20px',
+                                                            borderRadius: '50%',
+                                                            border: '1px solid black',
+                                                            objectFit: 'cover'
+                                                          }}
+                                                        />
+                                                      ) : (
+                                                        <div
+                                                          style={{
+                                                            width: '20px',
+                                                            height: '20px',
+                                                            borderRadius: '50%',
+                                                            border: '1px solid black',
+                                                            display: 'grid',
+                                                            placeItems: 'center',
+                                                            fontWeight: 900,
+                                                            fontSize: '0.65rem',
+                                                            background: '#f0f0f0'
+                                                          }}
+                                                        >
+                                                          {voter.username.charAt(0).toUpperCase()}
+                                                        </div>
+                                                      )}
+                                                    </button>
                                                     <div style={{ display: 'grid', gap: '1px' }}>
-                                                      <span>{voter.username}</span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={(event) =>
+                                                          handleOpenUserWebsite(event, {
+                                                            username: voter.username
+                                                          })
+                                                        }
+                                                        aria-label={`Open ${voter.username} website`}
+                                                        style={{ all: 'unset', cursor: 'pointer', width: 'fit-content' }}
+                                                      >
+                                                        {voter.username}
+                                                      </button>
                                                       <span style={{ fontSize: '0.68rem', opacity: 0.75 }}>
                                                         {formatDateTime(voter.votedAt)}
                                                       </span>
@@ -1230,10 +1311,28 @@ export default function PortalHome() {
                                     </div>
                                   </div>
                                 )}
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.74rem', opacity: 0.82 }}>
+                                <button
+                                  type="button"
+                                  onClick={(event) =>
+                                    handleOpenUserWebsite(event, {
+                                      username: announcement.createdByUsername
+                                    })
+                                  }
+                                  aria-label={`Open ${announcement.createdByUsername} website`}
+                                  style={{
+                                    all: 'unset',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontWeight: 800,
+                                    fontSize: '0.74rem',
+                                    opacity: 0.82,
+                                    cursor: 'pointer'
+                                  }}
+                                >
                                   <UserRound size={13} />
                                   {announcement.createdByUsername}
-                                </div>
+                                </button>
                               </motion.div>
                             )
                           })()
@@ -1397,10 +1496,28 @@ export default function PortalHome() {
                                 </div>
                               )}
                               {eventItem.details && <div style={{ fontWeight: 700, fontSize: '0.8rem', whiteSpace: 'pre-wrap', lineHeight: 1.35 }}>{eventItem.details}</div>}
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 800, fontSize: '0.74rem', opacity: 0.78 }}>
+                              <button
+                                type="button"
+                                onClick={(event) =>
+                                  handleOpenUserWebsite(event, {
+                                    username: eventItem.createdByUsername
+                                  })
+                                }
+                                aria-label={`Open ${eventItem.createdByUsername} website`}
+                                style={{
+                                  all: 'unset',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontWeight: 800,
+                                  fontSize: '0.74rem',
+                                  opacity: 0.78,
+                                  cursor: 'pointer'
+                                }}
+                              >
                                 <UserRound size={13} />
                                 {eventItem.createdByUsername}
-                              </div>
+                              </button>
                             </div>
                           </motion.div>
                         ))}
@@ -1562,17 +1679,37 @@ export default function PortalHome() {
                           gap: '8px'
                         }}
                       >
-                        <GenderCapAvatar
-                          src={current?.user.photoUrl || '/favicon.svg'}
-                          alt={current?.user.username || 'Senior'}
-                          gender={current?.user.gender ?? null}
-                          containerStyle={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid black' }}
-                          imageStyle={{ borderRadius: '50%' }}
-                          capScale={0.75}
-                        />
-                        <div style={{ fontWeight: 900, fontSize: '0.85rem', lineHeight: 1.2 }}>
+                        <button
+                          type="button"
+                          onClick={(event) =>
+                            handleOpenUserWebsite(event, {
+                              username: current?.user.username ?? null
+                            })
+                          }
+                          aria-label={`Open ${current?.user.username ?? 'user'} website`}
+                          style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                        >
+                          <GenderCapAvatar
+                            src={current?.user.photoUrl || '/favicon.svg'}
+                            alt={current?.user.username || 'Senior'}
+                            gender={current?.user.gender ?? null}
+                            containerStyle={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid black' }}
+                            imageStyle={{ borderRadius: '50%' }}
+                            capScale={0.75}
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) =>
+                            handleOpenUserWebsite(event, {
+                              username: current?.user.username ?? null
+                            })
+                          }
+                          aria-label={`Open ${current?.user.username ?? 'user'} website`}
+                          style={{ all: 'unset', fontWeight: 900, fontSize: '0.85rem', lineHeight: 1.2, cursor: 'pointer' }}
+                        >
                           Latest by {current?.user.username}
-                        </div>
+                        </button>
                         <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.75rem', opacity: 0.7 }}>
                           {formatDate(current?.createdAt)}
                         </div>
@@ -1665,17 +1802,39 @@ export default function PortalHome() {
                       gap: '8px'
                     }}
                   >
-                    <GenderCapAvatar
-                      src={reaction.user.photoUrl || '/favicon.svg'}
-                      alt={reaction.user.username}
-                      gender={null}
-                      fallbackText={reaction.user.username.charAt(0).toUpperCase()}
-                      containerStyle={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
-                      imageStyle={{ borderRadius: '50%' }}
-                      capScale={0.75}
-                    />
+                    <button
+                      type="button"
+                      onClick={(event) =>
+                        handleOpenUserWebsite(event, {
+                          username: reaction.user.username
+                        })
+                      }
+                      aria-label={`Open ${reaction.user.username} website`}
+                      style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                    >
+                      <GenderCapAvatar
+                        src={reaction.user.photoUrl || '/favicon.svg'}
+                        alt={reaction.user.username}
+                        gender={null}
+                        fallbackText={reaction.user.username.charAt(0).toUpperCase()}
+                        containerStyle={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
+                        imageStyle={{ borderRadius: '50%' }}
+                        capScale={0.75}
+                      />
+                    </button>
                     <div style={{ display: 'grid', gap: '2px' }}>
-                      <div style={{ fontWeight: 900, fontSize: '0.84rem' }}>{reaction.user.username}</div>
+                      <button
+                        type="button"
+                        onClick={(event) =>
+                          handleOpenUserWebsite(event, {
+                            username: reaction.user.username
+                          })
+                        }
+                        aria-label={`Open ${reaction.user.username} website`}
+                        style={{ all: 'unset', fontWeight: 900, fontSize: '0.84rem', cursor: 'pointer', width: 'fit-content' }}
+                      >
+                        {reaction.user.username}
+                      </button>
                       <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.74 }}>{formatDateTime(reaction.createdAt)}</div>
                     </div>
                     <div style={{ marginLeft: 'auto', fontWeight: 900, fontSize: '0.92rem' }}>
@@ -1874,6 +2033,11 @@ export default function PortalHome() {
                 key={`archive-${current?.id}`}
                 src={current?.photoUrl}
                 alt={current?.user.username ?? 'Daily highlight'}
+                onClick={(event) =>
+                  handleOpenUserWebsite(event, {
+                    username: current?.user.username ?? null
+                  })
+                }
                 initial={{ rotateY: flipDirection === 'next' ? 78 : -78, opacity: 0.25, scale: 0.92 }}
                 animate={{ rotateY: 0, opacity: 1, scale: 1 }}
                 transition={{ duration: 0.44, ease: [0.2, 0.85, 0.2, 1] }}
@@ -1882,7 +2046,8 @@ export default function PortalHome() {
                   height: '100%',
                   objectFit: 'contain',
                   objectPosition: 'center center',
-                  transformOrigin: flipDirection === 'next' ? 'right center' : 'left center'
+                  transformOrigin: flipDirection === 'next' ? 'right center' : 'left center',
+                  cursor: 'pointer'
                 }}
               />
               {current && (current.isOwnedByCurrentUser || isAdmin) && (
@@ -1915,15 +2080,37 @@ export default function PortalHome() {
             </div>
 
             <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <GenderCapAvatar
-                src={current?.user.photoUrl || '/favicon.svg'}
-                alt={current?.user.username || 'Senior'}
-                gender={current?.user.gender ?? null}
-                containerStyle={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black' }}
-                imageStyle={{ borderRadius: '50%' }}
-                capScale={0.75}
-              />
-              <div style={{ fontWeight: 900, fontSize: '0.88rem' }}>{current?.user.username}</div>
+              <button
+                type="button"
+                onClick={(event) =>
+                  handleOpenUserWebsite(event, {
+                    username: current?.user.username ?? null
+                  })
+                }
+                aria-label={`Open ${current?.user.username ?? 'user'} website`}
+                style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+              >
+                <GenderCapAvatar
+                  src={current?.user.photoUrl || '/favicon.svg'}
+                  alt={current?.user.username || 'Senior'}
+                  gender={current?.user.gender ?? null}
+                  containerStyle={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black' }}
+                  imageStyle={{ borderRadius: '50%' }}
+                  capScale={0.75}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={(event) =>
+                  handleOpenUserWebsite(event, {
+                    username: current?.user.username ?? null
+                  })
+                }
+                aria-label={`Open ${current?.user.username ?? 'user'} website`}
+                style={{ all: 'unset', fontWeight: 900, fontSize: '0.88rem', cursor: 'pointer' }}
+              >
+                {current?.user.username}
+              </button>
               <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.75 }}>
                 {formatDate(current?.createdAt)}
               </div>

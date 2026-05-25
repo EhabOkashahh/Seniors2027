@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import { getUsersRequest, type DirectoryUser } from '../lib/authApi'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
 import { getCurrentUserId } from '../lib/session'
+import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 import firstRankBadge from '../assets/1.svg'
 import secondRankBadge from '../assets/2.svg'
 import thirdRankBadge from '../assets/3.svg'
@@ -99,6 +100,18 @@ export default function Leaderboard() {
     }))
   }, [users])
 
+  const handleOpenWebsite = (event: MouseEvent, user: RankedUser) => {
+    event.stopPropagation()
+    event.preventDefault()
+    void openUserWebsiteFromIdentity(
+      {
+        id: user.id,
+        username: user.username
+      },
+      navigate
+    )
+  }
+
   return (
     <PortalLayout>
       <motion.div
@@ -186,8 +199,12 @@ export default function Leaderboard() {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                          <div
+                          <button
+                            type="button"
+                            onClick={(event) => handleOpenWebsite(event, user)}
+                            aria-label={`Open ${user.username} website`}
                             style={{
+                              all: 'unset',
                               width: '44px',
                               height: '44px',
                               borderRadius: '50%',
@@ -196,7 +213,8 @@ export default function Leaderboard() {
                               background: '#ededed',
                               display: 'grid',
                               placeItems: 'center',
-                              flexShrink: 0
+                              flexShrink: 0,
+                              cursor: 'pointer'
                             }}
                           >
                             {user.photoUrl ? (
@@ -210,20 +228,27 @@ export default function Leaderboard() {
                                 {user.username.charAt(0).toUpperCase()}
                               </span>
                             )}
-                          </div>
+                          </button>
                           <div style={{ minWidth: 0 }}>
-                            <p
+                            <button
+                              type="button"
+                              onClick={(event) => handleOpenWebsite(event, user)}
+                              aria-label={`Open ${user.username} website`}
                               style={{
+                                all: 'unset',
                                 margin: 0,
                                 fontWeight: 900,
                                 textTransform: 'uppercase',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
-                                textOverflow: 'ellipsis'
+                                textOverflow: 'ellipsis',
+                                cursor: 'pointer',
+                                display: 'block',
+                                width: '100%'
                               }}
                             >
                               {user.username} {isCurrentUser && '(YOU)'}
-                            </p>
+                            </button>
                           </div>
                         </div>
 

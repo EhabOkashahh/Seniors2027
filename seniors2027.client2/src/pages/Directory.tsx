@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import PortalLayout from '../components/PortalLayout'
 import { getUsersRequest, type DirectoryUser } from '../lib/authApi'
+import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 import { Search } from 'lucide-react'
 
 const PAGE_SIZE = 20
@@ -97,6 +98,17 @@ export default function Directory() {
 
   const isPreviousDisabled = pageNumber === 1 || loading
   const isNextDisabled = loading || !hasNextPage || users.length === 0
+  const handleOpenWebsite = (event: MouseEvent, user: DirectoryUser) => {
+    event.stopPropagation()
+    event.preventDefault()
+    void openUserWebsiteFromIdentity(
+      {
+        id: user.id,
+        username: user.username
+      },
+      navigate
+    )
+  }
 
   return (
     <PortalLayout>
@@ -172,7 +184,20 @@ export default function Directory() {
                     height: '100%'
                   }}
                 >
-                  <div style={{ width: '100%', height: isMobile ? '150px' : '200px', borderBottom: '4px solid black', background: '#eee' }}>
+                  <button
+                    type="button"
+                    onClick={(event) => handleOpenWebsite(event, user)}
+                    aria-label={`Open ${user.username} website`}
+                    style={{
+                      all: 'unset',
+                      width: '100%',
+                      height: isMobile ? '150px' : '200px',
+                      borderBottom: '4px solid black',
+                      background: '#eee',
+                      cursor: 'pointer',
+                      display: 'block'
+                    }}
+                  >
                     {user.photoUrl ? (
                       <img
                         src={user.photoUrl}
@@ -184,10 +209,14 @@ export default function Directory() {
                         {user.username.charAt(0).toUpperCase()}
                       </div>
                     )}
-                  </div>
+                  </button>
                   <div style={{ padding: '15px', textAlign: 'center', display: 'flex', flexDirection: 'column', flex: 1, gap: '12px' }}>
-                    <div
+                    <button
+                      type="button"
+                      onClick={(event) => handleOpenWebsite(event, user)}
+                      aria-label={`Open ${user.username} website`}
                       style={{
+                        all: 'unset',
                         fontWeight: 900,
                         fontSize: '1.1rem',
                         textTransform: 'uppercase',
@@ -197,11 +226,12 @@ export default function Directory() {
                         minHeight: isMobile ? '48px' : '56px',
                         lineHeight: 1.2,
                         overflowWrap: 'anywhere',
-                        wordBreak: 'break-word'
+                        wordBreak: 'break-word',
+                        cursor: 'pointer'
                       }}
                     >
                       {user.username}
-                    </div>
+                    </button>
                     <button 
                       style={{
                         display: 'block',

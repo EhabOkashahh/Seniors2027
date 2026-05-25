@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type MouseEvent } from 'react'
 import { motion } from 'framer-motion'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -45,6 +45,7 @@ import {
 } from '../lib/authApi'
 import { buildShareableStoryUrl } from '../lib/storyShare'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
+import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -120,6 +121,18 @@ export default function Profile() {
     fontSize: isMobile ? '0.84rem' : '0.9rem',
     borderWidth: '3px',
     boxShadow: '6px 6px 0 black'
+  }
+
+  const handleOpenSenderWebsite = (event: MouseEvent, note: NoteItem) => {
+    event.stopPropagation()
+    event.preventDefault()
+    void openUserWebsiteFromIdentity(
+      {
+        id: note.sender.id,
+        username: note.sender.username
+      },
+      navigate
+    )
   }
 
   useGlobalToastMessage(usernameMessage, setUsernameMessage)
@@ -1420,12 +1433,26 @@ export default function Profile() {
                   {latestNotes.map((note) => (
                     <div key={note.id} style={{ border: '2px solid black', background: 'white', padding: '10px', display: 'grid', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img
-                          src={note.sender.photoUrl || '/favicon.svg'}
-                          alt={note.sender.username}
-                          style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
-                        />
-                        <div style={{ fontWeight: 900, fontSize: '0.9rem' }}>{note.sender.username}</div>
+                        <button
+                          type="button"
+                          onClick={(event) => handleOpenSenderWebsite(event, note)}
+                          aria-label={`Open ${note.sender.username} website`}
+                          style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                        >
+                          <img
+                            src={note.sender.photoUrl || '/favicon.svg'}
+                            alt={note.sender.username}
+                            style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => handleOpenSenderWebsite(event, note)}
+                          aria-label={`Open ${note.sender.username} website`}
+                          style={{ all: 'unset', fontWeight: 900, fontSize: '0.9rem', cursor: 'pointer' }}
+                        >
+                          {note.sender.username}
+                        </button>
                         <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.78rem', opacity: 0.7 }}>{formatNoteDate(note.createdAt)}</div>
                       </div>
                       <p
@@ -1890,12 +1917,26 @@ export default function Profile() {
                   {(bookData?.items ?? []).map((note) => (
                     <div key={note.id} style={{ border: '3px solid black', background: 'white', padding: '12px', display: 'grid', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img
-                          src={note.sender.photoUrl || '/favicon.svg'}
-                          alt={note.sender.username}
-                          style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
-                        />
-                        <div style={{ fontWeight: 900 }}>{note.sender.username}</div>
+                        <button
+                          type="button"
+                          onClick={(event) => handleOpenSenderWebsite(event, note)}
+                          aria-label={`Open ${note.sender.username} website`}
+                          style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                        >
+                          <img
+                            src={note.sender.photoUrl || '/favicon.svg'}
+                            alt={note.sender.username}
+                            style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => handleOpenSenderWebsite(event, note)}
+                          aria-label={`Open ${note.sender.username} website`}
+                          style={{ all: 'unset', fontWeight: 900, cursor: 'pointer' }}
+                        >
+                          {note.sender.username}
+                        </button>
                       </div>
                       <p
                         style={{

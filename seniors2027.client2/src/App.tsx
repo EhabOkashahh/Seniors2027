@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Onboarding from './pages/Onboarding'
 import Login from './pages/Login'
 import PortalHome from './pages/PortalHome'
@@ -35,9 +35,30 @@ function AdminRoute({ children }: { children: ReactNode }) {
   return children
 }
 
+function ScrollToTopOnRouteChange() {
+  const { pathname, search } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+
+    const portalMain = document.querySelector<HTMLElement>('.portal-main')
+    if (portalMain) {
+      portalMain.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+
+    const feedScrollContainers = document.querySelectorAll<HTMLElement>('.portal-feed-scroll')
+    feedScrollContainers.forEach((container) => {
+      container.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    })
+  }, [pathname, search])
+
+  return null
+}
+
 function App() {
   return (
     <Router>
+      <ScrollToTopOnRouteChange />
       <Routes>
         <Route
           path="/"

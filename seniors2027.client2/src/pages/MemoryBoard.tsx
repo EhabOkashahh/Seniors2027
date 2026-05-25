@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Trash2, Upload, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
+import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 import {
   deleteMyMemoryBoardPhotoRequest,
   getMeRequest,
@@ -27,6 +29,7 @@ const MEMORYBOARD_EDGE_PULL_X_PX = 14
 const MEMORYBOARD_EDGE_PULL_Y_PX = 10
 
 export default function MemoryBoard() {
+  const navigate = useNavigate()
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [photos, setPhotos] = useState<MemoryBoardPhoto[]>([])
   const [myPendingPhotos, setMyPendingPhotos] = useState<MemoryBoardPhoto[]>([])
@@ -43,6 +46,17 @@ export default function MemoryBoard() {
   const [deleteActionId, setDeleteActionId] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   useGlobalToastMessage(message, setMessage)
+
+  const handleOpenWebsite = (event: MouseEvent, username: string) => {
+    event.stopPropagation()
+    event.preventDefault()
+    void openUserWebsiteFromIdentity(
+      {
+        username
+      },
+      navigate
+    )
+  }
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 760)
@@ -482,9 +496,22 @@ export default function MemoryBoard() {
                                       background: '#eaf1ff'
                                     }}
                                   />
-                                  <div style={{ fontWeight: 900, fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => handleOpenWebsite(event, item.username)}
+                                    aria-label={`Open ${item.username} website`}
+                                    style={{
+                                      all: 'unset',
+                                      fontWeight: 900,
+                                      fontSize: '0.68rem',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
                                     {item.username}
-                                  </div>
+                                  </button>
                                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.62rem', opacity: 0.8 }}>
                                     <Clock3 size={11} />
                                     {formatShortDate(item.exifTakenAtUtc ?? item.createdAt)}
@@ -782,7 +809,14 @@ export default function MemoryBoard() {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ fontWeight: 900, fontSize: '0.84rem' }}>{sortedPhotos[viewerIndex].username}</div>
+              <button
+                type="button"
+                onClick={(event) => handleOpenWebsite(event, sortedPhotos[viewerIndex].username)}
+                aria-label={`Open ${sortedPhotos[viewerIndex].username} website`}
+                style={{ all: 'unset', fontWeight: 900, fontSize: '0.84rem', cursor: 'pointer' }}
+              >
+                {sortedPhotos[viewerIndex].username}
+              </button>
               <div style={{ fontWeight: 700, fontSize: '0.78rem', opacity: 0.78 }}>
                 {formatShortDate(sortedPhotos[viewerIndex].exifTakenAtUtc ?? sortedPhotos[viewerIndex].createdAt)}
               </div>
