@@ -1921,7 +1921,7 @@ export default function Profile() {
             >
               {socialLinksDraft.length === 0 ? (
                 <div style={{ fontWeight: 700, opacity: 0.8 }}>
-                  No links yet. Add Instagram, Facebook, TikTok, YouTube, LinkedIn, Behance, Gmail, WhatsApp, or any website profile.
+                  No links yet. Add Instagram, Facebook, TikTok, YouTube, LinkedIn, Discord, Behance, Gmail, WhatsApp, or any website profile.
                 </div>
               ) : (
                 socialLinksDraft.map((link) => {
@@ -2616,6 +2616,7 @@ type SocialPlatform =
   | 'spotify'
   | 'linkedin'
   | 'github'
+  | 'discord'
   | 'telegram'
   | 'tiktok'
   | 'whatsapp'
@@ -2694,6 +2695,7 @@ function detectSocialPlatform(link: string): SocialPlatform {
     if (hostname.includes('spotify.')) return 'spotify'
     if (hostname.includes('linkedin.')) return 'linkedin'
     if (hostname.includes('github.')) return 'github'
+    if (hostname.includes('discord.') || hostname === 'discord.gg') return 'discord'
     if (hostname === 't.me' || hostname.includes('telegram.')) return 'telegram'
     if (hostname.includes('tiktok.')) return 'tiktok'
     if (hostname === 'wa.me' || hostname.includes('whatsapp.')) return 'whatsapp'
@@ -2724,6 +2726,8 @@ function getSocialPlatformTheme(platform: SocialPlatform): { background: string 
       return { background: '#0a66c2' }
     case 'github':
       return { background: '#24292f' }
+    case 'discord':
+      return { background: 'linear-gradient(135deg, #5865f2 0%, #4752c4 100%)' }
     case 'telegram':
       return { background: '#229ed9' }
     case 'tiktok':
@@ -2757,6 +2761,8 @@ function getSocialPlatformIconUrl(platform: SocialPlatform): string | null {
       return getLocalPlatformFallbackIconUrl('linkedin')
     case 'github':
       return 'https://cdn.simpleicons.org/github/ffffff'
+    case 'discord':
+      return 'https://cdn.simpleicons.org/discord/ffffff'
     case 'telegram':
       return 'https://cdn.simpleicons.org/telegram/ffffff'
     case 'tiktok':
@@ -2787,6 +2793,7 @@ function getLocalPlatformFallbackIconUrl(platform: SocialPlatform): string {
     spotify: 'SP',
     linkedin: 'in',
     github: 'GH',
+    discord: 'DC',
     telegram: 'TG',
     tiktok: 'TT',
     whatsapp: 'WA',
@@ -2817,6 +2824,7 @@ function getWebsiteFaviconUrl(link: string): string | null {
       spotify: 'spotify.com',
       linkedin: 'linkedin.com',
       github: 'github.com',
+      discord: 'discord.com',
       telegram: 'telegram.org',
       tiktok: 'tiktok.com',
       whatsapp: 'whatsapp.com',
