@@ -2695,7 +2695,17 @@ function detectSocialPlatform(link: string): SocialPlatform {
     if (hostname.includes('spotify.')) return 'spotify'
     if (hostname.includes('linkedin.')) return 'linkedin'
     if (hostname.includes('github.')) return 'github'
-    if (hostname.includes('discord.') || hostname === 'discord.gg') return 'discord'
+    if (
+      hostname === 'discord.gg' ||
+      hostname === 'discord.com' ||
+      hostname.endsWith('.discord.com') ||
+      hostname === 'discordapp.com' ||
+      hostname.endsWith('.discordapp.com') ||
+      hostname === 'discordapp.net' ||
+      hostname.endsWith('.discordapp.net')
+    ) {
+      return 'discord'
+    }
     if (hostname === 't.me' || hostname.includes('telegram.')) return 'telegram'
     if (hostname.includes('tiktok.')) return 'tiktok'
     if (hostname === 'wa.me' || hostname.includes('whatsapp.')) return 'whatsapp'
