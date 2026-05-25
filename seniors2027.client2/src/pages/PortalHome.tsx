@@ -149,6 +149,22 @@ export default function PortalHome() {
   const [highlightsMessage, setHighlightsMessage] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [archiveHighlightsForCount, setArchiveHighlightsForCount] = useState<DailyHighlight[]>([])
+
+  const totalMentionCount = useMemo(() => {
+    if (!currentUserId) return 0
+    return archiveHighlightsForCount.filter((h) => h.mentionedUsers.some((m) => m.id === currentUserId)).length
+  }, [archiveHighlightsForCount, currentUserId])
+
+  useEffect(() => {
+    if (currentUserId) {
+      void getHighlightsArchiveRequest(1000).then((result) => {
+        if (result.ok && result.data) {
+          setArchiveHighlightsForCount(result.data)
+        }
+      })
+    }
+  }, [currentUserId])
   const [monthlyDumpOpen, setMonthlyDumpOpen] = useState(false)
   const [monthlyDumpLoading, setMonthlyDumpLoading] = useState(false)
   const [monthlyDumpMessage, setMonthlyDumpMessage] = useState<string | null>(null)
@@ -468,6 +484,10 @@ export default function PortalHome() {
   }, [])
 
   const current = highlights[activeIndex] ?? null
+  const isCurrentUserMentionedInCurrent = useMemo(() => {
+    if (!currentUserId || !current) return false
+    return current.mentionedUsers.some((u) => u.id === currentUserId)
+  }, [current, currentUserId])
   const latestPreviewHighlights = highlights.slice(0, 4)
   const currentReactions = current?.reactions ?? []
   const loveReactions = currentReactions.filter((reaction) => reaction.type === 'Love')
@@ -1777,6 +1797,25 @@ export default function PortalHome() {
                         <div style={{ fontWeight: 900, fontSize: '0.82rem', letterSpacing: '0.05em', marginBottom: '10px', textAlign: 'center' }}>
                           ARCHIVE STACK
                         </div>
+                        {totalMentionCount > 0 && (
+                          <motion.div
+                            animate={{ scale: [1, 1.04, 1], opacity: [0.8, 1, 0.8] }}
+                            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                            style={{
+                              marginBottom: '10px',
+                              color: '#d97706',
+                              fontWeight: 900,
+                              fontSize: '0.85rem',
+                              textAlign: 'center',
+                              background: '#fff3d6',
+                              padding: '4px 8px',
+                              border: '2px solid black',
+                              boxShadow: '3px 3px 0 black'
+                            }}
+                          >
+                            "YOU HAVE {totalMentionCount} MENTIONS"
+                          </motion.div>
+                        )}
                         <div
                           style={{
                             width: '100%',
@@ -2697,11 +2736,18 @@ export default function PortalHome() {
               <div style={{ fontWeight: 800, fontSize: '0.82rem', opacity: 0.75 }}>Click blue background to close</div>
             </div>
 
-            <div style={{ minHeight: 0, overflow: 'hidden', paddingRight: 0 }}>
             <div
+              style={{ minHeight: 0, overflow: 'hidden', paddingRight: 0 }}
+            >
+            <motion.div
+              animate={isCurrentUserMentionedInCurrent ? {
+                borderColor: ['#ffd700', '#fff3d6', '#ffd700'],
+                boxShadow: ['0 0 10px #ffd700', '0 0 30px #ffd700', '0 0 10px #ffd700']
+              } : {}}
+              transition={{ duration: 2, repeat: Infinity }}
               style={{
                 position: 'relative',
-                border: '3px solid black',
+                border: isCurrentUserMentionedInCurrent ? '5px solid #ffd700' : '3px solid black',
                 background: '#111',
                 aspectRatio: '4 / 3',
                 overflow: 'hidden',
@@ -2710,6 +2756,28 @@ export default function PortalHome() {
                 justifyContent: 'center'
               }}
             >
+              {isCurrentUserMentionedInCurrent && (
+                <motion.div
+                  animate={{ opacity: [0.7, 1, 0.7], y: [0, -4, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    left: '12px',
+                    background: '#ffd700',
+                    color: 'black',
+                    padding: '5px 10px',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    zIndex: 10,
+                    border: '2px solid black',
+                    boxShadow: '4px 4px 0 black',
+                    textTransform: 'uppercase'
+                  }}
+                >
+                  "YOU'VE BEEN MENTIONED IN THIS"
+                </motion.div>
+              )}
               <motion.img
                 key={`archive-${current?.id}`}
                 src={current?.photoUrl}
@@ -2752,13 +2820,14 @@ export default function PortalHome() {
                     padding: 0,
                     background: '#ff6b6b',
                     display: 'grid',
-                    placeItems: 'center'
+                    placeItems: 'center',
+                    zIndex: 11
                   }}
                 >
                   <Trash2 size={14} />
                 </button>
               )}
-            </div>
+            </motion.div>
 
             <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <button
