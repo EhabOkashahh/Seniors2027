@@ -1055,7 +1055,7 @@ export default function AdminJoinRequests() {
                                 <img
                                   src={photo.photoUrl}
                                   alt={`Pending memory photo by ${photo.username}`}
-                                  className="admin-entity-card__image"
+                                  className="admin-entity-card__image admin-approve-photo-preview"
                                 />
                                 <div className="admin-entity-card__head">
                                   <div className="admin-entity-card__identity">

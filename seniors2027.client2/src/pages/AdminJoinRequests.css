@@ -488,6 +488,11 @@
   align-items: start;
 }
 
+.admin-approve-photo-preview {
+  height: clamp(240px, 30vw, 340px);
+  max-height: none;
+}
+
 .admin-two-column-grid {
   display: grid;
   gap: 12px;
