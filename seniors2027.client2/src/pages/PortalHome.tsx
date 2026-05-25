@@ -1781,7 +1781,10 @@ export default function PortalHome() {
                   ) : (
                     <>
                       <div
-                        onClick={() => setIsArchiveOpen(true)}
+                        onClick={() => {
+                          setActiveIndex(0)
+                          setIsArchiveOpen(true)
+                        }}
                         onMouseEnter={() => setIsArchivePreviewHovered(true)}
                         onMouseLeave={() => setIsArchivePreviewHovered(false)}
                         style={{
@@ -1900,40 +1903,48 @@ export default function PortalHome() {
                           gap: '8px'
                         }}
                       >
-                        <button
-                          type="button"
-                          onClick={(event) =>
-                            handleOpenUserWebsite(event, {
-                              username: current?.user.username ?? null
-                            })
-                          }
-                          aria-label={`Open ${current?.user.username ?? 'user'} website`}
-                          style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
-                        >
-                          <GenderCapAvatar
-                            src={current?.user.photoUrl || '/favicon.svg'}
-                            alt={current?.user.username || 'Senior'}
-                            gender={current?.user.gender ?? null}
-                            containerStyle={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid black' }}
-                            imageStyle={{ borderRadius: '50%' }}
-                            capScale={0.75}
-                          />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) =>
-                            handleOpenUserWebsite(event, {
-                              username: current?.user.username ?? null
-                            })
-                          }
-                          aria-label={`Open ${current?.user.username ?? 'user'} website`}
-                          style={{ all: 'unset', fontWeight: 900, fontSize: '0.85rem', lineHeight: 1.2, cursor: 'pointer' }}
-                        >
-                          Latest by {current?.user.username}
-                        </button>
-                        <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.75rem', opacity: 0.7 }}>
-                          {formatDate(current?.createdAt)}
-                        </div>
+                        {(() => {
+                          const absoluteLatest = highlights[0] ?? null
+                          if (!absoluteLatest) return null
+                          return (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(event) =>
+                                  handleOpenUserWebsite(event, {
+                                    username: absoluteLatest.user.username
+                                  })
+                                }
+                                aria-label={`Open ${absoluteLatest.user.username} website`}
+                                style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                              >
+                                <GenderCapAvatar
+                                  src={absoluteLatest.user.photoUrl || '/favicon.svg'}
+                                  alt={absoluteLatest.user.username}
+                                  gender={absoluteLatest.user.gender ?? null}
+                                  containerStyle={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid black' }}
+                                  imageStyle={{ borderRadius: '50%' }}
+                                  capScale={0.75}
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) =>
+                                  handleOpenUserWebsite(event, {
+                                    username: absoluteLatest.user.username
+                                  })
+                                }
+                                aria-label={`Open ${absoluteLatest.user.username} website`}
+                                style={{ all: 'unset', fontWeight: 900, fontSize: '0.85rem', lineHeight: 1.2, cursor: 'pointer' }}
+                              >
+                                Latest by {absoluteLatest.user.username}
+                              </button>
+                              <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.75rem', opacity: 0.7 }}>
+                                {formatDate(absoluteLatest.createdAt)}
+                              </div>
+                            </>
+                          )
+                        })()}
                       </div>
 
                     </>
