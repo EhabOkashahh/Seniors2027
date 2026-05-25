@@ -8,6 +8,9 @@ import { Search } from 'lucide-react'
 
 const PAGE_SIZE = 20
 const DIRECTORY_STATE_STORAGE_KEY = 'directory:lastQuery'
+const DIRECTORY_ENTRY_STAGGER_STEP = 0.03
+const DIRECTORY_ENTRY_MAX_DELAY = 0.24
+const DIRECTORY_ENTRY_DURATION = 0.22
 
 export default function Directory() {
   const navigate = useNavigate()
@@ -22,6 +25,7 @@ export default function Directory() {
   const [pageNumber, setPageNumber] = useState(persistedDirectoryState.page)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [useCardEntryStagger, setUseCardEntryStagger] = useState(true)
 
   useEffect(() => {
     const onResize = () => {
@@ -75,7 +79,20 @@ export default function Directory() {
   }, [debouncedSearch, pageNumber, searchParams, setSearchParams])
 
   useEffect(() => {
+    if (loading || users.length === 0) return
+
+    // Keep stagger only for initial card entrance to avoid delayed hover feedback.
+    const maxEntryDelay = Math.min((users.length - 1) * DIRECTORY_ENTRY_STAGGER_STEP, DIRECTORY_ENTRY_MAX_DELAY)
+    const timer = window.setTimeout(() => {
+      setUseCardEntryStagger(false)
+    }, Math.ceil((DIRECTORY_ENTRY_DURATION + maxEntryDelay) * 1000))
+
+    return () => window.clearTimeout(timer)
+  }, [loading, users.length])
+
+  useEffect(() => {
     const fetchUsers = async () => {
+      setUseCardEntryStagger(true)
       setLoading(true)
       const result = await getUsersRequest(pageNumber, PAGE_SIZE, debouncedSearch)
       if (result.ok && result.data) {
@@ -165,7 +182,13 @@ export default function Directory() {
                   key={user.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, delay: index * 0.03, ease: 'easeOut' }}
+                  transition={{
+                    duration: DIRECTORY_ENTRY_DURATION,
+                    delay: useCardEntryStagger
+                      ? Math.min(index * DIRECTORY_ENTRY_STAGGER_STEP, DIRECTORY_ENTRY_MAX_DELAY)
+                      : 0,
+                    ease: 'easeOut'
+                  }}
                   whileHover={{ 
                     y: -8, 
                     x: -4,
