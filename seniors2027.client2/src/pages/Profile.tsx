@@ -120,6 +120,9 @@ export default function Profile() {
   const [adminAccountActionRunning, setAdminAccountActionRunning] = useState(false)
   const [adminAccountMessage, setAdminAccountMessage] = useState<string | null>(null)
   const notesPreviewCount = 6
+  const notesBookPageSize = 6
+  const noteActionIconSize = 13
+  const noteActionIconStyle = { width: noteActionIconSize, height: noteActionIconSize, flexShrink: 0, display: 'block' as const }
 
   const isOwnProfile = Boolean(me && profileUser && me.id === profileUser.id)
   const isAdmin = me?.role === 'Admin'
@@ -286,7 +289,7 @@ export default function Profile() {
     setLatestNotesError(null)
     const [latestResult, totalResult] = await Promise.all([
       getLatestReceivedNotesRequest(userId, notesPreviewCount),
-      getReceivedNotesPageRequest(userId, 1, 1)
+      getReceivedNotesPageRequest(userId, 1, notesBookPageSize)
     ])
 
     if (latestResult.ok && latestResult.data) {
@@ -306,7 +309,7 @@ export default function Profile() {
 
   useEffect(() => {
     void fetchLatestNotes()
-  }, [notesPreviewCount, userId])
+  }, [notesBookPageSize, notesPreviewCount, userId])
 
   useEffect(() => {
     if (!isBookOpen || userId === null) return
@@ -316,7 +319,7 @@ export default function Profile() {
       setBookLoading(true)
       setBookError(null)
 
-      const result = await getReceivedNotesPageRequest(userId, bookPageNumber, 2)
+      const result = await getReceivedNotesPageRequest(userId, bookPageNumber, notesBookPageSize)
       if (cancelled) return
 
       if (result.ok && result.data) {
@@ -333,7 +336,7 @@ export default function Profile() {
     return () => {
       cancelled = true
     }
-  }, [isBookOpen, bookPageNumber, userId])
+  }, [isBookOpen, bookPageNumber, notesBookPageSize, userId])
 
   const fetchGallery = async () => {
     if (userId === null) return
@@ -423,6 +426,9 @@ export default function Profile() {
   const showAdminProfileActions = Boolean(isAdmin && !isOwnProfile && profileUser)
   const isTargetLocked = adminTargetUser?.isLocked === true
   const hasMoreNotesInBook = receivedNotesTotalCount > latestNotes.length
+  const notesBookItems = bookData?.items ?? []
+  const notesBookEmptySlotCount =
+    notesBookItems.length > 0 ? Math.max(0, notesBookPageSize - notesBookItems.length) : 0
   const openNoteReactionsNote =
     (openNoteReactionsNoteId !== null
       ? latestNotes.find((note) => note.id === openNoteReactionsNoteId) ??
@@ -823,7 +829,7 @@ export default function Profile() {
       setBookLoading(true)
       setBookError(null)
 
-      const pageResult = await getReceivedNotesPageRequest(userId, bookPageNumber, 2)
+      const pageResult = await getReceivedNotesPageRequest(userId, bookPageNumber, notesBookPageSize)
       if (pageResult.ok && pageResult.data) {
         if (bookPageNumber > pageResult.data.totalPages) {
           setBookPageNumber(pageResult.data.totalPages)
@@ -1563,7 +1569,7 @@ export default function Profile() {
                               border: '1.5px solid black'
                             }}
                           >
-                            <Heart size={14} strokeWidth={1.5} color="#e5486f" fill="#ff6b8a" />
+                            <Heart size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} color="#e5486f" fill="#ff6b8a" />
                             <span>{loveCount}</span>
                           </button>
                           <button
@@ -1588,7 +1594,7 @@ export default function Profile() {
                               border: '1.5px solid black'
                             }}
                           >
-                            <Laugh size={14} strokeWidth={1.5} color="#d97706" />
+                            <Laugh size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} color="#d97706" />
                             <span>{ahahaCount}</span>
                           </button>
                           <button
@@ -1603,7 +1609,7 @@ export default function Profile() {
                             aria-label="Show reactions"
                             style={{ minWidth: 'auto', padding: '6px 8px', boxShadow: 'none', border: '1.5px solid black' }}
                           >
-                            <Eye size={14} strokeWidth={1.5} />
+                            <Eye size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} />
                           </button>
                         </div>
                         {canDeleteNote(note) && (
@@ -1630,7 +1636,7 @@ export default function Profile() {
                               border: '1.5px solid black'
                             }}
                           >
-                            <Trash2 size={14} strokeWidth={1.5} />
+                            <Trash2 size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} />
                           </button>
                         )}
                       </div>
@@ -2157,12 +2163,12 @@ export default function Profile() {
                   transition={{ duration: 0.38, ease: [0.2, 0.8, 0.2, 1] }}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                     gap: '14px',
                     alignItems: 'stretch'
                   }}
                 >
-                  {(bookData?.items ?? []).map((note) => {
+                  {notesBookItems.map((note) => {
                     const noteReactions = note.reactions ?? []
                     const loveCount = noteReactions.filter((reaction) => reaction.type === 'Love').length
                     const ahahaCount = noteReactions.filter((reaction) => reaction.type === 'Ahaha').length
@@ -2232,7 +2238,7 @@ export default function Profile() {
                                 border: '1.5px solid black'
                               }}
                             >
-                              <Heart size={14} strokeWidth={1.5} color="#e5486f" fill="#ff6b8a" />
+                              <Heart size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} color="#e5486f" fill="#ff6b8a" />
                               <span>{loveCount}</span>
                             </button>
                             <button
@@ -2257,7 +2263,7 @@ export default function Profile() {
                                 border: '1.5px solid black'
                               }}
                             >
-                              <Laugh size={14} strokeWidth={1.5} color="#d97706" />
+                              <Laugh size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} color="#d97706" />
                               <span>{ahahaCount}</span>
                             </button>
                             <button
@@ -2272,7 +2278,7 @@ export default function Profile() {
                               aria-label="Show reactions"
                               style={{ minWidth: 'auto', padding: '6px 8px', boxShadow: 'none', border: '1.5px solid black' }}
                             >
-                              <Eye size={14} strokeWidth={1.5} />
+                              <Eye size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} />
                             </button>
                           </div>
                           {canDeleteNote(note) && (
@@ -2299,15 +2305,18 @@ export default function Profile() {
                               border: '1.5px solid black'
                             }}
                           >
-                            <Trash2 size={14} strokeWidth={1.5} />
+                            <Trash2 size={noteActionIconSize} style={noteActionIconStyle} strokeWidth={1.25} />
                           </button>
                           )}
                         </div>
                       </div>
                     </div>
                   )})}
-                  {(bookData?.items?.length ?? 0) === 1 && <div style={{ border: '3px dashed black', background: '#fffdf6' }} />}
-                  {(bookData?.items?.length ?? 0) === 0 && (
+                  {notesBookEmptySlotCount > 0 &&
+                    Array.from({ length: notesBookEmptySlotCount }).map((_, index) => (
+                      <div key={`notes-book-empty-slot-${index}`} style={{ border: '3px dashed black', background: '#fffdf6' }} />
+                    ))}
+                  {notesBookItems.length === 0 && (
                     <div style={{ gridColumn: '1 / -1', border: '3px solid black', padding: '18px', background: 'white', fontWeight: 700 }}>
                       No notes yet.
                     </div>

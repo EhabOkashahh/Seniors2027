@@ -2122,7 +2122,7 @@ export default function PortalHome() {
             <div
               style={{
                 marginTop: '8px',
-                padding: 0,
+                padding: '2px 6px',
                 display: 'flex',
                 flexDirection: 'row-reverse',
                 alignItems: 'center',
@@ -2138,9 +2138,9 @@ export default function PortalHome() {
                   onClick={() => setIsHighlightReactionsOpen(true)}
                   disabled={!current || currentReactions.length === 0}
                   aria-label={`Show reactions (${currentReactions.length})`}
-                  style={{ minWidth: 'auto', padding: '6px 8px' }}
+                  style={{ minWidth: 'auto', padding: '6px 8px', boxShadow: 'none', border: '1.5px solid black' }}
                 >
-                  <Eye size={14} />
+                  <Eye size={14} strokeWidth={1.5} />
                 </button>
               </div>
 
@@ -2158,10 +2158,12 @@ export default function PortalHome() {
                     background: currentUserReaction === 'Love' ? '#ffd6df' : '#fff',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '4px',
+                    boxShadow: 'none',
+                    border: '1.5px solid black'
                   }}
                 >
-                  <Heart size={14} color="#e5486f" fill="#ff6b8a" />
+                  <Heart size={14} strokeWidth={1.5} color="#e5486f" fill="#ff6b8a" />
                   <span>{loveReactions.length}</span>
                 </button>
                 <button
@@ -2177,10 +2179,12 @@ export default function PortalHome() {
                     background: currentUserReaction === 'Ahaha' ? '#ffeab0' : '#fff',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '4px',
+                    boxShadow: 'none',
+                    border: '1.5px solid black'
                   }}
                 >
-                  <Laugh size={14} color="#d97706" />
+                  <Laugh size={14} strokeWidth={1.5} color="#d97706" />
                   <span>{ahahaReactions.length}</span>
                 </button>
               </div>
