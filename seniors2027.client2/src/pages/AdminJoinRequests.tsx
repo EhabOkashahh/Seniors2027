@@ -1044,7 +1044,7 @@ export default function AdminJoinRequests() {
                         <p>No pending photos right now.</p>
                       </div>
                     ) : (
-                      <div className="admin-list-panel__body">
+                      <div className="admin-list-panel__body admin-approve-photos-grid">
                           {memoryBoardPendingPhotos.map((photo) => {
                             const isBusy = memoryBoardActionId === photo.id
                             const takenAtLabel = formatDateTime(photo.exifTakenAtUtc ?? photo.createdAt)
@@ -1052,6 +1052,11 @@ export default function AdminJoinRequests() {
 
                             return (
                               <article key={`pending-${photo.id}`} className="admin-entity-card">
+                                <img
+                                  src={photo.photoUrl}
+                                  alt={`Pending memory photo by ${photo.username}`}
+                                  className="admin-entity-card__image"
+                                />
                                 <div className="admin-entity-card__head">
                                   <div className="admin-entity-card__identity">
                                     <h3>{photo.username}</h3>

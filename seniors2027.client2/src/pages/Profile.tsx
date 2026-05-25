@@ -1315,6 +1315,7 @@ export default function Profile() {
                     {isOwnProfile && visibleSocialLinks.length > 0 && (
                       <button
                         type="button"
+                        className="profile-social-manage-btn"
                         aria-label="Manage social links"
                         onClick={openSocialLinksModal}
                         style={{
@@ -1324,7 +1325,8 @@ export default function Profile() {
                           display: 'grid',
                           placeItems: 'center',
                           padding: 0,
-                          background: 'var(--retro-yellow)'
+                          background: 'var(--retro-yellow)',
+                          boxShadow: 'none'
                         }}
                       >
                         <Paperclip size={15} />
@@ -1339,7 +1341,7 @@ export default function Profile() {
                           alignItems: 'center',
                           gap: '8px',
                           border: '3px solid black',
-                          boxShadow: '4px 4px 0 black',
+                          boxShadow: 'none',
                           background: 'var(--retro-yellow)',
                           padding: '8px 10px',
                           fontWeight: 800
@@ -1882,7 +1884,12 @@ export default function Profile() {
                   }}
                   style={{ width: '100%' }}
                 />
-                <button type="button" className="neo-btn" onClick={handleAddSocialLink} style={{ minWidth: '112px', background: 'var(--retro-yellow)' }}>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={handleAddSocialLink}
+                  style={{ minWidth: '112px', background: 'var(--retro-yellow)', boxShadow: 'none' }}
+                >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                     <Plus size={16} />
                     Add

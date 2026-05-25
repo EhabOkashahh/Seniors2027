@@ -268,15 +268,12 @@ button {
   font-weight: 900;
   cursor: pointer;
   text-transform: uppercase;
-  transition: all 0.03s cubic-bezier(0.22, 1, 0.36, 1); /* Ultra Fast & Smooth */
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease, background-color 0.16s ease;
   color: var(--text-color);
 }
 
-button:hover { transform: translate(-4px, -4px); box-shadow: 12px 12px 0px var(--shadow-color); }
-button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--shadow-color); }
-
-
-button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--shadow-color); }
+button:hover { transform: translate(-2px, -2px); box-shadow: 10px 10px 0px var(--shadow-color); }
+button:active { transform: translate(1px, 1px); box-shadow: 5px 5px 0px var(--shadow-color); }
 
 .gender-container { display: flex; gap: 20px; justify-content: center; }
 .gender-option {
@@ -611,13 +608,13 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
 }
 
 .social-link-chip:hover {
-  transform: translate(-2px, -2px) scale(1.03);
-  box-shadow: 5px 5px 0 black;
-  filter: saturate(1.08);
+  transform: translate(-1px, -1px) scale(1.015);
+  box-shadow: 4px 4px 0 black;
+  filter: saturate(1.04);
 }
 
 .social-link-chip:active {
-  transform: translate(1px, 1px) scale(0.98);
+  transform: translate(0, 0) scale(0.995);
   box-shadow: 2px 2px 0 black;
 }
 
@@ -626,6 +623,17 @@ button:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--sh
   width: auto;
   max-width: 100%;
   min-width: 0;
+}
+
+.portal-container button.profile-social-manage-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: none;
+  filter: brightness(1.04);
+}
+
+.portal-container button.profile-social-manage-btn:active {
+  transform: translate(0, 0);
+  box-shadow: none;
 }
 
 @media (max-width: 900px) {

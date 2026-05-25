@@ -73,6 +73,14 @@ type MonthlyDumpSpread = {
   right: MonthlyDumpPage
 }
 
+type AnnouncementPollVotersModalState = {
+  announcementTitle: string
+  pollQuestion: string
+  optionLabel: string
+  voteCount: number
+  voters: AnnouncementPollOptionItem['voters']
+}
+
 export default function PortalHome() {
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
@@ -81,6 +89,7 @@ export default function PortalHome() {
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true)
   const [loadingEvents, setLoadingEvents] = useState(true)
   const [announcementPollActionId, setAnnouncementPollActionId] = useState<number | null>(null)
+  const [openAnnouncementPollVoters, setOpenAnnouncementPollVoters] = useState<AnnouncementPollVotersModalState | null>(null)
   const [portalContentMessage, setPortalContentMessage] = useState<string | null>(null)
 
   const [highlights, setHighlights] = useState<DailyHighlight[]>([])
@@ -1226,88 +1235,30 @@ export default function PortalHome() {
                                               </span>
                                             </span>
                                           </button>
-                                          <details style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.88 }}>
-                                            <summary style={{ cursor: 'pointer', fontWeight: 800 }}>
-                                              Who voted ({pollOption.voteCount})
-                                            </summary>
-                                            <div style={{ display: 'grid', gap: '4px', marginTop: '4px' }}>
-                                              {pollOption.voters.length === 0 ? (
-                                                <div style={{ opacity: 0.75 }}>No votes yet.</div>
-                                              ) : (
-                                                pollOption.voters.map((voter) => (
-                                                  <div
-                                                    key={`poll-voter-${announcement.id}-${optionIndex}-${voter.username}-${voter.votedAt}`}
-                                                    style={{
-                                                      border: '1px solid black',
-                                                      padding: '4px 6px',
-                                                      background: '#fff',
-                                                      display: 'flex',
-                                                      alignItems: 'center',
-                                                      gap: '6px'
-                                                    }}
-                                                  >
-                                                    <button
-                                                      type="button"
-                                                      onClick={(event) =>
-                                                        handleOpenUserWebsite(event, {
-                                                          username: voter.username
-                                                        })
-                                                      }
-                                                      aria-label={`Open ${voter.username} website`}
-                                                      style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
-                                                    >
-                                                      {voter.photoUrl ? (
-                                                        <img
-                                                          src={voter.photoUrl}
-                                                          alt={voter.username}
-                                                          style={{
-                                                            width: '20px',
-                                                            height: '20px',
-                                                            borderRadius: '50%',
-                                                            border: '1px solid black',
-                                                            objectFit: 'cover'
-                                                          }}
-                                                        />
-                                                      ) : (
-                                                        <div
-                                                          style={{
-                                                            width: '20px',
-                                                            height: '20px',
-                                                            borderRadius: '50%',
-                                                            border: '1px solid black',
-                                                            display: 'grid',
-                                                            placeItems: 'center',
-                                                            fontWeight: 900,
-                                                            fontSize: '0.65rem',
-                                                            background: '#f0f0f0'
-                                                          }}
-                                                        >
-                                                          {voter.username.charAt(0).toUpperCase()}
-                                                        </div>
-                                                      )}
-                                                    </button>
-                                                    <div style={{ display: 'grid', gap: '1px' }}>
-                                                      <button
-                                                        type="button"
-                                                        onClick={(event) =>
-                                                          handleOpenUserWebsite(event, {
-                                                            username: voter.username
-                                                          })
-                                                        }
-                                                        aria-label={`Open ${voter.username} website`}
-                                                        style={{ all: 'unset', cursor: 'pointer', width: 'fit-content' }}
-                                                      >
-                                                        {voter.username}
-                                                      </button>
-                                                      <span style={{ fontSize: '0.68rem', opacity: 0.75 }}>
-                                                        {formatDateTime(voter.votedAt)}
-                                                      </span>
-                                                    </div>
-                                                  </div>
-                                                ))
-                                              )}
-                                            </div>
-                                          </details>
+                                          <button
+                                            type="button"
+                                            className="neo-btn"
+                                            onClick={() =>
+                                              setOpenAnnouncementPollVoters({
+                                                announcementTitle: announcement.title,
+                                                pollQuestion: activePoll.question,
+                                                optionLabel: pollOption.label,
+                                                voteCount: pollOption.voteCount,
+                                                voters: pollOption.voters
+                                              })
+                                            }
+                                            style={{
+                                              minWidth: 'auto',
+                                              width: 'fit-content',
+                                              padding: '5px 8px',
+                                              fontSize: '0.72rem',
+                                              background: '#f7f7f7',
+                                              boxShadow: 'none',
+                                              border: '1.5px solid black'
+                                            }}
+                                          >
+                                            Who voted ({pollOption.voteCount})
+                                          </button>
                                         </div>
                                         )
                                       })}
@@ -1727,6 +1678,149 @@ export default function PortalHome() {
           </motion.div>
         </div>
       </motion.div>
+
+      {openAnnouncementPollVoters && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1265,
+            background: 'rgba(0, 0, 0, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setOpenAnnouncementPollVoters(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              width: isMobile ? 'min(94vw, 560px)' : 'min(560px, 92vw)',
+              maxHeight: '86vh',
+              overflow: 'hidden',
+              background: '#fff',
+              border: '4px solid black',
+              boxShadow: '10px 10px 0 black',
+              display: 'grid',
+              gridTemplateRows: 'auto auto minmax(0, 1fr)'
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 12px',
+                borderBottom: '3px solid black',
+                background: '#f3e9ff'
+              }}
+            >
+              <div style={{ fontWeight: 900, letterSpacing: '0.03em' }}>WHO VOTED</div>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={() => setOpenAnnouncementPollVoters(null)}
+                style={{ minWidth: 'auto', padding: '6px 10px' }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div style={{ padding: '8px 12px', borderBottom: '2px dashed black', background: '#fffdf2', display: 'grid', gap: '3px' }}>
+              <div style={{ fontWeight: 900, fontSize: '0.82rem', lineHeight: 1.25 }}>{openAnnouncementPollVoters.announcementTitle}</div>
+              <div style={{ fontWeight: 700, fontSize: '0.76rem', opacity: 0.84 }}>{openAnnouncementPollVoters.pollQuestion}</div>
+              <div style={{ fontWeight: 800, fontSize: '0.74rem' }}>
+                Option: {openAnnouncementPollVoters.optionLabel} ({openAnnouncementPollVoters.voteCount})
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', overflowY: 'auto', display: 'grid', gap: '4px' }}>
+              {openAnnouncementPollVoters.voters.length === 0 ? (
+                <div style={{ opacity: 0.75, fontWeight: 800 }}>No votes yet.</div>
+              ) : (
+                openAnnouncementPollVoters.voters.map((voter) => (
+                  <div
+                    key={`poll-voter-modal-${openAnnouncementPollVoters.optionLabel}-${voter.username}-${voter.votedAt}`}
+                    style={{
+                      border: '1px solid black',
+                      padding: '4px 6px',
+                      background: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={(event) =>
+                        handleOpenUserWebsite(event, {
+                          username: voter.username
+                        })
+                      }
+                      aria-label={`Open ${voter.username} website`}
+                      style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                    >
+                      {voter.photoUrl ? (
+                        <img
+                          src={voter.photoUrl}
+                          alt={voter.username}
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            border: '1px solid black',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            border: '1px solid black',
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontWeight: 900,
+                            fontSize: '0.65rem',
+                            background: '#f0f0f0'
+                          }}
+                        >
+                          {voter.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </button>
+                    <div style={{ display: 'grid', gap: '1px' }}>
+                      <button
+                        type="button"
+                        onClick={(event) =>
+                          handleOpenUserWebsite(event, {
+                            username: voter.username
+                          })
+                        }
+                        aria-label={`Open ${voter.username} website`}
+                        style={{ all: 'unset', cursor: 'pointer', width: 'fit-content' }}
+                      >
+                        {voter.username}
+                      </button>
+                      <span style={{ fontSize: '0.68rem', opacity: 0.75 }}>
+                        {formatDateTime(voter.votedAt)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {isHighlightReactionsOpen && current && (
         <div
