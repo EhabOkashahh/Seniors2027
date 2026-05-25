@@ -2754,8 +2754,11 @@ export default function PortalHome() {
               animate={isCurrentUserMentionedInCurrent ? {
                 borderColor: ['#ffd700', '#fff3d6', '#ffd700'],
                 boxShadow: ['0 0 10px #ffd700', '0 0 30px #ffd700', '0 0 10px #ffd700']
-              } : {}}
-              transition={{ duration: 2, repeat: Infinity }}
+              } : {
+                borderColor: '#000000',
+                boxShadow: '0 0 0px transparent'
+              }}
+              transition={{ duration: 2, repeat: isCurrentUserMentionedInCurrent ? Infinity : 0 }}
               style={{
                 position: 'relative',
                 border: isCurrentUserMentionedInCurrent ? '5px solid #ffd700' : '3px solid black',
