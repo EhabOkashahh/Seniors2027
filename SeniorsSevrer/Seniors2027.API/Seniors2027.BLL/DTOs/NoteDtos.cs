@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Seniors2027.DAL.Entities;
 
 namespace Seniors2027.BLL.DTOs;
 
@@ -25,6 +26,27 @@ public class NoteDto
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public NoteSenderDto Sender { get; set; } = new();
+    public List<NoteReactionDto> Reactions { get; set; } = [];
+}
+
+public class NoteReactionUserDto
+{
+    public string Username { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
+}
+
+public class NoteReactionDto
+{
+    public int Id { get; set; }
+    public NoteReactionType Type { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public bool IsCurrentUser { get; set; }
+    public NoteReactionUserDto User { get; set; } = new();
+}
+
+public class ToggleNoteReactionDto
+{
+    public NoteReactionType Type { get; set; }
 }
 
 public class PagedNotesResponseDto

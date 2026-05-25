@@ -301,6 +301,40 @@ namespace Seniors2027.DAL.Migrations
                     b.ToTable("Notes");
                 });
 
+            modelBuilder.Entity("Seniors2027.DAL.Entities.NoteReaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NoteId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("NoteId", "Type");
+
+                    b.HasIndex("NoteId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("NoteReactions");
+                });
+
             modelBuilder.Entity("Seniors2027.DAL.Entities.PortalEvent", b =>
                 {
                     b.Property<int>("Id")
@@ -583,6 +617,25 @@ namespace Seniors2027.DAL.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("Seniors2027.DAL.Entities.NoteReaction", b =>
+                {
+                    b.HasOne("Seniors2027.DAL.Entities.Note", "Note")
+                        .WithMany("Reactions")
+                        .HasForeignKey("NoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Seniors2027.DAL.Entities.User", "User")
+                        .WithMany("NoteReactions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Note");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Seniors2027.DAL.Entities.PortalEvent", b =>
                 {
                     b.HasOne("Seniors2027.DAL.Entities.User", "CreatedByUser")
@@ -619,6 +672,11 @@ namespace Seniors2027.DAL.Migrations
                     b.Navigation("DailyHighlights");
                 });
 
+            modelBuilder.Entity("Seniors2027.DAL.Entities.Note", b =>
+                {
+                    b.Navigation("Reactions");
+                });
+
             modelBuilder.Entity("Seniors2027.DAL.Entities.User", b =>
                 {
                     b.Navigation("AnnouncementPollVotes");
@@ -634,6 +692,8 @@ namespace Seniors2027.DAL.Migrations
                     b.Navigation("GalleryPhotos");
 
                     b.Navigation("MemoryBoardPhotos");
+
+                    b.Navigation("NoteReactions");
 
                     b.Navigation("ReceivedNotes");
 

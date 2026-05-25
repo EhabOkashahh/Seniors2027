@@ -344,3 +344,4 @@ C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors202
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.pdb
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net9.0\Seniors2027.API.genruntimeconfig.cache
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net9.0\ref\Seniors2027.API.dll
+C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt

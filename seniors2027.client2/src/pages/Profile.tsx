@@ -3,15 +3,18 @@ import { motion } from 'framer-motion'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   Heart,
+  Laugh,
   Image as ImageIcon,
   Award,
   BookOpen,
   Camera,
+  Eye,
   GripVertical,
   Pencil,
   Paperclip,
   Plus,
   Share2,
+  Trash2,
   X
 } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
@@ -32,6 +35,7 @@ import {
   getUserByIdRequest,
   sendNoteRequest,
   setAdminUserLockRequest,
+  toggleNoteReactionRequest,
   updateMyFavoriteSongRequest,
   updateMyPhotoRequest,
   updateMySocialLinksRequest,
@@ -40,6 +44,8 @@ import {
   type GalleryPhoto,
   type MeUser,
   type NoteItem,
+  type NoteReaction,
+  type NoteReactionType,
   type PagedNotes,
   type User
 } from '../lib/authApi'
@@ -94,6 +100,7 @@ export default function Profile() {
   const [latestNotes, setLatestNotes] = useState<NoteItem[]>([])
   const [latestNotesLoading, setLatestNotesLoading] = useState(false)
   const [latestNotesError, setLatestNotesError] = useState<string | null>(null)
+  const [openNoteReactionsNoteId, setOpenNoteReactionsNoteId] = useState<number | null>(null)
   const [receivedNotesTotalCount, setReceivedNotesTotalCount] = useState(0)
 
   const [isBookOpen, setIsBookOpen] = useState(false)
@@ -105,6 +112,7 @@ export default function Profile() {
   const [newNoteInput, setNewNoteInput] = useState('')
   const [sendingNote, setSendingNote] = useState(false)
   const [deletingNoteIds, setDeletingNoteIds] = useState<number[]>([])
+  const [reactingNoteIds, setReactingNoteIds] = useState<number[]>([])
   const [deletingGalleryPhotoIds, setDeletingGalleryPhotoIds] = useState<number[]>([])
   const [noteMessage, setNoteMessage] = useState<string | null>(null)
   const [adminTargetUser, setAdminTargetUser] = useState<AdminUser | null>(null)
@@ -130,6 +138,17 @@ export default function Profile() {
       {
         id: note.sender.id,
         username: note.sender.username
+      },
+      navigate
+    )
+  }
+
+  const handleOpenReactionUserProfile = (event: MouseEvent, reaction: NoteReaction) => {
+    event.stopPropagation()
+    event.preventDefault()
+    void openUserWebsiteFromIdentity(
+      {
+        username: reaction.user.username
       },
       navigate
     )
@@ -404,6 +423,12 @@ export default function Profile() {
   const showAdminProfileActions = Boolean(isAdmin && !isOwnProfile && profileUser)
   const isTargetLocked = adminTargetUser?.isLocked === true
   const hasMoreNotesInBook = receivedNotesTotalCount > latestNotes.length
+  const openNoteReactionsNote =
+    (openNoteReactionsNoteId !== null
+      ? latestNotes.find((note) => note.id === openNoteReactionsNoteId) ??
+        bookData?.items.find((note) => note.id === openNoteReactionsNoteId) ??
+        null
+      : null)
   const maxSocialLinks = 8
   const galleryPageSize = 4
   const galleryTotalPages = Math.max(1, Math.ceil(galleryPhotos.length / galleryPageSize))
@@ -748,6 +773,33 @@ export default function Profile() {
     }
   }
 
+  const applyUpdatedNoteAcrossViews = (updatedNote: NoteItem) => {
+    setLatestNotes((prev) => prev.map((note) => (note.id === updatedNote.id ? updatedNote : note)))
+    setBookData((prev) =>
+      prev
+        ? {
+            ...prev,
+            items: prev.items.map((note) => (note.id === updatedNote.id ? updatedNote : note))
+          }
+        : prev
+    )
+  }
+
+  const handleToggleNoteReaction = async (noteId: number, type: NoteReactionType) => {
+    if (reactingNoteIds.includes(noteId)) return
+
+    setReactingNoteIds((prev) => [...prev, noteId])
+    const result = await toggleNoteReactionRequest(noteId, type)
+    setReactingNoteIds((prev) => prev.filter((id) => id !== noteId))
+
+    if (!result.ok || !result.data) {
+      setNoteMessage(result.error ?? 'Could not update reaction.')
+      return
+    }
+
+    applyUpdatedNoteAcrossViews(result.data)
+  }
+
   const handleDeleteNote = async (noteId: number) => {
     if (userId === null) return
     if (deletingNoteIds.includes(noteId)) return
@@ -759,6 +811,10 @@ export default function Profile() {
     if (!result.ok) {
       setNoteMessage(normalizeDeleteNoteErrorMessage(result.error))
       return
+    }
+
+    if (openNoteReactionsNoteId === noteId) {
+      setOpenNoteReactionsNoteId(null)
     }
 
     await fetchLatestNotes()
@@ -1383,11 +1439,19 @@ export default function Profile() {
               </div>
             )}
 
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => {
                 setBookPageNumber(1)
                 setIsBookOpen(true)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  setBookPageNumber(1)
+                  setIsBookOpen(true)
+                }
               }}
               style={{
                 border: '3px solid black',
@@ -1430,7 +1494,15 @@ export default function Profile() {
                     gap: '10px'
                   }}
                 >
-                  {latestNotes.map((note) => (
+                  {latestNotes.map((note) => {
+                    const noteReactions = note.reactions ?? []
+                    const loveCount = noteReactions.filter((reaction) => reaction.type === 'Love').length
+                    const ahahaCount = noteReactions.filter((reaction) => reaction.type === 'Ahaha').length
+                    const currentReactionType = noteReactions.find((reaction) => reaction.isCurrentUser)?.type ?? null
+                    const isReacting = reactingNoteIds.includes(note.id)
+                    const isDeleting = deletingNoteIds.includes(note.id)
+
+                    return (
                     <div key={note.id} style={{ border: '2px solid black', background: 'white', padding: '10px', display: 'grid', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button
@@ -1467,27 +1539,100 @@ export default function Profile() {
                       >
                         {note.content}
                       </p>
-                      {canDeleteNote(note) && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              void handleToggleNoteReaction(note.id, 'Love')
+                            }}
+                            disabled={isReacting}
+                            aria-label={`Love reactions (${loveCount})`}
+                            style={{
+                              minWidth: 'auto',
+                              padding: '6px 8px',
+                              fontSize: '0.74rem',
+                              background: currentReactionType === 'Love' ? '#ffd6df' : '#fff',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Heart size={14} color="#e5486f" fill="#ff6b8a" />
+                            <span>{loveCount}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              void handleToggleNoteReaction(note.id, 'Ahaha')
+                            }}
+                            disabled={isReacting}
+                            aria-label={`Ahaha reactions (${ahahaCount})`}
+                            style={{
+                              minWidth: 'auto',
+                              padding: '6px 8px',
+                              fontSize: '0.74rem',
+                              background: currentReactionType === 'Ahaha' ? '#ffeab0' : '#fff',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Laugh size={14} color="#d97706" />
+                            <span>{ahahaCount}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="neo-btn"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              setOpenNoteReactionsNoteId(note.id)
+                            }}
+                            disabled={noteReactions.length === 0}
+                            aria-label="Show reactions"
+                            style={{ minWidth: 'auto', padding: '6px 8px' }}
+                          >
+                            <Eye size={14} />
+                          </button>
+                        </div>
+                        {canDeleteNote(note) && (
                           <button
                             type="button"
                             className="neo-btn"
                             onClick={(e) => {
+                              e.preventDefault()
                               e.stopPropagation()
                               void handleDeleteNote(note.id)
                             }}
-                            disabled={deletingNoteIds.includes(note.id)}
-                            style={{ minWidth: '92px', padding: '7px 10px', background: '#ff8f8f' }}
+                            disabled={isDeleting}
+                            aria-label={isDeleting ? 'Deleting note' : 'Delete note'}
+                            style={{
+                              minWidth: 'auto',
+                              width: '32px',
+                              height: '32px',
+                              padding: 0,
+                              background: '#ff8f8f',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
                           >
-                            {deletingNoteIds.includes(note.id) ? 'Deleting...' : 'Delete'}
+                            <Trash2 size={14} />
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
 
@@ -1865,6 +2010,103 @@ export default function Profile() {
         </div>
       )}
 
+      {openNoteReactionsNote && (
+        (() => {
+          const noteReactions = openNoteReactionsNote.reactions ?? []
+          return (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setOpenNoteReactionsNoteId(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 71,
+            padding: '20px'
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(520px, 100%)',
+              maxHeight: 'min(72vh, 560px)',
+              border: '4px solid black',
+              boxShadow: '12px 12px 0 black',
+              background: 'var(--retro-paper)',
+              padding: isMobile ? '12px' : '18px',
+              display: 'grid',
+              gap: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0, textTransform: 'uppercase' }}>Who Reacted</h3>
+              <button type="button" className="neo-btn" onClick={() => setOpenNoteReactionsNoteId(null)}>
+                Close
+              </button>
+            </div>
+
+            <div style={{ fontWeight: 700, fontSize: '0.82rem', opacity: 0.8 }}>
+              Reactions on this note: {noteReactions.length}
+            </div>
+
+            <div style={{ display: 'grid', gap: '8px', overflowY: 'auto', paddingRight: '4px' }}>
+              {noteReactions.length === 0 ? (
+                <div style={{ border: '2px solid black', background: 'white', padding: '10px', fontWeight: 700 }}>
+                  No reactions yet.
+                </div>
+              ) : (
+                noteReactions.map((reaction) => (
+                  <div
+                    key={reaction.id}
+                    style={{
+                      border: '2px solid black',
+                      background: 'white',
+                      padding: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={(event) => handleOpenReactionUserProfile(event, reaction)}
+                      aria-label={`Open ${reaction.user.username} profile`}
+                      style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                    >
+                      <img
+                        src={reaction.user.photoUrl || '/favicon.svg'}
+                        alt={reaction.user.username}
+                        style={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid black', objectFit: 'cover' }}
+                      />
+                    </button>
+                    <div style={{ display: 'grid', gap: '2px', minWidth: 0 }}>
+                      <button
+                        type="button"
+                        onClick={(event) => handleOpenReactionUserProfile(event, reaction)}
+                        aria-label={`Open ${reaction.user.username} profile`}
+                        style={{ all: 'unset', fontWeight: 900, cursor: 'pointer', width: 'fit-content' }}
+                      >
+                        {reaction.user.username}
+                      </button>
+                      <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.75 }}>{formatNoteDate(reaction.createdAt)}</div>
+                    </div>
+                    <div style={{ marginLeft: 'auto', fontWeight: 900, fontSize: '0.84rem' }}>
+                      {reaction.type === 'Love' ? 'Love' : 'Ahaha'}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+          )
+        })()
+      )}
+
       {isBookOpen && (
         <div
           role="dialog"
@@ -1914,7 +2156,15 @@ export default function Profile() {
                     alignItems: 'stretch'
                   }}
                 >
-                  {(bookData?.items ?? []).map((note) => (
+                  {(bookData?.items ?? []).map((note) => {
+                    const noteReactions = note.reactions ?? []
+                    const loveCount = noteReactions.filter((reaction) => reaction.type === 'Love').length
+                    const ahahaCount = noteReactions.filter((reaction) => reaction.type === 'Ahaha').length
+                    const currentReactionType = noteReactions.find((reaction) => reaction.isCurrentUser)?.type ?? null
+                    const isReacting = reactingNoteIds.includes(note.id)
+                    const isDeleting = deletingNoteIds.includes(note.id)
+
+                    return (
                     <div key={note.id} style={{ border: '3px solid black', background: 'white', padding: '12px', display: 'grid', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button
@@ -1950,22 +2200,100 @@ export default function Profile() {
                       >
                         {note.content}
                       </p>
-                      <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ marginTop: 'auto', display: 'grid', gap: '8px' }}>
                         <div style={{ fontSize: '0.8rem', opacity: 0.72, fontWeight: 700 }}>{formatNoteDate(note.createdAt)}</div>
-                        {canDeleteNote(note) && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              onClick={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                void handleToggleNoteReaction(note.id, 'Love')
+                              }}
+                              disabled={isReacting}
+                              aria-label={`Love reactions (${loveCount})`}
+                              style={{
+                                minWidth: 'auto',
+                                padding: '6px 8px',
+                                fontSize: '0.74rem',
+                                background: currentReactionType === 'Love' ? '#ffd6df' : '#fff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Heart size={14} color="#e5486f" fill="#ff6b8a" />
+                              <span>{loveCount}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              onClick={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                void handleToggleNoteReaction(note.id, 'Ahaha')
+                              }}
+                              disabled={isReacting}
+                              aria-label={`Ahaha reactions (${ahahaCount})`}
+                              style={{
+                                minWidth: 'auto',
+                                padding: '6px 8px',
+                                fontSize: '0.74rem',
+                                background: currentReactionType === 'Ahaha' ? '#ffeab0' : '#fff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Laugh size={14} color="#d97706" />
+                              <span>{ahahaCount}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="neo-btn"
+                              onClick={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                setOpenNoteReactionsNoteId(note.id)
+                              }}
+                              disabled={noteReactions.length === 0}
+                              aria-label="Show reactions"
+                              style={{ minWidth: 'auto', padding: '6px 8px' }}
+                            >
+                              <Eye size={14} />
+                            </button>
+                          </div>
+                          {canDeleteNote(note) && (
                           <button
                             type="button"
                             className="neo-btn"
-                            onClick={() => void handleDeleteNote(note.id)}
-                            disabled={deletingNoteIds.includes(note.id)}
-                            style={{ minWidth: '92px', padding: '7px 10px', background: '#ff8f8f' }}
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              void handleDeleteNote(note.id)
+                            }}
+                            disabled={isDeleting}
+                            aria-label={isDeleting ? 'Deleting note' : 'Delete note'}
+                            style={{
+                              minWidth: 'auto',
+                              width: '32px',
+                              height: '32px',
+                              padding: 0,
+                              background: '#ff8f8f',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
                           >
-                            {deletingNoteIds.includes(note.id) ? 'Deleting...' : 'Delete'}
+                            <Trash2 size={14} />
                           </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                   {(bookData?.items?.length ?? 0) === 1 && <div style={{ border: '3px dashed black', background: '#fffdf6' }} />}
                   {(bookData?.items?.length ?? 0) === 0 && (
                     <div style={{ gridColumn: '1 / -1', border: '3px solid black', padding: '18px', background: 'white', fontWeight: 700 }}>

@@ -52,63 +52,42 @@ public class NoteService : INoteService
                 Id = sender.Id,
                 Username = sender.Username,
                 PhotoUrl = sender.PhotoUrl
-            }
+            },
+            Reactions = new List<NoteReactionDto>()
         };
     }
 
-    public async Task<IReadOnlyList<NoteDto>> GetLatestReceivedNotesAsync(int recipientId, int count)
+    public async Task<IReadOnlyList<NoteDto>> GetLatestReceivedNotesAsync(int recipientId, int count, int? requesterUserId = null)
     {
         var safeCount = count < 1 ? 3 : Math.Min(count, 20);
 
-        return await _context.Notes
-            .AsNoTracking()
+        var notes = await QueryNotesWithRelations()
             .Where(n => n.RecipientId == recipientId)
             .OrderByDescending(n => n.CreatedAt)
             .Take(safeCount)
-            .Select(n => new NoteDto
-            {
-                Id = n.Id,
-                Content = n.Content,
-                CreatedAt = n.CreatedAt,
-                Sender = new NoteSenderDto
-                {
-                    Id = n.Sender.Id,
-                    Username = n.Sender.Username,
-                    PhotoUrl = n.Sender.PhotoUrl
-                }
-            })
             .ToListAsync();
+
+        return notes.Select(n => MapToDto(n, requesterUserId)).ToList();
     }
 
-    public async Task<PagedNotesResponseDto> GetReceivedNotesAsync(int recipientId, int pageNumber, int pageSize)
+    public async Task<PagedNotesResponseDto> GetReceivedNotesAsync(int recipientId, int pageNumber, int pageSize, int? requesterUserId = null)
     {
         var safePageNumber = pageNumber < 1 ? 1 : pageNumber;
         var safePageSize = pageSize < 1 ? 2 : Math.Min(pageSize, 20);
 
-        var query = _context.Notes
-            .AsNoTracking()
+        var query = QueryNotesWithRelations()
             .Where(n => n.RecipientId == recipientId)
             .OrderByDescending(n => n.CreatedAt);
 
         var totalCount = await query.CountAsync();
         var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)safePageSize);
 
-        var items = await query
+        var notes = await query
             .Skip((safePageNumber - 1) * safePageSize)
             .Take(safePageSize)
-            .Select(n => new NoteDto
-            {
-                Id = n.Id,
-                Content = n.Content,
-                CreatedAt = n.CreatedAt,
-                Sender = new NoteSenderDto
-                {
-                    Id = n.Sender.Id,
-                    Username = n.Sender.Username,
-                    PhotoUrl = n.Sender.PhotoUrl
-                }
-            })
             .ToListAsync();
+
+        var items = notes.Select(n => MapToDto(n, requesterUserId)).ToList();
 
         return new PagedNotesResponseDto
         {
@@ -118,6 +97,43 @@ public class NoteService : INoteService
             TotalPages = totalPages,
             Items = items
         };
+    }
+
+    public async Task<NoteDto?> ToggleReactionAsync(int noteId, int userId, NoteReactionType type)
+    {
+        var note = await QueryNotesWithRelations(asNoTracking: false)
+            .FirstOrDefaultAsync(n => n.Id == noteId);
+        if (note == null) return null;
+
+        var existingReaction = note.Reactions.FirstOrDefault(r => r.UserId == userId);
+        var now = DateTime.UtcNow;
+
+        if (existingReaction == null)
+        {
+            var reaction = new NoteReaction
+            {
+                NoteId = note.Id,
+                UserId = userId,
+                Type = type,
+                CreatedAt = now
+            };
+            _context.NoteReactions.Add(reaction);
+        }
+        else if (existingReaction.Type == type)
+        {
+            _context.NoteReactions.Remove(existingReaction);
+        }
+        else
+        {
+            existingReaction.Type = type;
+            existingReaction.CreatedAt = now;
+        }
+
+        await _context.SaveChangesAsync();
+
+        var updated = await QueryNotesWithRelations()
+            .FirstOrDefaultAsync(n => n.Id == noteId);
+        return updated == null ? null : MapToDto(updated, userId);
     }
 
     public async Task<bool> DeleteNoteAsync(int noteId, int requesterUserId, bool requesterIsAdmin = false)
@@ -147,5 +163,47 @@ public class NoteService : INoteService
         }
 
         return true;
+    }
+
+    private IQueryable<Note> QueryNotesWithRelations(bool asNoTracking = true)
+    {
+        var query = _context.Notes
+            .Include(n => n.Sender)
+            .Include(n => n.Reactions)
+                .ThenInclude(r => r.User)
+            .AsQueryable();
+
+        return asNoTracking ? query.AsNoTracking() : query;
+    }
+
+    private static NoteDto MapToDto(Note note, int? requesterUserId = null)
+    {
+        return new NoteDto
+        {
+            Id = note.Id,
+            Content = note.Content,
+            CreatedAt = note.CreatedAt,
+            Sender = new NoteSenderDto
+            {
+                Id = note.Sender.Id,
+                Username = note.Sender.Username,
+                PhotoUrl = note.Sender.PhotoUrl
+            },
+            Reactions = note.Reactions
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new NoteReactionDto
+                {
+                    Id = r.Id,
+                    Type = r.Type,
+                    CreatedAt = r.CreatedAt,
+                    IsCurrentUser = requesterUserId.HasValue && r.UserId == requesterUserId.Value,
+                    User = new NoteReactionUserDto
+                    {
+                        Username = r.User.Username,
+                        PhotoUrl = r.User.PhotoUrl
+                    }
+                })
+                .ToList()
+        };
     }
 }

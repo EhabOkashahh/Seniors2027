@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Note> Notes { get; set; }
+    public DbSet<NoteReaction> NoteReactions { get; set; }
     public DbSet<GalleryPhoto> GalleryPhotos { get; set; }
     public DbSet<DailyHighlight> DailyHighlights { get; set; }
     public DbSet<DailyHighlightReaction> DailyHighlightReactions { get; set; }
@@ -50,6 +51,23 @@ public class AppDbContext : DbContext
                 .HasForeignKey(e => e.RecipientId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.RecipientId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<NoteReaction>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Type).HasConversion<int>();
+            entity.HasOne(e => e.Note)
+                .WithMany(n => n.Reactions)
+                .HasForeignKey(e => e.NoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.NoteReactions)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.NoteId, e.UserId }).IsUnique();
+            entity.HasIndex(e => new { e.NoteId, e.Type });
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         modelBuilder.Entity<GalleryPhoto>(entity =>

@@ -169,11 +169,27 @@ export type NoteSender = {
   photoUrl?: string | null
 }
 
+export type NoteReactionType = 'Love' | 'Ahaha'
+
+export type NoteReactionUser = {
+  username: string
+  photoUrl?: string | null
+}
+
+export type NoteReaction = {
+  id: number
+  type: NoteReactionType
+  createdAt: string
+  isCurrentUser: boolean
+  user: NoteReactionUser
+}
+
 export type NoteItem = {
   id: number
   content: string
   createdAt: string
   sender: NoteSender
+  reactions: NoteReaction[]
 }
 
 export type PagedResult<T> = {
@@ -741,6 +757,35 @@ export async function deleteDailyHighlightRequest(id: number): Promise<ApiResult
     }
 
     const data = (await response.json()) as DailyHighlight
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function toggleNoteReactionRequest(
+  noteId: number,
+  type: NoteReactionType
+): Promise<ApiResult<NoteItem>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/notes/${noteId}/reactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ type })
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as NoteItem
     return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }

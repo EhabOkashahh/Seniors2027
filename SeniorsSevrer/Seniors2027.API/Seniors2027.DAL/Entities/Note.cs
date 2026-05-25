@@ -25,4 +25,6 @@ public class Note
 
     [ForeignKey(nameof(RecipientId))]
     public User Recipient { get; set; } = null!;
+
+    public ICollection<NoteReaction> Reactions { get; set; } = new List<NoteReaction>();
 }

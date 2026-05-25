@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Seniors2027.API.Extensions;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
@@ -45,7 +46,8 @@ public class NotesController : ControllerBase
     [HttpGet("received/{recipientId:int}/latest")]
     public async Task<ActionResult<IReadOnlyList<NoteDto>>> GetLatestReceivedNotes(int recipientId, [FromQuery] int count = 3)
     {
-        var notes = await _noteService.GetLatestReceivedNotesAsync(recipientId, count);
+        if (!User.TryGetUserId(out var requesterUserId)) return Unauthorized();
+        var notes = await _noteService.GetLatestReceivedNotesAsync(recipientId, count, requesterUserId);
         return Ok(notes);
     }
 
@@ -55,8 +57,20 @@ public class NotesController : ControllerBase
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 2)
     {
-        var notes = await _noteService.GetReceivedNotesAsync(recipientId, pageNumber, pageSize);
+        if (!User.TryGetUserId(out var requesterUserId)) return Unauthorized();
+        var notes = await _noteService.GetReceivedNotesAsync(recipientId, pageNumber, pageSize, requesterUserId);
         return Ok(notes);
+    }
+
+    [HttpPost("{id:int}/reactions")]
+    public async Task<ActionResult<NoteDto>> ToggleReaction(int id, [FromBody] ToggleNoteReactionDto dto)
+    {
+        if (!User.TryGetUserId(out var requesterUserId)) return Unauthorized();
+        if (!Enum.IsDefined(dto.Type)) return BadRequest("Invalid reaction type.");
+
+        var updated = await _noteService.ToggleReactionAsync(id, requesterUserId, dto.Type);
+        if (updated == null) return NotFound();
+        return Ok(updated);
     }
 
     [HttpDelete("{id:int}")]

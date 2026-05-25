@@ -32,6 +32,7 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<Note> SentNotes { get; set; } = new List<Note>();
     public ICollection<Note> ReceivedNotes { get; set; } = new List<Note>();
+    public ICollection<NoteReaction> NoteReactions { get; set; } = new List<NoteReaction>();
     public ICollection<GalleryPhoto> GalleryPhotos { get; set; } = new List<GalleryPhoto>();
     public ICollection<DailyHighlight> DailyHighlights { get; set; } = new List<DailyHighlight>();
     public ICollection<DailyHighlightReaction> DailyHighlightReactions { get; set; } = new List<DailyHighlightReaction>();

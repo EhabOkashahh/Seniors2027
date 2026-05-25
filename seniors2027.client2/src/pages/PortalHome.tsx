@@ -5,11 +5,14 @@ import {
   Bell,
   BookImage,
   Calendar,
+  Eye,
   ChevronsLeft,
   ChevronsRight,
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Heart,
+  Laugh,
   Lock,
   MapPin,
   Megaphone,
@@ -1039,7 +1042,7 @@ export default function PortalHome() {
                         className="portal-feed-scroll-hint"
                         style={{ alignSelf: 'center', background: '#ffe8f3' }}
                       >
-                        Scroll inside this box to see more announcements ↓
+                        Scroll inside this box to see more announcements (scroll down)
                       </div>
                     )}
                     <div className="portal-feed-scroll">
@@ -1417,7 +1420,7 @@ export default function PortalHome() {
                         className="portal-feed-scroll-hint"
                         style={{ alignSelf: 'center', background: '#fff0d2' }}
                       >
-                        Scroll inside this box to see more events ↓
+                        Scroll inside this box to see more events (scroll down)
                       </div>
                     )}
                     <div className="portal-feed-scroll">
@@ -1838,7 +1841,7 @@ export default function PortalHome() {
                       <div style={{ fontWeight: 700, fontSize: '0.74rem', opacity: 0.74 }}>{formatDateTime(reaction.createdAt)}</div>
                     </div>
                     <div style={{ marginLeft: 'auto', fontWeight: 900, fontSize: '0.92rem' }}>
-                      {reaction.type === 'Love' ? '❤️ Love' : '😂 Ahaha'}
+                      {reaction.type === 'Love' ? 'Love' : 'Ahaha'}
                     </div>
                   </div>
                 ))
@@ -2134,9 +2137,10 @@ export default function PortalHome() {
                   className="neo-btn"
                   onClick={() => setIsHighlightReactionsOpen(true)}
                   disabled={!current || currentReactions.length === 0}
-                  style={{ minWidth: 'auto', padding: '5px 8px', fontSize: '0.72rem' }}
+                  aria-label={`Show reactions (${currentReactions.length})`}
+                  style={{ minWidth: 'auto', padding: '6px 8px' }}
                 >
-                  Who reacted ({currentReactions.length})
+                  <Eye size={14} />
                 </button>
               </div>
 
@@ -2146,28 +2150,38 @@ export default function PortalHome() {
                   className="neo-btn"
                   onClick={() => void handleReactToCurrentHighlight('Love')}
                   disabled={!current || isReactingCurrent}
+                  aria-label={`Love reactions (${loveReactions.length})`}
                   style={{
                     minWidth: 'auto',
                     padding: '6px 8px',
                     fontSize: '0.76rem',
-                    background: currentUserReaction === 'Love' ? '#ffd6df' : '#fff'
+                    background: currentUserReaction === 'Love' ? '#ffd6df' : '#fff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}
                 >
-                  ❤️ Love ({loveReactions.length})
+                  <Heart size={14} color="#e5486f" fill="#ff6b8a" />
+                  <span>{loveReactions.length}</span>
                 </button>
                 <button
                   type="button"
                   className="neo-btn"
                   onClick={() => void handleReactToCurrentHighlight('Ahaha')}
                   disabled={!current || isReactingCurrent}
+                  aria-label={`Ahaha reactions (${ahahaReactions.length})`}
                   style={{
                     minWidth: 'auto',
                     padding: '6px 8px',
                     fontSize: '0.76rem',
-                    background: currentUserReaction === 'Ahaha' ? '#ffeab0' : '#fff'
+                    background: currentUserReaction === 'Ahaha' ? '#ffeab0' : '#fff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}
                 >
-                  😂 Ahaha ({ahahaReactions.length})
+                  <Laugh size={14} color="#d97706" />
+                  <span>{ahahaReactions.length}</span>
                 </button>
               </div>
             </div>
