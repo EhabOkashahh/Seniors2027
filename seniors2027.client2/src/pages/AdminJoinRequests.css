@@ -497,6 +497,7 @@
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .admin-form-panel__title {
@@ -655,6 +656,11 @@
   gap: 8px;
 }
 
+.admin-modal__type-picker {
+  display: grid;
+  gap: 6px;
+}
+
 .admin-modal__asset-block {
   border: 1px solid var(--admin-border);
   border-radius: 12px;
@@ -667,6 +673,7 @@
 .admin-dashboard input[type='text'],
 .admin-dashboard input[type='date'],
 .admin-dashboard input[type='file'],
+.admin-dashboard select,
 .admin-dashboard textarea {
   width: 100%;
   border: 1px solid var(--admin-border-strong) !important;
@@ -687,6 +694,7 @@
 }
 
 .admin-dashboard input:focus,
+.admin-dashboard select:focus,
 .admin-dashboard textarea:focus {
   border-color: #8fa8d8 !important;
   outline: none;
@@ -899,6 +907,7 @@
 .admin-dashboard input[type='text'],
 .admin-dashboard input[type='date'],
 .admin-dashboard input[type='file'],
+.admin-dashboard select,
 .admin-dashboard textarea {
   border: 3px solid var(--border-color) !important;
   border-radius: 4px !important;
@@ -907,6 +916,7 @@
 }
 
 .admin-dashboard input:focus,
+.admin-dashboard select:focus,
 .admin-dashboard textarea:focus {
   border-color: var(--border-color) !important;
   background: var(--accent-pink-soft) !important;

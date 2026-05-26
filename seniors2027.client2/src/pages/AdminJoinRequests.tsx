@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  CalendarDays,
   CheckCircle2,
   ImagePlus,
   Images,
@@ -53,6 +52,7 @@ const USERS_PAGE_SIZE = 20
 const MAX_ANNOUNCEMENT_POLL_OPTIONS = 6
 
 type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos'
+type CreateContentType = 'announcement' | 'event'
 
 export default function AdminJoinRequests() {
   const navigate = useNavigate()
@@ -90,6 +90,8 @@ export default function AdminJoinRequests() {
   const [eventLocationInput, setEventLocationInput] = useState('')
   const [eventDetailsInput, setEventDetailsInput] = useState('')
   const [eventPhotoFile, setEventPhotoFile] = useState<File | null>(null)
+  const [isCreateContentModalOpen, setIsCreateContentModalOpen] = useState(false)
+  const [createContentType, setCreateContentType] = useState<CreateContentType>('announcement')
   const [announcementsMessage, setAnnouncementsMessage] = useState<string | null>(null)
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<number | null>(null)
   const [editingAnnouncementTitleInput, setEditingAnnouncementTitleInput] = useState('')
@@ -371,6 +373,16 @@ export default function AdminJoinRequests() {
     setUsersMessage(`${user.username} was deleted.`)
   }
 
+  const handleOpenCreateContentModal = () => {
+    setCreateContentType('announcement')
+    setIsCreateContentModalOpen(true)
+  }
+
+  const handleCloseCreateContentModal = () => {
+    setIsCreateContentModalOpen(false)
+    setCreateContentType('announcement')
+  }
+
   const handlePublishAnnouncement = async () => {
     const title = announcementTitleInput.trim()
     const body = announcementBodyInput.trim()
@@ -422,6 +434,7 @@ export default function AdminJoinRequests() {
       announcementPhotoInputRef.current.value = ''
     }
     setAnnouncementsMessage('Announcement published.')
+    handleCloseCreateContentModal()
   }
 
   const handleAnnouncementPollOptionChange = (index: number, value: string) => {
@@ -475,6 +488,7 @@ export default function AdminJoinRequests() {
       eventPhotoInputRef.current.value = ''
     }
     setAnnouncementsMessage('Event published.')
+    handleCloseCreateContentModal()
   }
 
   const handleStartEditAnnouncement = (announcement: AnnouncementItem) => {
@@ -710,6 +724,25 @@ export default function AdminJoinRequests() {
       document.body.style.overflow = originalOverflow
     }
   }, [editingAnnouncementId])
+
+  useEffect(() => {
+    if (!isCreateContentModalOpen) return
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleCloseCreateContentModal()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = originalOverflow
+    }
+  }, [isCreateContentModalOpen])
 
   const isUsersPreviousDisabled = usersPageNumber === 1 || usersLoading
   const isUsersNextDisabled = usersLoading || !usersHasNextPage || adminUsers.length === 0
@@ -1107,163 +1140,27 @@ export default function AdminJoinRequests() {
                     <Megaphone size={18} />
                     <h2 className="admin-surface__title">Announcements & Events</h2>
                   </div>
-                  <button
-                    type="button"
-                    className="neo-btn admin-btn admin-btn--secondary"
-                    onClick={() => void loadAnnouncementsAndEvents()}
-                    disabled={announcementsLoading || eventsLoading}
-                  >
-                    <RefreshCw size={13} />
-                    <span>{announcementsLoading || eventsLoading ? 'Refreshing...' : 'Refresh'}</span>
-                  </button>
-                </div>
-                <p className="admin-surface__muted">Add announcements and events here, then they will appear in the portal.</p>
-              </div>
-
-              <div className="admin-two-column-grid">
-                <div className="admin-surface admin-form-panel">
-                  <div className="admin-form-panel__title">
-                    <Megaphone size={16} />
-                    <span>Add Announcement</span>
-                  </div>
-                  <div className="admin-form-panel__body">
-                    <input
-                      type="text"
-                      placeholder="Announcement title"
-                      value={announcementTitleInput}
-                      onChange={(e) => setAnnouncementTitleInput(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', background: 'white' }}
-                    />
-                    <textarea
-                      placeholder="Announcement body"
-                      value={announcementBodyInput}
-                      onChange={(e) => setAnnouncementBodyInput(e.target.value)}
-                      rows={5}
-                      style={{ width: '100%', padding: '10px 12px', background: 'white', resize: 'vertical' }}
-                    />
-                    <label className="admin-checkbox-row">
-                      <input
-                        type="checkbox"
-                        checked={announcementPollEnabled}
-                        onChange={(e) => setAnnouncementPollEnabled(e.target.checked)}
-                      />
-                      Add poll to announcement
-                    </label>
-                    {announcementPollEnabled && (
-                      <div className="admin-poll-builder">
-                        <input
-                          type="text"
-                          placeholder="Poll question"
-                          value={announcementPollQuestionInput}
-                          onChange={(e) => setAnnouncementPollQuestionInput(e.target.value)}
-                          style={{ width: '100%', padding: '9px 10px', background: 'white' }}
-                        />
-                        <div className="admin-inline-note">
-                          Poll options (at least 2 unique options)
-                        </div>
-                        {announcementPollOptionsInput.map((option, index) => (
-                          <div key={`announcement-poll-option-${index}`} className="admin-poll-option-row">
-                            <input
-                              type="text"
-                              placeholder={`Option ${index + 1}`}
-                              value={option}
-                              onChange={(e) => handleAnnouncementPollOptionChange(index, e.target.value)}
-                              style={{ width: '100%', padding: '8px 10px', background: 'white' }}
-                            />
-                            <button
-                              type="button"
-                              className="neo-btn admin-btn admin-btn--danger"
-                              onClick={() => handleRemoveAnnouncementPollOption(index)}
-                              disabled={announcementPollOptionsInput.length <= 2}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          className="neo-btn admin-btn admin-btn--secondary"
-                          onClick={handleAddAnnouncementPollOption}
-                          disabled={announcementPollOptionsInput.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS}
-                        >
-                          Add Option
-                        </button>
-                      </div>
-                    )}
-                    <input
-                      ref={announcementPhotoInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setAnnouncementPhotoFile(e.target.files?.[0] ?? null)}
-                      style={{ width: '100%', padding: '8px 10px', background: 'white' }}
-                    />
-                    <div className="admin-inline-note">
-                      {announcementPhotoFile ? `Selected photo: ${announcementPhotoFile.name}` : 'Optional photo (jpg, png, webp)'}
-                    </div>
+                  <div className="admin-actions-row">
                     <button
                       type="button"
                       className="neo-btn admin-btn admin-btn--primary"
-                      onClick={() => void handlePublishAnnouncement()}
-                      disabled={announcementsLoading}
+                      onClick={handleOpenCreateContentModal}
                     >
-                      {announcementsLoading ? 'Publishing...' : 'Publish Announcement'}
+                      <Megaphone size={13} />
+                      <span>Add New</span>
                     </button>
-                  </div>
-                </div>
-
-                <div className="admin-surface admin-form-panel">
-                  <div className="admin-form-panel__title">
-                    <CalendarDays size={16} />
-                    <span>Add Event</span>
-                  </div>
-                  <div className="admin-form-panel__body">
-                    <input
-                      type="text"
-                      placeholder="Event title"
-                      value={eventTitleInput}
-                      onChange={(e) => setEventTitleInput(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', background: 'white' }}
-                    />
-                    <input
-                      type="date"
-                      value={eventDateInput}
-                      onChange={(e) => setEventDateInput(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', background: 'white' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Location (optional)"
-                      value={eventLocationInput}
-                      onChange={(e) => setEventLocationInput(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', background: 'white' }}
-                    />
-                    <textarea
-                      placeholder="Event details (optional)"
-                      value={eventDetailsInput}
-                      onChange={(e) => setEventDetailsInput(e.target.value)}
-                      rows={4}
-                      style={{ width: '100%', padding: '10px 12px', background: 'white', resize: 'vertical' }}
-                    />
-                    <input
-                      ref={eventPhotoInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setEventPhotoFile(e.target.files?.[0] ?? null)}
-                      style={{ width: '100%', padding: '8px 10px', background: 'white' }}
-                    />
-                    <div className="admin-inline-note">
-                      {eventPhotoFile ? `Selected photo: ${eventPhotoFile.name}` : 'Optional photo (jpg, png, webp)'}
-                    </div>
                     <button
                       type="button"
-                      className="neo-btn admin-btn admin-btn--primary"
-                      onClick={() => void handlePublishEvent()}
-                      disabled={eventsLoading}
+                      className="neo-btn admin-btn admin-btn--secondary"
+                      onClick={() => void loadAnnouncementsAndEvents()}
+                      disabled={announcementsLoading || eventsLoading}
                     >
-                      {eventsLoading ? 'Publishing...' : 'Publish Event'}
+                      <RefreshCw size={13} />
+                      <span>{announcementsLoading || eventsLoading ? 'Refreshing...' : 'Refresh'}</span>
                     </button>
                   </div>
                 </div>
+                <p className="admin-surface__muted">Use Add New to publish an announcement or event, then it will appear in the portal.</p>
               </div>
 
               <div className="admin-two-column-grid">
@@ -1512,6 +1409,205 @@ export default function AdminJoinRequests() {
             </section>
           )}
         </div>
+
+        {isCreateContentModalOpen && (
+          <div className="admin-modal-overlay" onClick={handleCloseCreateContentModal}>
+            <motion.div
+              className="admin-modal"
+              initial={{ opacity: 0, scale: 0.96, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Add announcement or event"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="admin-modal__header">
+                <div className="admin-modal__header-text">
+                  <div className="admin-modal__title">Add New Content</div>
+                  <div className="admin-modal__subtitle">
+                    Choose a type, fill the form, and publish it to the portal.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="neo-btn admin-btn admin-btn--danger"
+                  onClick={handleCloseCreateContentModal}
+                >
+                  <XCircle size={15} />
+                </button>
+              </div>
+
+              <div className="admin-modal__type-picker">
+                <div className="admin-inline-note">Type</div>
+                <select
+                  value={createContentType}
+                  onChange={(event) => setCreateContentType(event.target.value === 'event' ? 'event' : 'announcement')}
+                >
+                  <option value="announcement">Announcement</option>
+                  <option value="event">Event</option>
+                </select>
+              </div>
+
+              {createContentType === 'announcement' ? (
+                <>
+                  <div className="admin-modal__form-grid">
+                    <input
+                      type="text"
+                      placeholder="Announcement title"
+                      value={announcementTitleInput}
+                      onChange={(event) => setAnnouncementTitleInput(event.target.value)}
+                    />
+                    <textarea
+                      placeholder="Announcement body"
+                      value={announcementBodyInput}
+                      onChange={(event) => setAnnouncementBodyInput(event.target.value)}
+                      rows={5}
+                    />
+                  </div>
+
+                  <div className="admin-poll-builder">
+                    <label className="admin-checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={announcementPollEnabled}
+                        onChange={(event) => setAnnouncementPollEnabled(event.target.checked)}
+                      />
+                      Add poll to announcement
+                    </label>
+                    {announcementPollEnabled && (
+                      <>
+                        <input
+                          type="text"
+                          placeholder="Poll question"
+                          value={announcementPollQuestionInput}
+                          onChange={(event) => setAnnouncementPollQuestionInput(event.target.value)}
+                        />
+                        <div className="admin-inline-note">
+                          Poll options (at least 2 unique options)
+                        </div>
+                        {announcementPollOptionsInput.map((option, index) => (
+                          <div key={`announcement-poll-option-modal-${index}`} className="admin-poll-option-row">
+                            <input
+                              type="text"
+                              placeholder={`Option ${index + 1}`}
+                              value={option}
+                              onChange={(event) => handleAnnouncementPollOptionChange(index, event.target.value)}
+                            />
+                            <button
+                              type="button"
+                              className="neo-btn admin-btn admin-btn--danger"
+                              onClick={() => handleRemoveAnnouncementPollOption(index)}
+                              disabled={announcementPollOptionsInput.length <= 2}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="neo-btn admin-btn admin-btn--secondary"
+                          onClick={handleAddAnnouncementPollOption}
+                          disabled={announcementPollOptionsInput.length >= MAX_ANNOUNCEMENT_POLL_OPTIONS}
+                        >
+                          Add Option
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="admin-modal__asset-block">
+                    <input
+                      ref={announcementPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setAnnouncementPhotoFile(event.target.files?.[0] ?? null)}
+                    />
+                    <div className="admin-inline-note">
+                      {announcementPhotoFile ? `Selected photo: ${announcementPhotoFile.name}` : 'Optional photo (jpg, png, webp)'}
+                    </div>
+                  </div>
+
+                  <div className="admin-actions-row admin-actions-row--right">
+                    <button
+                      type="button"
+                      className="neo-btn admin-btn admin-btn--ghost"
+                      onClick={handleCloseCreateContentModal}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="neo-btn admin-btn admin-btn--primary"
+                      onClick={() => void handlePublishAnnouncement()}
+                      disabled={announcementsLoading}
+                    >
+                      {announcementsLoading ? 'Publishing...' : 'Publish Announcement'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="admin-modal__form-grid">
+                    <input
+                      type="text"
+                      placeholder="Event title"
+                      value={eventTitleInput}
+                      onChange={(event) => setEventTitleInput(event.target.value)}
+                    />
+                    <input
+                      type="date"
+                      value={eventDateInput}
+                      onChange={(event) => setEventDateInput(event.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Location (optional)"
+                      value={eventLocationInput}
+                      onChange={(event) => setEventLocationInput(event.target.value)}
+                    />
+                    <textarea
+                      placeholder="Event details (optional)"
+                      value={eventDetailsInput}
+                      onChange={(event) => setEventDetailsInput(event.target.value)}
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="admin-modal__asset-block">
+                    <input
+                      ref={eventPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setEventPhotoFile(event.target.files?.[0] ?? null)}
+                    />
+                    <div className="admin-inline-note">
+                      {eventPhotoFile ? `Selected photo: ${eventPhotoFile.name}` : 'Optional photo (jpg, png, webp)'}
+                    </div>
+                  </div>
+
+                  <div className="admin-actions-row admin-actions-row--right">
+                    <button
+                      type="button"
+                      className="neo-btn admin-btn admin-btn--ghost"
+                      onClick={handleCloseCreateContentModal}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="neo-btn admin-btn admin-btn--primary"
+                      onClick={() => void handlePublishEvent()}
+                      disabled={eventsLoading}
+                    >
+                      {eventsLoading ? 'Publishing...' : 'Publish Event'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
 
         {editingAnnouncement && (
           <div className="admin-modal-overlay" onClick={handleCancelEditAnnouncement}>
