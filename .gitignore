@@ -6,6 +6,10 @@ publish/
 dist/
 dist-ssr/
 
+# Configuration
+appsettings.json
+appsettings.*.json
+
 # Visual Studio / VS Code
 .vs/
 .vscode/*
