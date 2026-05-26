@@ -55,18 +55,19 @@ public class MemoryBoardController(
 
     [HttpGet("my/photos")]
     public async Task<ActionResult<IReadOnlyList<MemoryBoardPhotoDto>>> GetMyPhotos(
-        [FromQuery] MemoryBoardPhotoStatus status = MemoryBoardPhotoStatus.Pending,
+        [FromQuery] MemoryBoardPhotoStatus? status = null,
         [FromQuery] int maxCount = 300)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized();
 
+        var effectiveStatus = status ?? MemoryBoardPhotoStatus.Pending;
         var safeMaxCount = maxCount < 1 ? 100 : Math.Min(maxCount, 2000);
 
         var query = _context.MemoryBoardPhotos
             .AsNoTracking()
-            .Where(p => p.UserId == userId && p.Status == status);
+            .Where(p => p.UserId == userId && p.Status == effectiveStatus);
 
-        if (status == MemoryBoardPhotoStatus.Approved)
+        if (effectiveStatus == MemoryBoardPhotoStatus.Approved)
         {
             query = query
                 .OrderBy(p => p.ExifTakenAtUtc ?? p.CreatedAt)

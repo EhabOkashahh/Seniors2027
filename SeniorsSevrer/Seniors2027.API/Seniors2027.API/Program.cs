@@ -112,7 +112,7 @@ builder.Services.AddCors(options =>
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi("v1");
 
 var app = builder.Build();
 
@@ -135,14 +135,20 @@ using (var scope = app.Services.CreateScope())
 
 app.UseMiddleware<ErrorMiddleware>();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    options.WithTitle("Seniors 2027 API")
+           .WithTheme(ScalarTheme.Moon)
+           .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
+
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
 
 var photosDirectory = Path.Combine(app.Environment.ContentRootPath, "SeniorsPhotos");

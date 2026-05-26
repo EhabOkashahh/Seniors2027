@@ -347,3 +347,4 @@ C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors202
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Debug\net9.0\SixLabors.Fonts.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Debug\net9.0\SixLabors.ImageSharp.Drawing.dll
 C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\bin\Debug\net9.0\Scalar.AspNetCore.dll
+C:\Users\ehaby\OneDrive\Desktop\project\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt

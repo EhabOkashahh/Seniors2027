@@ -27,9 +27,10 @@ public class AdminController(
     private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
 
     [HttpGet("join-requests")]
-    public async Task<ActionResult<IReadOnlyList<JoinRequestDto>>> GetJoinRequests([FromQuery] JoinRequestStatus? status = JoinRequestStatus.Pending)
+    public async Task<ActionResult<IReadOnlyList<JoinRequestDto>>> GetJoinRequests([FromQuery] JoinRequestStatus? status = null)
     {
-        var requests = await _joinRequestService.GetJoinRequestsAsync(status);
+        var effectiveStatus = status ?? JoinRequestStatus.Pending;
+        var requests = await _joinRequestService.GetJoinRequestsAsync(effectiveStatus);
         return Ok(requests);
     }
 
@@ -753,18 +754,19 @@ public class AdminController(
 
     [HttpGet("memoryboard/photos")]
     public async Task<ActionResult<IReadOnlyList<MemoryBoardPhotoDto>>> GetMemoryBoardPhotos(
-        [FromQuery] MemoryBoardPhotoStatus status = MemoryBoardPhotoStatus.Pending,
+        [FromQuery] MemoryBoardPhotoStatus? status = null,
         [FromQuery] int maxCount = 200)
     {
         if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
 
+        var effectiveStatus = status ?? MemoryBoardPhotoStatus.Pending;
         var safeMaxCount = maxCount < 1 ? 50 : Math.Min(maxCount, 1000);
 
         var query = _context.MemoryBoardPhotos
             .AsNoTracking()
-            .Where(p => p.Status == status);
+            .Where(p => p.Status == effectiveStatus);
 
-        if (status == MemoryBoardPhotoStatus.Approved)
+        if (effectiveStatus == MemoryBoardPhotoStatus.Approved)
         {
             query = query
                 .OrderBy(p => p.ExifTakenAtUtc ?? p.CreatedAt)
