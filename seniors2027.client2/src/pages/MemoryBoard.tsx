@@ -16,9 +16,10 @@ import {
 } from '../lib/authApi'
 
 const PHOTO_PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
-const MEMORYBOARD_PAGE_ROWS = 3
-const MEMORYBOARD_PAGE_COLUMNS = 6
-const MEMORYBOARD_PAGE_SIZE = MEMORYBOARD_PAGE_ROWS * MEMORYBOARD_PAGE_COLUMNS
+const MEMORYBOARD_DESKTOP_PAGE_ROWS = 3
+const MEMORYBOARD_DESKTOP_PAGE_COLUMNS = 6
+const MEMORYBOARD_MOBILE_PAGE_ROWS = 6
+const MEMORYBOARD_MOBILE_PAGE_COLUMNS = 2
 const MEMORYBOARD_CARD_GAP_PX = 10
 const MEMORYBOARD_EDGE_SAFE_INSET_PX = 24
 const MEMORYBOARD_MAX_ROTATION_DEGREES = 6.8
@@ -159,9 +160,15 @@ export default function MemoryBoard() {
     })
   }, [photos])
 
-  const totalBoardPages = Math.max(1, Math.ceil(sortedPhotos.length / MEMORYBOARD_PAGE_SIZE))
-  const boardPageStartIndex = boardPage * MEMORYBOARD_PAGE_SIZE
-  const boardPagePhotos = sortedPhotos.slice(boardPageStartIndex, boardPageStartIndex + MEMORYBOARD_PAGE_SIZE)
+  const boardPageRows = isMobile ? MEMORYBOARD_MOBILE_PAGE_ROWS : MEMORYBOARD_DESKTOP_PAGE_ROWS
+  const boardPageColumns = isMobile ? MEMORYBOARD_MOBILE_PAGE_COLUMNS : MEMORYBOARD_DESKTOP_PAGE_COLUMNS
+  const boardPageSize = boardPageRows * boardPageColumns
+  const boardCardGapPx = isMobile ? 8 : MEMORYBOARD_CARD_GAP_PX
+  const boardEdgeSafeInsetPx = isMobile ? 10 : MEMORYBOARD_EDGE_SAFE_INSET_PX
+
+  const totalBoardPages = Math.max(1, Math.ceil(sortedPhotos.length / boardPageSize))
+  const boardPageStartIndex = boardPage * boardPageSize
+  const boardPagePhotos = sortedPhotos.slice(boardPageStartIndex, boardPageStartIndex + boardPageSize)
   const isFirstBoardPage = boardPage === 0
   const isLastBoardPage = boardPage >= totalBoardPages - 1
 
@@ -387,7 +394,7 @@ export default function MemoryBoard() {
                     </div>
                   </div>
 
-                  <div style={{ overflow: 'hidden', padding: `${MEMORYBOARD_EDGE_SAFE_INSET_PX}px` }}>
+                  <div style={{ overflow: 'hidden', padding: `${boardEdgeSafeInsetPx}px` }}>
                     <AnimatePresence mode="wait" initial={false} custom={pageFlipDirection}>
                       <motion.div
                         key={`memoryboard-page-${boardPage}`}
@@ -438,14 +445,14 @@ export default function MemoryBoard() {
                           <div
                             style={{
                               display: 'grid',
-                              gridTemplateRows: `repeat(${MEMORYBOARD_PAGE_ROWS}, minmax(0, 1fr))`,
-                              gridTemplateColumns: `repeat(${MEMORYBOARD_PAGE_COLUMNS}, minmax(0, 1fr))`,
-                              gap: `${MEMORYBOARD_CARD_GAP_PX}px`
+                              gridTemplateRows: `repeat(${boardPageRows}, minmax(0, 1fr))`,
+                              gridTemplateColumns: `repeat(${boardPageColumns}, minmax(0, 1fr))`,
+                              gap: `${boardCardGapPx}px`
                             }}
                           >
                             {boardPagePhotos.map((item, index) => {
                               const absoluteIndex = boardPageStartIndex + index
-                              const pose = getMemoryCardPose(item, index)
+                              const pose = getMemoryCardPose(item, index, boardPageColumns, boardPageRows, isMobile)
                               const pinColor = PHOTO_PIN_COLORS[(item.id + absoluteIndex) % PHOTO_PIN_COLORS.length]
                               const canDeletePhoto = isAdmin || item.isOwnedByCurrentUser
                               const isDeleting = deleteActionId === item.id
@@ -465,9 +472,9 @@ export default function MemoryBoard() {
                                     border: '2px solid black',
                                     boxShadow: '4px 4px 0 black',
                                     background: '#fffdf8',
-                                    padding: '6px',
+                                    padding: isMobile ? '5px' : '6px',
                                     display: 'grid',
-                                    gap: '6px',
+                                    gap: isMobile ? '5px' : '6px',
                                     position: 'relative',
                                     transform: `translate(${pose.offsetX}px, ${pose.offsetY}px) rotate(${pose.rotation}deg) scale(${pose.scale})`,
                                     transformOrigin: 'center 16px',
@@ -490,7 +497,7 @@ export default function MemoryBoard() {
                                     alt={`Memory photo by ${item.username}`}
                                     style={{
                                       width: '100%',
-                                      height: '130px',
+                                      height: isMobile ? '120px' : '130px',
                                       objectFit: 'cover',
                                       border: '2px solid black',
                                       background: '#eaf1ff'
@@ -503,7 +510,7 @@ export default function MemoryBoard() {
                                     style={{
                                       all: 'unset',
                                       fontWeight: 900,
-                                      fontSize: '0.68rem',
+                                      fontSize: isMobile ? '0.64rem' : '0.68rem',
                                       whiteSpace: 'nowrap',
                                       overflow: 'hidden',
                                       textOverflow: 'ellipsis',
@@ -512,7 +519,7 @@ export default function MemoryBoard() {
                                   >
                                     {item.username}
                                   </button>
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.62rem', opacity: 0.8 }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: isMobile ? '0.58rem' : '0.62rem', opacity: 0.8 }}>
                                     <Clock3 size={11} />
                                     {formatShortDate(item.exifTakenAtUtc ?? item.createdAt)}
                                   </div>
@@ -851,24 +858,43 @@ type MemoryCardPose = {
   zIndex: number
 }
 
-function getMemoryCardPose(photo: MemoryBoardPhoto, indexOnPage: number): MemoryCardPose {
+function getMemoryCardPose(
+  photo: MemoryBoardPhoto,
+  indexOnPage: number,
+  columnCount: number,
+  rowCount: number,
+  isCompactLayout = false
+): MemoryCardPose {
   const dateSeed = Date.parse(photo.exifTakenAtUtc ?? photo.sortDateUtc ?? photo.createdAt)
   const safeDateSeed = Number.isNaN(dateSeed) ? 0 : dateSeed
   const baseSeed = `${photo.id}:${photo.username}:${safeDateSeed}:${photo.photoUrl.length}`
   const rotationRand = seededUnitRandom(`rot-${baseSeed}`)
+  const pinOffsetRand = seededUnitRandom(`pin-${baseSeed}`)
+
+  if (isCompactLayout) {
+    const compactRotation = (((rotationRand * 2) - 1) * 2.2)
+    return {
+      rotation: Number(compactRotation.toFixed(2)),
+      offsetX: 0,
+      offsetY: 0,
+      pinOffsetX: Number((((pinOffsetRand * 2) - 1) * 1.6).toFixed(2)),
+      scale: 1,
+      zIndex: 1
+    }
+  }
+
   const offsetXRand = seededUnitRandom(`x-${baseSeed}`)
   const offsetYRand = seededUnitRandom(`y-${baseSeed}`)
-  const pinOffsetRand = seededUnitRandom(`pin-${baseSeed}`)
   const scaleRand = seededUnitRandom(`scale-${baseSeed}`)
   const zIndexRand = seededUnitRandom(`z-${baseSeed}`)
-  const row = Math.floor(indexOnPage / MEMORYBOARD_PAGE_COLUMNS)
-  const col = indexOnPage % MEMORYBOARD_PAGE_COLUMNS
+  const row = Math.floor(indexOnPage / columnCount)
+  const col = indexOnPage % columnCount
 
-  const horizontalEdgeWeight = getEdgeWeight(col, MEMORYBOARD_PAGE_COLUMNS)
-  const verticalEdgeWeight = getEdgeWeight(row, MEMORYBOARD_PAGE_ROWS)
+  const horizontalEdgeWeight = getEdgeWeight(col, columnCount)
+  const verticalEdgeWeight = getEdgeWeight(row, rowCount)
   const edgeWeight = Math.max(horizontalEdgeWeight, verticalEdgeWeight)
-  const horizontalDirectionToCenter = col <= (MEMORYBOARD_PAGE_COLUMNS - 1) / 2 ? 1 : -1
-  const verticalDirectionToCenter = row <= (MEMORYBOARD_PAGE_ROWS - 1) / 2 ? 1 : -1
+  const horizontalDirectionToCenter = col <= (columnCount - 1) / 2 ? 1 : -1
+  const verticalDirectionToCenter = row <= (rowCount - 1) / 2 ? 1 : -1
 
   const randomOffsetX = ((offsetXRand * 2) - 1) * MEMORYBOARD_MAX_X_OFFSET_PX
   const randomOffsetY = ((offsetYRand * 2) - 1) * MEMORYBOARD_MAX_Y_OFFSET_PX
