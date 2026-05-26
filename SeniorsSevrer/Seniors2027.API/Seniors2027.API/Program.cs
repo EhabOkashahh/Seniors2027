@@ -12,6 +12,7 @@ using Seniors2027.DAL.Interfaces;
 using Seniors2027.DAL.Repositories;
 using System.Text;
 using System.Text.Json.Serialization;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -138,6 +139,7 @@ app.UseMiddleware<ErrorMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseHttpsRedirection();
