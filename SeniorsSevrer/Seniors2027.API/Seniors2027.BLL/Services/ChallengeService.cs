@@ -475,7 +475,7 @@ public class ChallengeService : IChallengeService
         // Atomically mark challenge so only one request processes it
         var rows = await _context.Database.ExecuteSqlRawAsync(
             "UPDATE Challenges SET Status = 'Ended', UpdatedAtUtc = {0} WHERE Id = {1} AND Status = 'Active'",
-            now, challengeId, cancellationToken);
+            new object[] { now, challengeId }, cancellationToken);
         if (rows == 0)
             throw new InvalidOperationException("Challenge is already being ended by another request.");
 
@@ -493,7 +493,7 @@ public class ChallengeService : IChallengeService
         {
             await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE Challenges SET Status = 'Hidden', UpdatedAtUtc = {0} WHERE Id = {1}",
-                now, challengeId, cancellationToken);
+                new object[] { now, challengeId }, cancellationToken);
             return new List<ChallengeLeaderboardItemDto>();
         }
 
@@ -783,7 +783,7 @@ public class ChallengeService : IChallengeService
                 // Atomically mark as Hidden — only the first request wins
                 var rows = await _context.Database.ExecuteSqlRawAsync(
                     "UPDATE Challenges SET Status = 'Hidden', UpdatedAtUtc = {0} WHERE Id = {1} AND Status = 'Active'",
-                    now, c.Id, cancellationToken);
+                    new object[] { now, c.Id }, cancellationToken);
                 if (rows == 0) continue;
             }
         }
@@ -802,7 +802,7 @@ public class ChallengeService : IChallengeService
             // Atomically mark as Ended — only the first request wins
             var rows = await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE Challenges SET Status = 'Ended', UpdatedAtUtc = {0} WHERE Id = {1} AND Status = 'Active'",
-                now, c.Id, cancellationToken);
+                new object[] { now, c.Id }, cancellationToken);
             if (rows == 0) continue;
 
             // Penalize challengers who didn't upload
