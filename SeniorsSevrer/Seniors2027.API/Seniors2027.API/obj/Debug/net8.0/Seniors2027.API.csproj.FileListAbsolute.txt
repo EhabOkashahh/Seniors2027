@@ -1,8 +1,0 @@
-C:\Users\ehaby\OneDrive\Desktop\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net8.0\Seniors2027.API.csproj.AssemblyReference.cache
-C:\Users\ehaby\OneDrive\Desktop\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net8.0\rpswa.dswa.cache.json
-C:\Users\ehaby\OneDrive\Desktop\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net8.0\Seniors2027.API.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\ehaby\OneDrive\Desktop\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net8.0\Seniors2027.API.AssemblyInfoInputs.cache
-C:\Users\ehaby\OneDrive\Desktop\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net8.0\Seniors2027.API.AssemblyInfo.cs
-C:\Users\ehaby\OneDrive\Desktop\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net8.0\Seniors2027.API.csproj.CoreCompileInputs.cache
-C:\Users\ehaby\OneDrive\Desktop\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net8.0\Seniors2027.API.MvcApplicationPartsAssemblyInfo.cs
-C:\Users\ehaby\OneDrive\Desktop\SeniorsSevrer\Seniors2027.API\Seniors2027.API\obj\Debug\net8.0\Seniors2027.API.MvcApplicationPartsAssemblyInfo.cache

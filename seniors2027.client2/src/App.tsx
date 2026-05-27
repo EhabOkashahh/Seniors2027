@@ -6,8 +6,9 @@ import PortalHome from './pages/PortalHome'
 import Directory from './pages/Directory'
 import Leaderboard from './pages/Leaderboard'
 import Profile from './pages/Profile'
-import AdminJoinRequests from './pages/AdminJoinRequests'
 import MemoryBoard from './pages/MemoryBoard'
+import ChallengeMode from './pages/ChallengeMode'
+import AdminJoinRequests from './pages/AdminJoinRequests'
 import GlobalToastHost from './components/GlobalToastHost'
 import { getAuthToken, getRoleFromToken, getStoredRole } from './lib/session'
 
@@ -152,6 +153,14 @@ function App() {
           element={
             <PrivateRoute>
               <Leaderboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/challenge"
+          element={
+            <PrivateRoute>
+              <ChallengeMode />
             </PrivateRoute>
           }
         />

@@ -50,6 +50,8 @@ builder.Services.AddScoped<INoteService, NoteService>();
 builder.Services.AddScoped<IGalleryService, GalleryService>();
 builder.Services.AddScoped<IDailyHighlightService, DailyHighlightService>();
 builder.Services.AddScoped<IImageUploadProcessor, ImageUploadProcessor>();
+builder.Services.AddScoped<IChallengeMediaUploadProcessor, ChallengeMediaUploadProcessor>();
+builder.Services.AddScoped<IChallengeService, ChallengeService>();
 builder.Services.AddScoped<IEmailService, EmailService >();
 builder.Services.AddSingleton<IDailyHighlightsRealtimeNotifier, DailyHighlightsRealtimeNotifier>();
 builder.Services.AddSingleton<IAnnouncementPollRealtimeNotifier, AnnouncementPollRealtimeNotifier>();
@@ -82,7 +84,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 if (!string.IsNullOrWhiteSpace(accessToken) &&
                     (requestPath.StartsWithSegments(DailyHighlightsHub.RoutePath) ||
                      requestPath.StartsWithSegments(AnnouncementPollsHub.RoutePath) ||
-                     requestPath.StartsWithSegments(AppUpdatesHub.RoutePath)))
+                     requestPath.StartsWithSegments(AppUpdatesHub.RoutePath) ||
+                     requestPath.StartsWithSegments("/hubs/challenge-chat")))
                 {
                     context.Token = accessToken;
                 }
@@ -165,6 +168,22 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
+var challengeMediaDirectory = Path.Combine(app.Environment.ContentRootPath, "ChallengeMedia");
+Directory.CreateDirectory(challengeMediaDirectory);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(challengeMediaDirectory),
+    RequestPath = "/ChallengeMedia",
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/octet-stream",
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+        context.Context.Response.Headers["Cross-Origin-Resource-Policy"] = "*";
+        context.Context.Response.Headers["Content-Disposition"] = "inline";
+    }
+});
+
 app.UseAuthentication();
 app.UseMiddleware<AccountLockMiddleware>();
 app.UseAuthorization();
@@ -172,6 +191,7 @@ app.UseAuthorization();
 app.MapHub<DailyHighlightsHub>(DailyHighlightsHub.Route);
 app.MapHub<AnnouncementPollsHub>(AnnouncementPollsHub.Route);
 app.MapHub<AppUpdatesHub>(AppUpdatesHub.Route);
+app.MapHub<ChallengeChatHub>("/hubs/challenge-chat");
 app.MapControllers();
 
 app.Run();

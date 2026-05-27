@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Users, LogOut, Shield, User as UserIcon, Images, Trophy } from 'lucide-react'
+import { Home, Users, LogOut, Shield, User as UserIcon, Images, Trophy, Swords } from 'lucide-react'
 import '../App.css'
 import RetroGridBackground from './landing/RetroGridBackground'
 import { getMeRequest } from '../lib/authApi'
+import { getCurrentChallengeRequest } from '../lib/challengeApi'
 import { clearSession, setStoredRole, type AppUserRole } from '../lib/session'
 
 interface PortalLayoutProps {
@@ -21,11 +22,19 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
 
   useEffect(() => {
     const run = async () => {
-      const meResult = await getMeRequest()
+      const [meResult, challengeResult] = await Promise.all([
+        getMeRequest(),
+        getCurrentChallengeRequest()
+      ])
+
       if (meResult.ok && meResult.data?.id) {
         setMyProfilePath(`/profile/${meResult.data.id}`)
         setMyRole(meResult.data.role ?? null)
         setStoredRole(meResult.data.role ?? null)
+      }
+
+      if (challengeResult.ok && challengeResult.data) {
+        // Only show if not hidden
       }
     }
     void run()
@@ -35,6 +44,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
     { name: 'Dashboard', path: '/portal', icon: <Home size={20} /> },
     { name: 'Seniors', path: '/directory', icon: <Users size={20} /> },
     { name: 'Leaderboard', path: '/leaderboard', icon: <Trophy size={20} /> },
+    { name: 'Challenge', path: '/challenge', icon: <Swords size={20} /> },
     { name: 'Memoryboard', path: '/memoryboard', icon: <Images size={20} /> },
     { name: 'My Profile', path: myProfilePath, icon: <UserIcon size={20} /> },
     ...(myRole === 'Admin' ? [{ name: 'Admin', path: '/admin', icon: <Shield size={20} /> }] : [])

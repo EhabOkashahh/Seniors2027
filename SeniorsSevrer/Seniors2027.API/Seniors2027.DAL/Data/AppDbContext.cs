@@ -19,9 +19,14 @@ public class AppDbContext : DbContext
     public DbSet<UserOtp> UsersOTPs { get; set; }
     public DbSet<JoinRequest> JoinRequests { get; set; }
     public DbSet<Announcement> Announcements { get; set; }
+    public DbSet<ChallengeMessage> ChallengeMessages { get; set; }
     public DbSet<AnnouncementPollVote> AnnouncementPollVotes { get; set; }
     public DbSet<PortalEvent> Events { get; set; }
     public DbSet<MemoryBoardPhoto> MemoryBoardPhotos { get; set; }
+    public DbSet<Challenge> Challenges { get; set; }
+    public DbSet<ChallengeParticipant> ChallengeParticipants { get; set; }
+    public DbSet<ChallengeSubmission> ChallengeSubmissions { get; set; }
+    public DbSet<ChallengeVote> ChallengeVotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -223,6 +228,87 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(e => new { e.Status, e.ExifTakenAtUtc, e.CreatedAt });
             entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<Challenge>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(4000);
+            entity.Property(e => e.LogoUrl).HasMaxLength(2048);
+            entity.Property(e => e.SoundUrl).HasMaxLength(2048);
+            entity.Property(e => e.UploadType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+
+            entity.HasOne(e => e.CreatedByUser)
+                .WithMany(u => u.CreatedChallenges)
+                .HasForeignKey(e => e.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasIndex(e => e.CreatedAtUtc);
+            entity.HasIndex(e => e.DeadlineUtc);
+        });
+
+        modelBuilder.Entity<ChallengeParticipant>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(50);
+
+            entity.HasOne(e => e.Challenge)
+                .WithMany(c => c.Participants)
+                .HasForeignKey(e => e.ChallengeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ChallengeParticipations)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.ChallengeId, e.UserId }).IsUnique();
+        });
+
+        modelBuilder.Entity<ChallengeSubmission>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.MediaUrl).IsRequired().HasMaxLength(2048);
+            entity.Property(e => e.MediaType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Caption).HasMaxLength(120);
+
+            entity.HasOne(e => e.Challenge)
+                .WithMany(c => c.Submissions)
+                .HasForeignKey(e => e.ChallengeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ChallengeSubmissions)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.ChallengeId, e.UserId }).IsUnique();
+            entity.HasIndex(e => e.CreatedAtUtc);
+        });
+
+        modelBuilder.Entity<ChallengeVote>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+
+            entity.HasOne(e => e.Challenge)
+                .WithMany(c => c.Votes)
+                .HasForeignKey(e => e.ChallengeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Submission)
+                .WithMany(s => s.Votes)
+                .HasForeignKey(e => e.SubmissionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.VoterUser)
+                .WithMany(u => u.ChallengeVotes)
+                .HasForeignKey(e => e.VoterUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.ChallengeId, e.VoterUserId }).IsUnique();
+            entity.HasIndex(e => e.CreatedAtUtc);
         });
     }
 }

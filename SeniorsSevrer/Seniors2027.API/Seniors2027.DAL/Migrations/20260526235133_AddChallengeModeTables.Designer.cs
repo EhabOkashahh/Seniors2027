@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Seniors2027.DAL.Data;
 
@@ -11,9 +12,11 @@ using Seniors2027.DAL.Data;
 namespace Seniors2027.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260526235133_AddChallengeModeTables")]
+    partial class AddChallengeModeTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -120,9 +123,6 @@ namespace Seniors2027.DAL.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
-                    b.Property<DateTime>("EndAtUtc")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("FirstPlacePts")
                         .HasColumnType("int");
 
@@ -136,9 +136,6 @@ namespace Seniors2027.DAL.Migrations
                     b.Property<string>("SoundUrl")
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)");
-
-                    b.Property<DateTime>("StartAtUtc")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -170,37 +167,6 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("DeadlineUtc");
 
                     b.ToTable("Challenges");
-                });
-
-            modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ChallengeId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChallengeId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ChallengeMessages");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeParticipant", b =>
@@ -766,25 +732,6 @@ namespace Seniors2027.DAL.Migrations
                         .IsRequired();
 
                     b.Navigation("CreatedByUser");
-                });
-
-            modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeMessage", b =>
-                {
-                    b.HasOne("Seniors2027.DAL.Entities.Challenge", "Challenge")
-                        .WithMany()
-                        .HasForeignKey("ChallengeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Seniors2027.DAL.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Challenge");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeParticipant", b =>
