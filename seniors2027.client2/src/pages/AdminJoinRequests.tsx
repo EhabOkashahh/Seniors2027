@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import {
   CheckCircle2,
@@ -7,9 +7,11 @@ import {
   LockKeyhole,
   LockOpen,
   Megaphone,
+  Plus,
   RefreshCw,
   Search,
   Shield,
+  Swords,
   Trash2,
   UserRoundPlus,
   Users,
@@ -47,11 +49,19 @@ import {
   type MemoryBoardPhotoDecision,
   type PortalEventItem
 } from '../lib/authApi'
+import { 
+  adminCreateChallengeRequest, 
+  adminEndChallengeRequest, 
+  adminDeleteChallengeRequest,
+  adminGetAllChallengesRequest,
+  adminUpdateChallengeRequest
+} from '../lib/challengeApi'
+import type { Challenge } from '../features/challenges/types'
 
 const USERS_PAGE_SIZE = 20
 const MAX_ANNOUNCEMENT_POLL_OPTIONS = 6
 
-type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos'
+type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos' | 'challenges'
 type CreateContentType = 'announcement' | 'event'
 
 export default function AdminJoinRequests() {
@@ -102,8 +112,209 @@ export default function AdminJoinRequests() {
   const [editingAnnouncementPhotoFile, setEditingAnnouncementPhotoFile] = useState<File | null>(null)
   const [editingAnnouncementRemovePhoto, setEditingAnnouncementRemovePhoto] = useState(false)
   const [announcementEditActionId, setAnnouncementEditActionId] = useState<number | null>(null)
-  const [editingEventId, setEditingEventId] = useState<number | null>(null)
-  const [editingEventTitleInput, setEditingEventTitleInput] = useState('')
+
+  // Challenge Management State (Redesign)
+  const [adminChallenges, setAdminChallenges] = useState<Challenge[]>([])
+  const [adminChallengesLoading, setAdminChallengesLoading] = useState(false)
+  const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false)
+  const [editingChallengeId, setEditingChallengeId] = useState<number | null>(null)
+  const [challengeMessage, setChallengeMessage] = useState<string | null>(null)
+  
+  const [challengeTitle, setChallengeTitle] = useState('')
+  const [challengeDescription, setChallengeDescription] = useState('')
+  const [challengeStartAt, setChallengeStartAt] = useState('')
+  const [challengeEndAt, setChallengeEndAt] = useState('')
+  const [challengeSoundLink, setChallengeSoundLink] = useState('')
+  const [challengeUploadType, setChallengeUploadType] = useState<'Video' | 'Image' | 'Audio'>('Video')
+  const [challengeLogoPreview, setChallengeLogoPreview] = useState<string | null>(null)
+  const [challengeLogoFile, setChallengeLogoFile] = useState<File | null>(null)
+  const [challengeRemoveLogo, setChallengeRemoveLogo] = useState(false)
+  const [challengeFirstPoints, setChallengeFirstPoints] = useState(100)
+  const [challengeSecondPoints, setChallengeSecondPoints] = useState(50)
+  const [challengeThirdPoints, setChallengeThirdPoints] = useState(25)
+  const [challengeStatusInput, setChallengeStatusInput] = useState<'Active' | 'Hidden' | 'BeforeStart' | 'Ended'>('Active')
+  
+  const [challengeActionId, setChallengeActionId] = useState<number | null>(null)
+  const [isEnding, setIsEnding] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const loadChallenges = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setAdminChallengesLoading(true)
+      setChallengeMessage(null)
+    }
+
+    const result = await adminGetAllChallengesRequest()
+    if (!result.ok || !result.data) {
+      if (!silent) {
+        setAdminChallenges([])
+        setChallengeMessage(result.error ?? 'Could not load challenges.')
+      }
+    } else {
+      setAdminChallenges(result.data)
+    }
+
+    if (!silent) {
+      setAdminChallengesLoading(false)
+    }
+  }, [])
+
+  const handleChallengeLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setChallengeLogoFile(file)
+      setChallengeLogoPreview(URL.createObjectURL(file))
+    }
+  }
+
+  const resetChallengeForm = () => {
+    setChallengeTitle('')
+    setChallengeDescription('')
+    setChallengeStartAt('')
+    setChallengeEndAt('')
+    setChallengeSoundLink('')
+    setChallengeUploadType('Video')
+    setChallengeLogoPreview(null)
+    setChallengeLogoFile(null)
+    setChallengeRemoveLogo(false)
+    setChallengeFirstPoints(100)
+    setChallengeSecondPoints(50)
+    setChallengeThirdPoints(25)
+    setChallengeStatusInput('Active')
+    setEditingChallengeId(null)
+    setChallengeMessage(null)
+  }
+
+  const handleOpenCreateChallenge = () => {
+    resetChallengeForm()
+    setIsChallengeModalOpen(true)
+  }
+
+  const handleOpenEditChallenge = (challenge: Challenge) => {
+    setEditingChallengeId(challenge.id)
+    setChallengeTitle(challenge.title)
+    setChallengeDescription(challenge.description)
+    setChallengeStartAt(challenge.startAtUtc ? toDateTimeLocalValue(challenge.startAtUtc) : '')
+    setChallengeEndAt(challenge.endAtUtc ? toDateTimeLocalValue(challenge.endAtUtc) : '')
+    setChallengeSoundLink(challenge.soundUrl ?? '')
+    setChallengeUploadType(challenge.uploadType)
+    setChallengeLogoPreview(challenge.logoUrl ?? null)
+    setChallengeLogoFile(null)
+    setChallengeRemoveLogo(false)
+    setChallengeFirstPoints(challenge.prizePoints.first)
+    setChallengeSecondPoints(challenge.prizePoints.second)
+    setChallengeThirdPoints(challenge.prizePoints.third)
+    setChallengeStatusInput(challenge.status)
+    setIsChallengeModalOpen(true)
+  }
+
+  const handleSaveChallenge = async (e: FormEvent) => {
+    e.preventDefault()
+    setChallengeMessage(null)
+
+    if (!challengeTitle || !challengeDescription || !challengeStartAt || !challengeEndAt) {
+      setChallengeMessage('All required fields must be filled.')
+      return
+    }
+
+    setChallengeActionId(editingChallengeId ?? -1)
+
+    try {
+      const payload = {
+        title: challengeTitle,
+        description: challengeDescription,
+        startAtUtc: new Date(challengeStartAt).toISOString(),
+        endAtUtc: new Date(challengeEndAt).toISOString(),
+        deadlineUtc: new Date(challengeEndAt).toISOString(),
+        soundUrl: challengeSoundLink,
+        uploadType: challengeUploadType,
+        status: challengeStatusInput,
+        firstPlacePts: challengeFirstPoints,
+        secondPlacePts: challengeSecondPoints,
+        thirdPlacePts: challengeThirdPoints,
+        logo: challengeLogoFile,
+        removeLogo: challengeRemoveLogo
+      }
+
+      let result
+      if (editingChallengeId) {
+        result = await adminUpdateChallengeRequest(editingChallengeId, payload)
+      } else {
+        result = await adminCreateChallengeRequest(payload)
+      }
+
+      if (result.ok && result.data) {
+        setChallengeMessage(editingChallengeId ? 'Challenge updated successfully.' : 'Challenge created successfully.')
+        setIsChallengeModalOpen(false)
+        void loadChallenges()
+      } else {
+        setChallengeMessage(result.error || 'Failed to save challenge.')
+      }
+    } catch (err) {
+      setChallengeMessage('An unexpected error occurred.')
+    } finally {
+      setChallengeActionId(null)
+    }
+  }
+
+  const handleDeleteChallenge = async (challengeId: number) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this challenge?\nThis will remove ALL submissions and votes. This cannot be undone.'
+    )
+    if (!confirmed) return
+
+    setChallengeActionId(challengeId)
+    setChallengeMessage(null)
+
+    try {
+      const result = await adminDeleteChallengeRequest(challengeId)
+      if (result.ok) {
+        setAdminChallenges((prev) => prev.filter((c) => c.id !== challengeId))
+        setChallengeMessage('Challenge deleted successfully.')
+      } else {
+        setChallengeMessage(result.error || 'Failed to delete challenge.')
+      }
+    } catch (err) {
+      setChallengeMessage('An unexpected error occurred.')
+    } finally {
+      setChallengeActionId(null)
+    }
+  }
+
+  const handleToggleChallengeStatus = async (challenge: Challenge) => {
+    const newStatus = challenge.status === 'Active' ? 'Hidden' : 'Active'
+    setChallengeActionId(challenge.id)
+
+    try {
+      const result = await adminUpdateChallengeRequest(challenge.id, {
+        title: challenge.title,
+        description: challenge.description,
+        startAtUtc: challenge.startAtUtc!,
+        endAtUtc: challenge.endAtUtc!,
+        deadlineUtc: challenge.endAtUtc!,
+        soundUrl: challenge.soundUrl ?? undefined,
+        uploadType: challenge.uploadType,
+        status: newStatus,
+        firstPlacePts: challenge.prizePoints.first,
+        secondPlacePts: challenge.prizePoints.second,
+        thirdPlacePts: challenge.prizePoints.third,
+        removeLogo: false
+      })
+
+      if (result.ok && result.data) {
+        setAdminChallenges((prev) => prev.map((c) => (c.id === challenge.id ? result.data! : c)))
+      } else {
+        setChallengeMessage(result.error || 'Failed to toggle status.')
+      }
+    } catch (err) {
+      setChallengeMessage('An unexpected error occurred.')
+    } finally {
+      setChallengeActionId(null)
+    }
+  }
+
+    const [editingEventId, setEditingEventId] = useState<number | null>(null);
+    const [editingEventTitleInput, setEditingEventTitleInput] = useState('')
   const [editingEventDateInput, setEditingEventDateInput] = useState('')
   const [editingEventLocationInput, setEditingEventLocationInput] = useState('')
   const [editingEventDetailsInput, setEditingEventDetailsInput] = useState('')
@@ -269,6 +480,11 @@ export default function AdminJoinRequests() {
   }, [activeSection, loadMemoryBoardPhotos])
 
   useEffect(() => {
+    if (activeSection !== 'challenges') return
+    void loadChallenges()
+  }, [activeSection, loadChallenges])
+
+  useEffect(() => {
     const refreshActiveSection = () => {
       if (activeSection === 'requests') {
         void loadRequests({ silent: true })
@@ -282,6 +498,11 @@ export default function AdminJoinRequests() {
 
       if (activeSection === 'approvePhotos') {
         void loadMemoryBoardPhotos({ silent: true })
+        return
+      }
+
+      if (activeSection === 'challenges') {
+        void loadChallenges({ silent: true })
       }
     }
 
@@ -821,6 +1042,14 @@ export default function AdminJoinRequests() {
               >
                 <Images size={16} />
                 <span>Approve Photos ({memoryBoardPendingPhotos.length})</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab ${activeSection === 'challenges' ? 'active' : ''}`}
+                onClick={() => setActiveSection('challenges')}
+              >
+                <Swords size={16} />
+                <span>Challenges</span>
               </button>
             </div>
           </section>
@@ -1408,7 +1637,259 @@ export default function AdminJoinRequests() {
               </div>
             </section>
           )}
+
+          {activeSection === 'challenges' && (
+            <section className="admin-section">
+              <div className="admin-surface">
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <Swords size={18} />
+                    <h2 className="admin-surface__title">Manage Challenges</h2>
+                  </div>
+                  <button 
+                    type="button"
+                    className="neo-btn admin-btn admin-btn--primary"
+                    onClick={handleOpenCreateChallenge}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Plus size={18} />
+                    New Challenge
+                  </button>
+                </div>
+
+                {challengeMessage && (
+                  <div className="admin-inline-note" style={{ margin: '15px', color: '#ff5f56' }}>
+                    {challengeMessage}
+                  </div>
+                )}
+
+                <div className="admin-list">
+                  {adminChallengesLoading ? (
+                    <div className="admin-list-empty">
+                      <RefreshCw className="spinner" size={24} />
+                      <p>Loading challenges...</p>
+                    </div>
+                  ) : adminChallenges.length === 0 ? (
+                    <div className="admin-list-empty">
+                      <Swords size={40} />
+                      <p>No challenges found. Create your first one!</p>
+                    </div>
+                  ) : (
+                    adminChallenges.map((challenge) => (
+                      <article key={`admin-challenge-${challenge.id}`} className="admin-request-card">
+                        <div className="admin-request-card__main">
+                          <div className="admin-request-card__user">
+                            <div className="admin-request-card__avatar">
+                              {challenge.logoUrl ? (
+                                <img src={challenge.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Swords size={20} />
+                                </div>
+                              )}
+                            </div>
+                            <div className="admin-request-card__info">
+                              <div className="admin-request-card__name">
+                                {challenge.title}
+                                <span className={`admin-badge admin-badge--${challenge.status.toLowerCase()}`}>
+                                  {challenge.status}
+                                </span>
+                              </div>
+                              <div className="admin-request-card__meta">
+                                {challenge.uploadType} • {formatDateTime(challenge.startAtUtc ?? '')} to {formatDateTime(challenge.endAtUtc ?? '')}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="admin-request-card__actions">
+                          <button
+                            type="button"
+                            className={`neo-btn admin-btn ${challenge.status === 'Active' ? 'admin-btn--warning' : 'admin-btn--success'}`}
+                            onClick={() => void handleToggleChallengeStatus(challenge)}
+                            disabled={challengeActionId === challenge.id}
+                          >
+                            {challenge.status === 'Active' ? 'Hide' : 'Activate'}
+                          </button>
+                          <button
+                            type="button"
+                            className="neo-btn admin-btn admin-btn--secondary"
+                            onClick={() => handleOpenEditChallenge(challenge)}
+                            disabled={challengeActionId === challenge.id}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="neo-btn admin-btn admin-btn--danger"
+                            onClick={() => void handleDeleteChallenge(challenge.id)}
+                            disabled={challengeActionId === challenge.id}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
         </div>
+
+        {isChallengeModalOpen && (
+          <div className="admin-modal-overlay" onClick={() => setIsChallengeModalOpen(false)}>
+            <motion.div
+              className="admin-modal"
+              initial={{ opacity: 0, scale: 0.96, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={editingChallengeId ? 'Edit challenge' : 'Create challenge'}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="admin-modal__header">
+                <div className="admin-modal__header-text">
+                  <div className="admin-modal__title">{editingChallengeId ? 'Edit Challenge' : 'Create New Challenge'}</div>
+                  <div className="admin-modal__subtitle">
+                    {editingChallengeId ? `Updating ID #${editingChallengeId}` : 'Define the rules and rewards for your senior challenge.'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="neo-btn admin-btn admin-btn--danger"
+                  onClick={() => setIsChallengeModalOpen(false)}
+                >
+                  <XCircle size={15} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveChallenge} className="admin-modal__form-grid">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                  <div>
+                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Challenge Name *</label>
+                    <input 
+                      type="text" 
+                      value={challengeTitle} 
+                      onChange={(e) => setChallengeTitle(e.target.value)} 
+                      placeholder="e.g. TikTok Challenge 2027"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Media Upload Type *</label>
+                    <select 
+                      value={challengeUploadType} 
+                      onChange={(e) => setChallengeUploadType(e.target.value as any)}
+                      style={{ background: 'white' }}
+                    >
+                      <option value="Video">Video</option>
+                      <option value="Image">Image</option>
+                      <option value="Audio">Audio (Sound)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Description *</label>
+                  <textarea 
+                    value={challengeDescription} 
+                    onChange={(e) => setChallengeDescription(e.target.value)} 
+                    rows={3}
+                    placeholder="What should they do?"
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px' }}>
+                  <div>
+                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Start Date *</label>
+                    <input 
+                      type="datetime-local" 
+                      value={challengeStartAt} 
+                      onChange={(e) => setChallengeStartAt(e.target.value)} 
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>End Date *</label>
+                    <input 
+                      type="datetime-local" 
+                      value={challengeEndAt} 
+                      onChange={(e) => setChallengeEndAt(e.target.value)} 
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Background Sound URL (Optional)</label>
+                  <input 
+                    type="url" 
+                    value={challengeSoundLink} 
+                    onChange={(e) => setChallengeSoundLink(e.target.value)} 
+                    placeholder="TikTok sound or external link"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Prize Points (1st, 2nd, 3rd) *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    <input type="number" value={challengeFirstPoints} onChange={(e) => setChallengeFirstPoints(Number(e.target.value))} required />
+                    <input type="number" value={challengeSecondPoints} onChange={(e) => setChallengeSecondPoints(Number(e.target.value))} required />
+                    <input type="number" value={challengeThirdPoints} onChange={(e) => setChallengeThirdPoints(Number(e.target.value))} required />
+                  </div>
+                </div>
+
+                <div className="admin-modal__asset-block">
+                  <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Challenge Logo</label>
+                  <input 
+                    type="file" 
+                    onChange={handleChallengeLogoChange}
+                    accept="image/*"
+                  />
+                  {challengeLogoPreview && (
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                      <div style={{ width: '60px', height: '60px', border: '2px solid black', overflow: 'hidden', background: 'white' }}>
+                        <img src={challengeLogoPreview} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      </div>
+                      {editingChallengeId && (
+                        <label className="admin-checkbox-row">
+                          <input type="checkbox" checked={challengeRemoveLogo} onChange={(e) => setChallengeRemoveLogo(e.target.checked)} />
+                          Remove logo
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Status</label>
+                  <select 
+                    value={challengeStatusInput} 
+                    onChange={(e) => setChallengeStatusInput(e.target.value as any)}
+                    style={{ background: 'white' }}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="BeforeStart">Before Start</option>
+                    <option value="Ended">Ended</option>
+                    <option value="Hidden">Hidden</option>
+                  </select>
+                </div>
+
+                <div className="admin-actions-row admin-actions-row--right">
+                  <button type="button" className="neo-btn admin-btn admin-btn--ghost" onClick={() => setIsChallengeModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="neo-btn admin-btn admin-btn--primary" disabled={challengeActionId !== null}>
+                    {challengeActionId !== null ? 'Saving...' : (editingChallengeId ? 'Update Challenge' : 'Create Challenge')}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
 
         {isCreateContentModalOpen && (
           <div className="admin-modal-overlay" onClick={handleCloseCreateContentModal}>
@@ -1770,6 +2251,17 @@ function toDateInputValue(value: string): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function toDateTimeLocalValue(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
 function formatDateTime(value: string): string {

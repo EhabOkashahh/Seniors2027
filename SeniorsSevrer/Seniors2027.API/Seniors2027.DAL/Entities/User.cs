@@ -41,4 +41,8 @@ public class User
     public ICollection<AnnouncementPollVote> AnnouncementPollVotes { get; set; } = new List<AnnouncementPollVote>();
     public ICollection<PortalEvent> Events { get; set; } = new List<PortalEvent>();
     public ICollection<MemoryBoardPhoto> MemoryBoardPhotos { get; set; } = new List<MemoryBoardPhoto>();
+    public ICollection<Challenge> CreatedChallenges { get; set; } = new List<Challenge>();
+    public ICollection<ChallengeParticipant> ChallengeParticipations { get; set; } = new List<ChallengeParticipant>();
+    public ICollection<ChallengeSubmission> ChallengeSubmissions { get; set; } = new List<ChallengeSubmission>();
+    public ICollection<ChallengeVote> ChallengeVotes { get; set; } = new List<ChallengeVote>();
 }

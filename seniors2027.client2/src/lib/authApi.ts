@@ -1,7 +1,6 @@
 import { clearSession, getAuthToken, type AppUserRole } from './session'
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'https://sneiors2027.runasp.net')
-  .replace(/^http:\/\//i, 'https://')
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5292')
   .replace(/\/+$/, '')
 const EMAIL_EXISTS_ENDPOINT = import.meta.env.VITE_AUTH_EMAIL_EXISTS_ENDPOINT ?? '/api/auth/recognize/{email}'
 

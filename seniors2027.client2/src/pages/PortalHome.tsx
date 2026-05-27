@@ -19,7 +19,9 @@ import {
   Sparkles,
   Trash2,
   Upload,
-  UserRound
+  UserRound,
+  Swords,
+  Clock
 } from 'lucide-react'
 import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
@@ -50,6 +52,8 @@ import {
   uploadDailyHighlightRequest
 } from '../lib/authApi'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
+import { getCurrentChallengeRequest } from '../lib/challengeApi'
+import type { Challenge } from '../features/challenges/types'
 const LOGO_FIREWORK_PARTICLES = [
   { x: -105, y: -12, c: '#ffcb2f' },
   { x: -82, y: -70, c: '#ff7f7f' },
@@ -149,6 +153,7 @@ export default function PortalHome() {
   const [highlightsMessage, setHighlightsMessage] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null)
   const [archiveHighlightsForCount, setArchiveHighlightsForCount] = useState<DailyHighlight[]>([])
 
   const totalMentionCount = useMemo(() => {
@@ -474,10 +479,18 @@ export default function PortalHome() {
 
   useEffect(() => {
     const run = async () => {
-      const me = await getMeRequest()
+      const [me, challengeResult] = await Promise.all([
+        getMeRequest(),
+        getCurrentChallengeRequest()
+      ])
+
       if (me.ok && me.data) {
         setCurrentUserId(me.data.id)
         setIsAdmin(me.data.role === 'Admin')
+      }
+
+      if (challengeResult.ok && challengeResult.data) {
+        setActiveChallenge(challengeResult.data)
       }
     }
     void run()
@@ -1953,6 +1966,63 @@ export default function PortalHome() {
 
               </div>
             </motion.div>
+
+            {activeChallenge && (
+              <motion.div
+                variants={{ hidden: { opacity: 0, scale: 0.8 }, visible: { opacity: 1, scale: 1 } }}
+                className="window portal-home-widget"
+                style={{ border: '4px solid black', boxShadow: '10px 10px 0 black' }}
+              >
+                <div className="window-header" style={{ background: 'var(--accent-cyan)' }}>
+                  <Swords size={18} />
+                  <span style={{ fontWeight: 900 }}>ACTIVE_CHALLENGE</span>
+                </div>
+                <div 
+                  className="window-content" 
+                  style={{ 
+                    padding: '20px', 
+                    textAlign: 'center', 
+                    background: 'linear-gradient(180deg, #e0faff 0%, #ffffff 100%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '15px'
+                  }}
+                >
+                  {activeChallenge.logoUrl && (
+                    <div style={{ width: '80px', height: '80px', margin: '0 auto', background: 'white', border: '3px solid black', padding: '10px', boxShadow: '4px 4px 0 black' }}>
+                      <img 
+                        src={activeChallenge.logoUrl.startsWith('http') ? activeChallenge.logoUrl : `${import.meta.env.VITE_API_BASE_URL}${activeChallenge.logoUrl}`} 
+                        alt="" 
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                      />
+                    </div>
+                  )}
+                  <div style={{ background: 'white', border: '3px solid black', padding: '15px', boxShadow: '5px 5px 0 black' }}>
+                    <h3 style={{ margin: 0, fontWeight: 900, fontSize: '1.3rem', textTransform: 'uppercase' }}>{activeChallenge.title}</h3>
+                    <p style={{ marginTop: '8px', fontWeight: 800, fontSize: '0.9rem', opacity: 0.7 }}>{activeChallenge.description}</p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 900, color: 'var(--accent-pink)' }}>
+                    <Clock size={18} />
+                    <span>ENDS: {new Date(activeChallenge.deadlineUtc).toLocaleDateString()}</span>
+                  </div>
+
+                  <button 
+                    onClick={() => navigate('/challenge')}
+                    className="neo-btn"
+                    style={{ 
+                      width: '100%', 
+                      padding: '15px', 
+                      background: 'var(--accent-yellow)', 
+                      fontSize: '1.1rem',
+                      boxShadow: '6px 6px 0 black'
+                    }}
+                  >
+                    GO TO CHALLENGE
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         </div>
       </motion.div>
