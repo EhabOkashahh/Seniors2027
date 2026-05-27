@@ -51,7 +51,8 @@ export default function ChallengeHero({ title, description, logoUrl, bigLogo }: 
             margin: '0 auto',
             lineHeight: '1.4',
             opacity: 0.7,
-            textTransform: 'uppercase'
+            textTransform: 'uppercase',
+            whiteSpace: 'pre-wrap'
           }}
         >
           {description}
