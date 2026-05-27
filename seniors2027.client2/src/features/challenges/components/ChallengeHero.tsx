@@ -4,13 +4,10 @@ interface ChallengeHeroProps {
   title: string
   description: string
   logoUrl?: string
+  bigLogo?: boolean
 }
 
-export default function ChallengeHero({ title, description, logoUrl }: ChallengeHeroProps) {
-  const fullLogoUrl = logoUrl 
-    ? (logoUrl.startsWith('http') ? logoUrl : `${import.meta.env.VITE_API_BASE_URL}${logoUrl}`)
-    : undefined
-
+export default function ChallengeHero({ title, description, logoUrl, bigLogo }: ChallengeHeroProps) {
   return (
     <div style={{ textAlign: 'center', marginBottom: '80px', marginTop: '20px' }}>
       <motion.div
@@ -18,15 +15,15 @@ export default function ChallengeHero({ title, description, logoUrl }: Challenge
         animate={{ y: 0, opacity: 1 }}
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}
       >
-        {fullLogoUrl ? (
+        {logoUrl ? (
           <img 
-            src={fullLogoUrl} 
+            src={logoUrl} 
             alt={title} 
             style={{ 
-              maxHeight: '180px', 
-              maxWidth: '90%', 
+              maxHeight: bigLogo ? '150px' : '80px', 
+              maxWidth: bigLogo ? '350px' : '200px', 
               objectFit: 'contain',
-              filter: 'drop-shadow(8px 8px 0px black)'
+              filter: 'drop-shadow(5px 5px 0px black)'
             }} 
           />
         ) : (

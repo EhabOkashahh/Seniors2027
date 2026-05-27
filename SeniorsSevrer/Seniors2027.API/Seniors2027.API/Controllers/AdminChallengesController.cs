@@ -40,7 +40,8 @@ public class AdminChallengesController(
             string? logoUrl = null;
             if (logo != null && logo.Length > 0)
             {
-                logoUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(logo, "Logo");
+                var relativeUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(logo, "Logo");
+                logoUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
             }
 
             var challenge = await _challengeService.CreateChallengeAsync(dto, adminUserId, logoUrl);
@@ -69,7 +70,8 @@ public class AdminChallengesController(
             string? logoUrl = null;
             if (logo != null && logo.Length > 0)
             {
-                logoUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(logo, "Logo");
+                var relativeUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(logo, "Logo");
+                logoUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
             }
 
             var challenge = await _challengeService.UpdateChallengeAsync(challengeId, dto, adminUserId, logoUrl);

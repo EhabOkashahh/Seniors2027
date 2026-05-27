@@ -5,7 +5,7 @@ export const MOCK_CHALLENGE: Challenge = {
   title: 'Guess The Senior',
   description: 'Upload a childhood photo and let everyone vote for the hardest one to guess.',
   deadlineUtc: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-  status: 'active',
+  status: 'Active',
   uploadType: 'Image',
   soundUrl: 'https://www.tiktok.com/music/Graduation-Vibes-2027-7382910394857',
   prizePoints: {

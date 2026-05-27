@@ -174,10 +174,13 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(challengeMediaDirectory),
     RequestPath = "/ChallengeMedia",
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/octet-stream",
     OnPrepareResponse = context =>
     {
         context.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
         context.Context.Response.Headers["Cross-Origin-Resource-Policy"] = "*";
+        context.Context.Response.Headers["Content-Disposition"] = "inline";
     }
 });
 

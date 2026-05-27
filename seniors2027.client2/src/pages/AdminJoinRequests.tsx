@@ -51,7 +51,6 @@ import {
 } from '../lib/authApi'
 import { 
   adminCreateChallengeRequest, 
-  adminEndChallengeRequest, 
   adminDeleteChallengeRequest,
   adminGetAllChallengesRequest,
   adminUpdateChallengeRequest
@@ -135,8 +134,6 @@ export default function AdminJoinRequests() {
   const [challengeStatusInput, setChallengeStatusInput] = useState<'Active' | 'Hidden' | 'BeforeStart' | 'Ended'>('Active')
   
   const [challengeActionId, setChallengeActionId] = useState<number | null>(null)
-  const [isEnding, setIsEnding] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadChallenges = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -1671,7 +1668,7 @@ export default function AdminJoinRequests() {
                     </div>
                   ) : adminChallenges.length === 0 ? (
                     <div className="admin-list-empty">
-                      <Swords size={40} />
+                      <Swords size={24} />
                       <p>No challenges found. Create your first one!</p>
                     </div>
                   ) : (
@@ -1679,7 +1676,7 @@ export default function AdminJoinRequests() {
                       <article key={`admin-challenge-${challenge.id}`} className="admin-request-card">
                         <div className="admin-request-card__main">
                           <div className="admin-request-card__user">
-                            <div className="admin-request-card__avatar">
+                            <div className="admin-request-card__avatar" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
                               {challenge.logoUrl ? (
                                 <img src={challenge.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                               ) : (

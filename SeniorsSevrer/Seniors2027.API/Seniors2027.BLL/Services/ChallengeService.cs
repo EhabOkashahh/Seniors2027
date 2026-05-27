@@ -44,6 +44,9 @@ public class ChallengeService : IChallengeService
 
         if (dto.Status == "Active")
         {
+            if (dto.StartAtUtc <= DateTime.UtcNow)
+                throw new InvalidOperationException("StartAtUtc must be in the future when activating a challenge.");
+
             var hasActive = await _context.Challenges.AnyAsync(c => c.Status == "Active", cancellationToken);
             if (hasActive)
                 throw new InvalidOperationException("An active challenge already exists.");
@@ -84,11 +87,13 @@ public class ChallengeService : IChallengeService
         int currentUserId,
         CancellationToken cancellationToken = default)
     {
+        await AutoEndExpiredChallengesAsync(cancellationToken);
+
         var challenge = await _context.Challenges
             .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
             .Include(c => c.Submissions.Where(s => s.UserId == currentUserId))
             .Include(c => c.Votes.Where(v => v.VoterUserId == currentUserId))
-            .Where(c => c.Status != "Hidden")
+            .Where(c => c.Status != "Hidden" && c.Status != "Ended")
             .OrderByDescending(c => c.Status == "Active" ? 3 : c.Status == "BeforeStart" ? 2 : 1)
             .ThenByDescending(c => c.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
@@ -99,12 +104,43 @@ public class ChallengeService : IChallengeService
         return MapToChallengeResponseDto(challenge, currentUserId);
     }
 
+    public async Task<ChallengeWithLeaderboardResponseDto?> GetLatestEndedChallengeAsync(
+        int currentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var challenge = await _context.Challenges
+            .Where(c => c.Status == "Ended")
+            .OrderByDescending(c => c.EndAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (challenge == null)
+            return null;
+
+        var allWinners = await GetLeaderboardInternalAsync(challenge, currentUserId, cancellationToken);
+        var top3 = allWinners.Where(w => w.Rank <= 3).ToList();
+
+        return new ChallengeWithLeaderboardResponseDto
+        {
+            Id = challenge.Id,
+            Title = challenge.Title,
+            Description = challenge.Description,
+            LogoUrl = challenge.LogoUrl,
+            UploadType = challenge.UploadType,
+            FirstPlacePts = challenge.FirstPlacePts,
+            SecondPlacePts = challenge.SecondPlacePts,
+            ThirdPlacePts = challenge.ThirdPlacePts,
+            Winners = top3
+        };
+    }
+
     public async Task<ChallengeResponseDto> JoinChallengeAsync(
         int challengeId,
         int currentUserId,
         JoinChallengeRequestDto dto,
         CancellationToken cancellationToken = default)
     {
+        await AutoEndExpiredChallengesAsync(cancellationToken);
+
         var challenge = await _context.Challenges
             .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
             .Include(c => c.Submissions.Where(s => s.UserId == currentUserId))
@@ -120,14 +156,21 @@ public class ChallengeService : IChallengeService
         if (dto.Role != "Challenger" && dto.Role != "Spectator")
             throw new InvalidOperationException("Role must be 'Challenger' or 'Spectator'.");
 
+        // Block new joins during voting phase
+        if (challenge.Status == "Active" && DateTime.UtcNow >= challenge.StartAtUtc)
+        {
+            var existingParticipant = challenge.Participants.FirstOrDefault(p => p.UserId == currentUserId);
+            if (existingParticipant == null)
+                throw new InvalidOperationException("Cannot join a challenge after the voting phase has started.");
+            if (existingParticipant.Role != dto.Role)
+                throw new InvalidOperationException("Cannot switch roles after the voting phase has started.");
+        }
+
         var participant = challenge.Participants.FirstOrDefault(p => p.UserId == currentUserId);
 
         if (participant != null)
         {
-            if (challenge.Status == "Active")
-                throw new InvalidOperationException("You already joined this challenge and cannot switch roles while it is Active.");
-            
-            // Allow role switch in BeforeStart
+            // Allow role switch before StartAtUtc
             if (participant.Role != dto.Role)
             {
                 participant.Role = dto.Role;
@@ -166,6 +209,10 @@ public class ChallengeService : IChallengeService
         if (challenge.Status == "Hidden")
             throw new InvalidOperationException("Challenge is hidden.");
 
+        // Before start time, hide all submissions from everyone
+        if (challenge.Status == "Active" && DateTime.UtcNow < challenge.StartAtUtc)
+            return new List<ChallengeSubmissionResponseDto>();
+
         var submissions = await _context.ChallengeSubmissions
             .AsNoTracking()
             .Where(s => s.ChallengeId == challengeId)
@@ -198,6 +245,8 @@ public class ChallengeService : IChallengeService
         CreateChallengeSubmissionRequestDto dto,
         CancellationToken cancellationToken = default)
     {
+        await AutoEndExpiredChallengesAsync(cancellationToken);
+
         var challenge = await _context.Challenges
             .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
             .Include(c => c.Submissions.Where(s => s.UserId == currentUserId))
@@ -209,6 +258,9 @@ public class ChallengeService : IChallengeService
         if (challenge.Status != "Active")
             throw new InvalidOperationException($"Cannot upload to a challenge that is {challenge.Status}.");
 
+        if (DateTime.UtcNow >= challenge.StartAtUtc)
+            throw new InvalidOperationException("Upload period has ended. Voting has already started.");
+
         var participant = challenge.Participants.FirstOrDefault();
         if (participant == null)
             throw new InvalidOperationException("You must join the challenge before uploading.");
@@ -216,11 +268,24 @@ public class ChallengeService : IChallengeService
         if (participant.Role != "Challenger")
             throw new InvalidOperationException("Only Challengers can upload submissions. Spectators are just here to judge.");
 
-        if (challenge.Submissions.Any())
-            throw new InvalidOperationException("You already uploaded a submission for this challenge.");
-
         if (dto.Caption?.Length > 120)
             throw new InvalidOperationException("Caption cannot exceed 120 characters.");
+
+        // If user already has a submission, delete the old one (allow re-upload)
+        var existingSubmission = challenge.Submissions.FirstOrDefault();
+        if (existingSubmission != null)
+        {
+            // Delete old media file
+            if (!string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
+            {
+                var oldFileName = Path.GetFileName(existingSubmission.MediaUrl);
+                var oldMediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldFileName);
+                if (File.Exists(oldMediaPath))
+                    File.Delete(oldMediaPath);
+            }
+
+            _context.ChallengeSubmissions.Remove(existingSubmission);
+        }
 
         var submission = new ChallengeSubmission
         {
@@ -255,12 +320,57 @@ public class ChallengeService : IChallengeService
         };
     }
 
+    public async Task DeleteChallengeSubmissionAsync(
+        int challengeId,
+        int currentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var challenge = await _context.Challenges
+            .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
+
+        if (challenge == null)
+            throw new InvalidOperationException("Challenge not found.");
+
+        if (challenge.Status != "Active")
+            throw new InvalidOperationException($"Cannot delete a submission from a challenge that is {challenge.Status}.");
+
+        if (DateTime.UtcNow >= challenge.StartAtUtc)
+            throw new InvalidOperationException("Upload period has ended. You cannot delete your submission.");
+
+        var submission = await _context.ChallengeSubmissions
+            .FirstOrDefaultAsync(s => s.ChallengeId == challengeId && s.UserId == currentUserId, cancellationToken);
+
+        if (submission == null)
+            throw new InvalidOperationException("You don't have a submission to delete.");
+
+        // Delete media file
+        if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
+        {
+            var fileName = Path.GetFileName(submission.MediaUrl);
+            var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
+            if (File.Exists(mediaPath))
+                File.Delete(mediaPath);
+        }
+
+        // Delete any votes for this submission
+        var votes = await _context.ChallengeVotes
+            .Where(v => v.SubmissionId == submission.Id)
+            .ToListAsync(cancellationToken);
+        if (votes.Any())
+            _context.ChallengeVotes.RemoveRange(votes);
+
+        _context.ChallengeSubmissions.Remove(submission);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<VoteChallengeSubmissionResponseDto> VoteForSubmissionAsync(
         int challengeId,
         int submissionId,
         int currentUserId,
         CancellationToken cancellationToken = default)
     {
+        await AutoEndExpiredChallengesAsync(cancellationToken);
+
         var challenge = await _context.Challenges
             .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
             .Include(c => c.Votes.Where(v => v.VoterUserId == currentUserId))
@@ -271,6 +381,9 @@ public class ChallengeService : IChallengeService
 
         if (challenge.Status != "Active")
             throw new InvalidOperationException($"Cannot vote in a challenge that is {challenge.Status}.");
+
+        if (DateTime.UtcNow < challenge.StartAtUtc)
+            throw new InvalidOperationException("Voting has not started yet.");
 
         if (!challenge.Participants.Any())
             throw new InvalidOperationException("You must join the challenge before voting.");
@@ -336,6 +449,10 @@ public class ChallengeService : IChallengeService
         CancellationToken cancellationToken = default)
     {
         var challenge = await _context.Challenges
+            .Include(c => c.Participants)
+            .Include(c => c.Votes)
+            .Include(c => c.Submissions)
+            .Include(c => c.Messages)
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -350,6 +467,49 @@ public class ChallengeService : IChallengeService
         if (challenge.Status == "BeforeStart")
             throw new InvalidOperationException("Cannot end a challenge that has not started.");
 
+        if (DateTime.UtcNow < challenge.StartAtUtc)
+            throw new InvalidOperationException("Cannot end a challenge before the voting phase has started.");
+
+        var now = DateTime.UtcNow;
+
+        // Atomically mark challenge so only one request processes it
+        var rows = await _context.Database.ExecuteSqlRawAsync(
+            "UPDATE Challenges SET Status = 'Ended', UpdatedAtUtc = {0} WHERE Id = {1} AND Status = 'Active'",
+            now, challengeId, cancellationToken);
+        if (rows == 0)
+            throw new InvalidOperationException("Challenge is already being ended by another request.");
+
+        // Reload to get fresh data after the atomic update
+        challenge = await _context.Challenges
+            .Include(c => c.Participants)
+            .Include(c => c.Votes)
+            .Include(c => c.Submissions)
+            .Include(c => c.Messages)
+            .FirstAsync(c => c.Id == challengeId, cancellationToken);
+
+        // Cancel if too few challengers or submissions
+        var challengerCount = challenge.Participants.Count(p => p.Role == "Challenger");
+        if (challengerCount < 6 || challenge.Submissions.Count < 4)
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Challenges SET Status = 'Hidden', UpdatedAtUtc = {0} WHERE Id = {1}",
+                now, challengeId, cancellationToken);
+            return new List<ChallengeLeaderboardItemDto>();
+        }
+
+        // Penalize challengers who didn't upload
+        foreach (var participant in challenge.Participants.Where(p => p.Role == "Challenger"))
+        {
+            if (!challenge.Submissions.Any(s => s.UserId == participant.UserId))
+            {
+                var user = await _context.Users.FindAsync([participant.UserId], cancellationToken);
+                if (user != null)
+                {
+                    user.Points = Math.Max(0, user.Points - 30);
+                }
+            }
+        }
+
         // Get winners to award points
         var winners = await GetLeaderboardInternalAsync(challenge, adminUserId, cancellationToken);
 
@@ -362,8 +522,17 @@ public class ChallengeService : IChallengeService
             }
         }
 
-        challenge.Status = "Ended";
-        challenge.UpdatedAtUtc = DateTime.UtcNow;
+        // Delete submission media files (keep logo)
+        foreach (var submission in challenge.Submissions)
+        {
+            if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
+            {
+                var fileName = Path.GetFileName(submission.MediaUrl);
+                var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
+                if (File.Exists(mediaPath))
+                    File.Delete(mediaPath);
+            }
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -383,6 +552,15 @@ public class ChallengeService : IChallengeService
 
         if (challenge == null)
             throw new InvalidOperationException("Challenge not found.");
+
+        // Delete logo file from disk
+        if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
+        {
+            var logoFileName = Path.GetFileName(challenge.LogoUrl);
+            var logoPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", logoFileName);
+            if (File.Exists(logoPath))
+                File.Delete(logoPath);
+        }
 
         // We delete in order just to be safe with the Restrict constraints
         if (challenge.Votes.Any())
@@ -408,11 +586,46 @@ public class ChallengeService : IChallengeService
         int adminUserId,
         CancellationToken cancellationToken = default)
     {
+        await AutoEndExpiredChallengesAsync(cancellationToken);
+
         var challenges = await _context.Challenges
             .OrderByDescending(c => c.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
         return challenges.Select(c => MapToChallengeResponseDto(c, adminUserId)).ToList();
+    }
+
+    private async Task CleanupChallengeDataAsync(Challenge challenge, CancellationToken cancellationToken)
+    {
+        // Load related data if not already loaded
+        await _context.Entry(challenge).Collection(c => c.Votes).LoadAsync(cancellationToken);
+        await _context.Entry(challenge).Collection(c => c.Submissions).LoadAsync(cancellationToken);
+        await _context.Entry(challenge).Collection(c => c.Participants).LoadAsync(cancellationToken);
+        await _context.Entry(challenge).Collection(c => c.Messages).LoadAsync(cancellationToken);
+
+        // Delete submission media files (keep logo)
+        foreach (var submission in challenge.Submissions)
+        {
+            if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
+            {
+                var fileName = Path.GetFileName(submission.MediaUrl);
+                var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
+                if (File.Exists(mediaPath))
+                    File.Delete(mediaPath);
+            }
+        }
+
+        if (challenge.Votes.Any())
+            _context.ChallengeVotes.RemoveRange(challenge.Votes);
+
+        if (challenge.Submissions.Any())
+            _context.ChallengeSubmissions.RemoveRange(challenge.Submissions);
+
+        if (challenge.Messages.Any())
+            _context.ChallengeMessages.RemoveRange(challenge.Messages);
+
+        if (challenge.Participants.Any())
+            _context.ChallengeParticipants.RemoveRange(challenge.Participants);
     }
 
     public async Task<ChallengeResponseDto> UpdateChallengeAsync(
@@ -449,8 +662,17 @@ public class ChallengeService : IChallengeService
         if (dto.EndAtUtc <= dto.StartAtUtc)
             throw new InvalidOperationException("End date must be after start date.");
 
+        // When reactivating from Ended, wipe all old data so it starts fresh
+        if (challenge.Status == "Ended" && (dto.Status == "Active" || dto.Status == "BeforeStart"))
+        {
+            await CleanupChallengeDataAsync(challenge, cancellationToken);
+        }
+
         if (dto.Status == "Active" && challenge.Status != "Active")
         {
+            if (dto.StartAtUtc <= DateTime.UtcNow)
+                throw new InvalidOperationException("StartAtUtc must be in the future when activating a challenge.");
+
             var hasActive = await _context.Challenges.AnyAsync(c => c.Status == "Active" && c.Id != challengeId, cancellationToken);
             if (hasActive)
                 throw new InvalidOperationException("Another active challenge already exists.");
@@ -471,10 +693,26 @@ public class ChallengeService : IChallengeService
 
         if (logoUrl != null)
         {
+            // Delete old logo file when replacing with new one
+            if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
+            {
+                var oldLogoFileName = Path.GetFileName(challenge.LogoUrl);
+                var oldLogoPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldLogoFileName);
+                if (File.Exists(oldLogoPath))
+                    File.Delete(oldLogoPath);
+            }
             challenge.LogoUrl = logoUrl;
         }
         else if (dto.RemoveLogo)
         {
+            // Delete old logo file from disk
+            if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
+            {
+                var oldLogoFileName = Path.GetFileName(challenge.LogoUrl);
+                var oldLogoPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldLogoFileName);
+                if (File.Exists(oldLogoPath))
+                    File.Delete(oldLogoPath);
+            }
             challenge.LogoUrl = null;
         }
 
@@ -526,6 +764,88 @@ public class ChallengeService : IChallengeService
         }).ToList();
     }
 
+    private async Task AutoEndExpiredChallengesAsync(CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+
+        // 1. Handle cancellation (StartAtUtc just passed): cancel if too few participants
+        var cancelCandidates = await _context.Challenges
+            .Include(c => c.Participants)
+            .Include(c => c.Submissions)
+            .Where(c => c.Status == "Active" && c.StartAtUtc <= now && c.EndAtUtc > now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var c in cancelCandidates)
+        {
+            var challengerCount = c.Participants.Count(p => p.Role == "Challenger");
+            if (challengerCount < 6 || c.Submissions.Count < 4)
+            {
+                // Atomically mark as Hidden — only the first request wins
+                var rows = await _context.Database.ExecuteSqlRawAsync(
+                    "UPDATE Challenges SET Status = 'Hidden', UpdatedAtUtc = {0} WHERE Id = {1} AND Status = 'Active'",
+                    now, c.Id, cancellationToken);
+                if (rows == 0) continue;
+            }
+        }
+
+        // 2. Handle truly expired (EndAtUtc passed)
+        var expiredCandidates = await _context.Challenges
+            .Include(c => c.Participants)
+            .Include(c => c.Votes)
+            .Include(c => c.Submissions)
+            .Include(c => c.Messages)
+            .Where(c => c.Status == "Active" && c.EndAtUtc <= now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var c in expiredCandidates)
+        {
+            // Atomically mark as Ended — only the first request wins
+            var rows = await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Challenges SET Status = 'Ended', UpdatedAtUtc = {0} WHERE Id = {1} AND Status = 'Active'",
+                now, c.Id, cancellationToken);
+            if (rows == 0) continue;
+
+            // Penalize challengers who didn't upload
+            foreach (var participant in c.Participants.Where(p => p.Role == "Challenger"))
+            {
+                if (!c.Submissions.Any(s => s.UserId == participant.UserId))
+                {
+                    var user = await _context.Users.FindAsync([participant.UserId], cancellationToken);
+                    if (user != null)
+                    {
+                        user.Points = Math.Max(0, user.Points - 30);
+                    }
+                }
+            }
+
+            // Award points to winners
+            var winners = await GetLeaderboardInternalAsync(c, 0, cancellationToken);
+            foreach (var winner in winners)
+            {
+                var user = await _context.Users.FindAsync([winner.UserId], cancellationToken);
+                if (user != null)
+                {
+                    user.Points += winner.PointsEarned;
+                }
+            }
+
+            // Delete submission media files (keep logo)
+            foreach (var submission in c.Submissions)
+            {
+                if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
+                {
+                    var fileName = Path.GetFileName(submission.MediaUrl);
+                    var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
+                    if (File.Exists(mediaPath))
+                        File.Delete(mediaPath);
+                }
+            }
+        }
+
+        if (expiredCandidates.Count > 0)
+            await _context.SaveChangesAsync(cancellationToken);
+    }
+
     private ChallengeResponseDto MapToChallengeResponseDto(Challenge challenge, int currentUserId)
     {
         var participant = challenge.Participants?.FirstOrDefault(p => p.UserId == currentUserId);
@@ -541,9 +861,9 @@ public class ChallengeService : IChallengeService
             SoundUrl = challenge.SoundUrl,
             UploadType = challenge.UploadType,
             Status = challenge.Status,
-            DeadlineUtc = challenge.DeadlineUtc,
-            StartAtUtc = challenge.StartAtUtc,
-            EndAtUtc = challenge.EndAtUtc,
+            DeadlineUtc = DateTime.SpecifyKind(challenge.DeadlineUtc, DateTimeKind.Utc),
+            StartAtUtc = DateTime.SpecifyKind(challenge.StartAtUtc, DateTimeKind.Utc),
+            EndAtUtc = DateTime.SpecifyKind(challenge.EndAtUtc, DateTimeKind.Utc),
             FirstPlacePts = challenge.FirstPlacePts,
             SecondPlacePts = challenge.SecondPlacePts,
             ThirdPlacePts = challenge.ThirdPlacePts,

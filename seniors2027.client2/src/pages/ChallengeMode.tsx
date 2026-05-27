@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Clock, X, AlertCircle } from 'lucide-react'
@@ -6,7 +6,6 @@ import RetroGridBackground from '../components/landing/RetroGridBackground'
 
 // Types & Mock Data
 import type { ChallengeRole, ChallengeSubmission, ChallengeStatus, Challenge, ChallengeLeaderboardItem } from '../features/challenges/types'
-import { MOCK_COMMENTS } from '../features/challenges/mockData'
 
 // API
 import { 
@@ -15,7 +14,8 @@ import {
   getChallengeLeaderboardRequest,
   joinChallengeRequest,
   uploadChallengeSubmissionRequest,
-  voteForSubmissionRequest
+  voteForSubmissionRequest,
+  deleteChallengeSubmissionRequest
 } from '../lib/challengeApi'
 
 // Components
@@ -52,17 +52,25 @@ export default function ChallengeMode() {
   const [isVoting, setIsVoting] = useState(false)
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [countdown, setCountdown] = useState('')
   
   const uploadFormRef = useRef<HTMLDivElement>(null)
+  const pollLockRef = useRef(false)
+  const busyRef = useRef(false)
+  const mountedRef = useRef(true)
 
   // 1. Initial Load: Get Challenge
   useEffect(() => {
+    mountedRef.current = true
     const fetchChallenge = async () => {
       setLoading(true)
       setError(null)
       
       const result = await getCurrentChallengeRequest()
       
+      if (!mountedRef.current) return
+
       if (result.ok && result.data) {
         hydrateChallengeData(result.data)
       } else {
@@ -77,6 +85,7 @@ export default function ChallengeMode() {
     }
 
     void fetchChallenge()
+    return () => { mountedRef.current = false }
   }, [])
 
   const hydrateChallengeData = (c: Challenge) => {
@@ -85,26 +94,38 @@ export default function ChallengeMode() {
     setSelectedRole(c.currentUserRole || null)
     setHasSubmitted(c.hasCurrentUserSubmitted)
     setVotedSubmissionId(c.currentUserVotedSubmissionId || null)
-    
+
     void Promise.all([
       fetchSubmissions(c.id),
       fetchLeaderboard(c.id)
     ])
+    void recheckChallenge()
   }
 
-  const fetchSubmissions = async (id: number) => {
+  const recheckChallenge = useCallback(async () => {
+    if (busyRef.current) return
+    const check = await getCurrentChallengeRequest()
+    if (!mountedRef.current) return
+    if (!check.ok || !check.data) {
+      navigate('/portal')
+    }
+  }, [navigate])
+
+  const fetchSubmissions = useCallback(async (id: number) => {
     const result = await getChallengeSubmissionsRequest(id)
+    if (!mountedRef.current) return
     if (result.ok && result.data) {
       setSubmissions(result.data)
     }
-  }
+  }, [])
 
-  const fetchLeaderboard = async (id: number) => {
+  const fetchLeaderboard = useCallback(async (id: number) => {
     const result = await getChallengeLeaderboardRequest(id)
+    if (!mountedRef.current) return
     if (result.ok && result.data) {
       setLeaderboard(result.data)
     }
-  }
+  }, [])
 
   const handleJoinRole = async (role: ChallengeRole) => {
     if (!challenge || !role) {
@@ -114,16 +135,20 @@ export default function ChallengeMode() {
 
     setIsJoining(true)
     setJoinError(null)
+    busyRef.current = true
 
-    const result = await joinChallengeRequest(challenge.id, role)
+    try {
+      const result = await joinChallengeRequest(challenge.id, role)
 
-    if (result.ok && result.data) {
-      hydrateChallengeData(result.data)
-    } else {
-      setJoinError(result.error || 'Failed to join challenge.')
+      if (result.ok && result.data) {
+        hydrateChallengeData(result.data)
+      } else {
+        setJoinError(result.error || 'Failed to join challenge.')
+      }
+    } finally {
+      busyRef.current = false
+      setIsJoining(false)
     }
-
-    setIsJoining(false)
   }
 
   useEffect(() => {
@@ -133,7 +158,7 @@ export default function ChallengeMode() {
   }, [])
 
   const handleUploadClick = () => {
-    if (challengeStatus !== 'Active') return
+    if (challengeStatus !== 'Active' || !isUploadPhase) return
     if (selectedRole === 'challenger') {
       if (hasSubmitted) {
         alert("Your entry is already in!")
@@ -146,7 +171,7 @@ export default function ChallengeMode() {
 
   const handleGoToSound = () => {
     if (challenge?.soundUrl) {
-      window.open(challenge.soundUrl, '_blank')
+      window.location.href = challenge.soundUrl
     } else {
       alert("Sound link coming soon.")
     }
@@ -157,21 +182,49 @@ export default function ChallengeMode() {
 
     setIsUploading(true)
     setUploadError(null)
+    busyRef.current = true
 
-    const result = await uploadChallengeSubmissionRequest(challenge.id, file, caption)
+    try {
+      const result = await uploadChallengeSubmissionRequest(challenge.id, file, caption)
 
-    if (result.ok && result.data) {
-      setHasSubmitted(true)
-      setIsUploadModalOpen(false)
-      void Promise.all([
-        fetchSubmissions(challenge.id),
-        fetchLeaderboard(challenge.id)
-      ])
-    } else {
-      setUploadError(result.error || 'Failed to upload submission.')
+      if (result.ok && result.data) {
+        setHasSubmitted(true)
+        setIsUploadModalOpen(false)
+        void Promise.all([
+          fetchSubmissions(challenge.id),
+          fetchLeaderboard(challenge.id)
+        ])
+      } else {
+        setUploadError(result.error || 'Failed to upload submission.')
+      }
+    } finally {
+      busyRef.current = false
+      setIsUploading(false)
     }
+  }
 
-    setIsUploading(false)
+  const handleDeleteSubmission = async () => {
+    if (!challenge) return
+    if (!confirm('Delete your entry? You can upload a new one until the deadline.')) return
+
+    setIsDeleting(true)
+    busyRef.current = true
+
+    try {
+      const result = await deleteChallengeSubmissionRequest(challenge.id)
+      if (result.ok) {
+        setHasSubmitted(false)
+        await Promise.all([
+          fetchSubmissions(challenge.id),
+          fetchLeaderboard(challenge.id)
+        ])
+      } else {
+        alert(result.error || 'Failed to delete submission.')
+      }
+    } finally {
+      busyRef.current = false
+      setIsDeleting(false)
+    }
   }
 
   const handleVote = async (submissionId: number) => {
@@ -195,6 +248,57 @@ export default function ChallengeMode() {
 
     setIsVoting(false)
   }
+
+  const startAtMs = challenge?.startAtUtc ? new Date(challenge.startAtUtc).getTime() : 0
+  const nowMs = Date.now()
+  const isUploadPhase = challengeStatus === 'Active' && startAtMs > nowMs
+  const isVotingPhase = challengeStatus === 'Active' && startAtMs <= nowMs
+
+  // Countdown timer during upload phase — auto-refetch when time comes
+  useEffect(() => {
+    if (!isUploadPhase || !startAtMs || !challenge) return
+    let interval: ReturnType<typeof setInterval>
+    const tick = async () => {
+      const diff = startAtMs - Date.now()
+      if (diff <= 0) {
+        setCountdown('')
+        clearInterval(interval)
+        await Promise.all([
+          fetchSubmissions(challenge.id),
+          fetchLeaderboard(challenge.id)
+        ])
+        await recheckChallenge()
+        return
+      }
+      const d = Math.floor(diff / 86400000)
+      const h = Math.floor((diff % 86400000) / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setCountdown(d > 0 ? `${d}d ${h}h ${m}m ${s}s` : `${h}h ${m}m ${s}s`)
+    }
+    tick()
+    interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [isUploadPhase, startAtMs, challenge, fetchSubmissions, fetchLeaderboard, recheckChallenge])
+
+  // Poll submissions + leaderboard during voting phase for realtime-ish updates
+  useEffect(() => {
+    if (!isVotingPhase || !challenge) return
+    const interval = setInterval(async () => {
+      if (pollLockRef.current) return
+      pollLockRef.current = true
+      try {
+        await Promise.all([
+          fetchSubmissions(challenge.id),
+          fetchLeaderboard(challenge.id)
+        ])
+        await recheckChallenge()
+      } finally {
+        pollLockRef.current = false
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [isVotingPhase, challenge?.id, navigate, fetchSubmissions, fetchLeaderboard, recheckChallenge])
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -255,6 +359,13 @@ export default function ChallengeMode() {
       
       <div style={{ padding: '40px 20px', minHeight: '100vh', width: '100%', maxWidth: '1250px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
         
+        <ChallengeHero 
+          title={challenge.title}
+          description={challenge.description}
+          logoUrl={challenge.logoUrl || undefined}
+          bigLogo
+        />
+
         <ChallengeActions 
           challengeStatus={challengeStatus}
           selectedRole={selectedRole}
@@ -262,13 +373,9 @@ export default function ChallengeMode() {
           onGoToSound={handleGoToSound}
           onExit={() => navigate('/portal')}
           onChangeRole={() => setSelectedRole(null)}
-          canSwitchRole={challengeStatus === 'BeforeStart'}
-        />
-
-        <ChallengeHero 
-          title={challenge.title}
-          description={challenge.description}
-          logoUrl={challenge.logoUrl || undefined}
+          canSwitchRole={challengeStatus === 'BeforeStart' || challengeStatus === 'Active' && isUploadPhase}
+          canShowSound={isVotingPhase || challengeStatus === 'Ended' || (isUploadPhase && selectedRole === 'challenger')}
+          isUploadPhase={isUploadPhase}
         />
 
         <motion.div 
@@ -280,18 +387,43 @@ export default function ChallengeMode() {
           <RoleJoinCard 
             selectedRole={selectedRole}
             challengeStatus={challengeStatus}
-            hasSubmitted={hasSubmitted}
             onSelectRole={handleJoinRole}
             isJoining={isJoining}
             errorMessage={joinError}
+            canChangeRole={challengeStatus === 'BeforeStart' || (challengeStatus === 'Active' && isUploadPhase)}
+            canJoinAsChallenger={challengeStatus === 'BeforeStart' || isUploadPhase}
           />
 
-          {challengeStatus !== 'BeforeStart' && (
+          {isUploadPhase && hasSubmitted && selectedRole === 'challenger' && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '-20px' }}>
+              <button
+                onClick={handleDeleteSubmission}
+                disabled={isDeleting}
+                className="neo-btn"
+                style={{
+                  padding: '10px 25px',
+                  fontSize: '0.8rem',
+                  background: isDeleting ? '#eee' : 'var(--accent-pink-soft)',
+                  border: '2px solid black',
+                  fontWeight: 900,
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  color: isDeleting ? '#999' : 'black',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                {isDeleting ? 'DELETING...' : 'DELETE MY ENTRY'}
+              </button>
+            </div>
+          )}
+
+          {challengeStatus !== 'BeforeStart' && !isUploadPhase && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '40px' }}>
-              {challengeStatus === 'Active' ? (
-                <TopThreeStrip topThree={leaderboard} />
-              ) : (
+              {challengeStatus === 'Ended' ? (
                 <HallOfFame topThree={leaderboard} />
+              ) : (
+                <TopThreeStrip topThree={leaderboard} />
               )}
             </div>
           )}
@@ -303,6 +435,23 @@ export default function ChallengeMode() {
                 <p style={{ fontSize: '1.8rem', fontWeight: 900, opacity: 0.3, textTransform: 'uppercase' }}>
                   Challenge has not started yet.
                 </p>
+              </div>
+            </div>
+          ) : isUploadPhase ? (
+            <div style={{ textAlign: 'center', padding: '100px 0' }}>
+              <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                <Clock size={64} style={{ opacity: 0.4 }} />
+                <p style={{ fontSize: '1.8rem', fontWeight: 900, opacity: 0.5, textTransform: 'uppercase' }}>
+                  Voting starts in
+                </p>
+                <p style={{ fontSize: '3rem', fontWeight: 900, fontVariantNumeric: 'tabular-nums', letterSpacing: '2px', margin: 0 }}>
+                  {countdown || '--'}
+                </p>
+                {selectedRole !== 'challenger' && (
+                  <p style={{ fontSize: '1rem', fontWeight: 800, opacity: 0.4, marginTop: '10px' }}>
+                    Join as Challenger to upload your entry before the deadline
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -319,11 +468,13 @@ export default function ChallengeMode() {
         </motion.div>
       </div>
 
-      <ChallengeChatModal 
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        challengeId={challenge.id}
-      />
+      {(isVotingPhase || challengeStatus === 'Ended') && (
+        <ChallengeChatModal 
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          challengeId={challenge.id}
+        />
+      )}
 
       <AnimatePresence>
         {isUploadModalOpen && (

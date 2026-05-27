@@ -14,6 +14,10 @@ public interface IChallengeService
         int currentUserId,
         CancellationToken cancellationToken = default);
 
+    Task<ChallengeWithLeaderboardResponseDto?> GetLatestEndedChallengeAsync(
+        int currentUserId,
+        CancellationToken cancellationToken = default);
+
     Task<ChallengeResponseDto> JoinChallengeAsync(
         int challengeId,
         int currentUserId,
@@ -21,6 +25,11 @@ public interface IChallengeService
         CancellationToken cancellationToken = default);
 
     Task<List<ChallengeSubmissionResponseDto>> GetChallengeSubmissionsAsync(
+        int challengeId,
+        int currentUserId,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteChallengeSubmissionAsync(
         int challengeId,
         int currentUserId,
         CancellationToken cancellationToken = default);

@@ -5,19 +5,21 @@ import type { ChallengeRole, ChallengeStatus } from '../types'
 interface RoleJoinCardProps {
   selectedRole: ChallengeRole
   challengeStatus: ChallengeStatus
-  hasSubmitted: boolean
   onSelectRole: (role: ChallengeRole) => void
   isJoining?: boolean
   errorMessage?: string | null
+  canChangeRole?: boolean
+  canJoinAsChallenger?: boolean
 }
 
 export default function RoleJoinCard({ 
   selectedRole, 
   challengeStatus, 
-  hasSubmitted, 
   onSelectRole,
   isJoining = false,
-  errorMessage = null
+  errorMessage = null,
+  canChangeRole = true,
+  canJoinAsChallenger = true
 }: RoleJoinCardProps) {
   return (
     <AnimatePresence mode="wait">
@@ -38,18 +40,20 @@ export default function RoleJoinCard({
             </div>
             <div className="window-content" style={{ padding: '40px', gap: '30px' }}>
               <div style={{ display: 'flex', gap: '20px', flexDirection: 'column' }}>
-                <button 
-                  onClick={() => onSelectRole('challenger')}
-                  disabled={isJoining || challengeStatus === 'Ended'}
-                  className="choice-card"
-                  style={{ width: '100%', textAlign: 'left', padding: '25px', border: '4px solid black', height: 'auto', display: 'block', opacity: isJoining ? 0.7 : 1 }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
-                    <Swords size={28} />
-                    <span style={{ fontWeight: 900, fontSize: '1.4rem' }}>{isJoining ? 'JOINING...' : 'CHALLENGER'}</span>
-                  </div>
-                  <p style={{ fontSize: '1rem', fontWeight: 800, opacity: 0.6 }}>Upload your video and vote for others.</p>
-                </button>
+                {canJoinAsChallenger && (
+                  <button 
+                    onClick={() => onSelectRole('challenger')}
+                    disabled={isJoining || challengeStatus === 'Ended'}
+                    className="choice-card"
+                    style={{ width: '100%', textAlign: 'left', padding: '25px', border: '4px solid black', height: 'auto', display: 'block', opacity: isJoining ? 0.7 : 1 }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+                      <Swords size={28} />
+                      <span style={{ fontWeight: 900, fontSize: '1.4rem' }}>{isJoining ? 'JOINING...' : 'CHALLENGER'}</span>
+                    </div>
+                    <p style={{ fontSize: '1rem', fontWeight: 800, opacity: 0.6 }}>Upload your video and vote for others.</p>
+                  </button>
+                )}
 
                 <button 
                   onClick={() => onSelectRole('spectator')}
@@ -85,7 +89,7 @@ export default function RoleJoinCard({
           <span style={{ fontWeight: 900, fontSize: '1.1rem', color: selectedRole === 'challenger' ? 'var(--accent-pink)' : 'var(--accent-blue)' }}>
             {selectedRole.toUpperCase()}
           </span>
-          {(challengeStatus === 'BeforeStart' || (challengeStatus === 'Active' && !hasSubmitted)) && (
+          {canChangeRole && (
             <button 
               onClick={() => onSelectRole(null)}
               disabled={isJoining}

@@ -7,7 +7,8 @@ import type {
   VoteChallengeSubmissionResponse,
   CreateChallengePayload,
   UpdateChallengePayload,
-  ChallengeRole
+  ChallengeRole,
+  ChallengeWithWinners
 } from '../features/challenges/types'
 
 // Helper to handle safe errors similarly to authApi.ts
@@ -26,14 +27,36 @@ async function safeError(response: Response): Promise<string> {
   }
 }
 
+export function resolveMediaUrl(url: string | null | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  return `${API_BASE_URL}${url}`
+}
+
+function mapChallengeWithWinners(data: any): ChallengeWithWinners {
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    logoUrl: data.logoUrl,
+    uploadType: data.uploadType,
+    prizePoints: {
+      first: data.firstPlacePts,
+      second: data.secondPlacePts,
+      third: data.thirdPlacePts
+    },
+    winners: data.winners ?? []
+  }
+}
+
 // Mapper to convert backend Challenge DTO to frontend Challenge type
 function mapChallenge(data: any): Challenge {
   return {
     id: data.id,
     title: data.title,
     description: data.description,
-    logoUrl: data.logoUrl,
-    soundUrl: data.soundUrl,
+    logoUrl: resolveMediaUrl(data.logoUrl),
+    soundUrl: resolveMediaUrl(data.soundUrl),
     uploadType: data.uploadType,
     status: data.status,
     deadlineUtc: data.deadlineUtc,
@@ -72,6 +95,28 @@ export async function getCurrentChallengeRequest(): Promise<ApiResult<Challenge>
 
     const data = await response.json()
     return { ok: true, data: mapChallenge(data) }
+  } catch {
+    return { ok: false, error: 'Server is unreachable.' }
+  }
+}
+
+export async function getLatestEndedChallengeRequest(): Promise<ApiResult<ChallengeWithWinners>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/challenges/latest-ended`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) return { ok: false, error: 'No ended challenge.' }
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = await response.json()
+    return { ok: true, data: mapChallengeWithWinners(data) }
   } catch {
     return { ok: false, error: 'Server is unreachable.' }
   }
@@ -192,7 +237,7 @@ export async function adminEndChallengeRequest(challengeId: number): Promise<Api
     }
 
     const data = (await response.json()) as ChallengeLeaderboardItem[]
-    return { ok: true, data }
+    return { ok: true, data: data.map(item => ({ ...item, userPhotoUrl: resolveMediaUrl(item.userPhotoUrl), mediaUrl: resolveMediaUrl(item.mediaUrl) })) }
   } catch {
     return { ok: false, error: 'Server is unreachable.' }
   }
@@ -242,7 +287,7 @@ export async function getChallengeSubmissionsRequest(challengeId: number): Promi
     }
 
     const data = (await response.json()) as ChallengeSubmission[]
-    return { ok: true, data }
+    return { ok: true, data: data.map(s => ({ ...s, mediaUrl: resolveMediaUrl(s.mediaUrl), userPhotoUrl: resolveMediaUrl(s.userPhotoUrl) })) }
   } catch {
     return { ok: false, error: 'Server is unreachable.' }
   }
@@ -273,7 +318,7 @@ export async function uploadChallengeSubmissionRequest(
     }
 
     const data = (await response.json()) as ChallengeSubmission
-    return { ok: true, data }
+    return { ok: true, data: { ...data, mediaUrl: resolveMediaUrl(data.mediaUrl), userPhotoUrl: resolveMediaUrl(data.userPhotoUrl) } }
   } catch {
     return { ok: false, error: 'Server is unreachable.' }
   }
@@ -319,7 +364,28 @@ export async function getChallengeLeaderboardRequest(challengeId: number): Promi
     }
 
     const data = (await response.json()) as ChallengeLeaderboardItem[]
-    return { ok: true, data }
+    return { ok: true, data: data.map(item => ({ ...item, userPhotoUrl: resolveMediaUrl(item.userPhotoUrl), mediaUrl: resolveMediaUrl(item.mediaUrl) })) }
+  } catch {
+    return { ok: false, error: 'Server is unreachable.' }
+  }
+}
+
+export async function deleteChallengeSubmissionRequest(challengeId: number): Promise<ApiResult<void>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/submissions`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    return { ok: true }
   } catch {
     return { ok: false, error: 'Server is unreachable.' }
   }

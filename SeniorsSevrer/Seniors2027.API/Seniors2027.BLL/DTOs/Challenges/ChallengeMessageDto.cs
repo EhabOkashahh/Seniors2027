@@ -6,6 +6,7 @@ public class ChallengeMessageDto
     public int ChallengeId { get; set; }
     public int UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
+    public string? UserPhotoUrl { get; set; }
     public string UserColor { get; set; } = string.Empty;
     public string Text { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }

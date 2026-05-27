@@ -11,11 +11,15 @@ public sealed class ChallengeMediaUploadProcessor : IChallengeMediaUploadProcess
     private static readonly string[] AllowedVideoExtensions = [".mp4", ".webm", ".mov"];
     private static readonly string[] AllowedVideoContentTypes = ["video/mp4", "video/webm", "video/quicktime"];
 
+    private static readonly string[] AllowedAudioExtensions = [".mp3", ".wav", ".ogg", ".aac", ".m4a"];
+    private static readonly string[] AllowedAudioContentTypes = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/aac", "audio/mp4", "audio/x-m4a"];
+
     private static readonly string[] AllowedLogoExtensions = [".svg", ".jpg", ".jpeg", ".png", ".webp"];
     private static readonly string[] AllowedLogoContentTypes = ["image/svg+xml", "image/jpeg", "image/png", "image/webp"];
 
     private const long MaxImageSizeBytes = 5 * 1024 * 1024; // 5 MB
     private const long MaxVideoSizeBytes = 100 * 1024 * 1024; // 100 MB
+    private const long MaxAudioSizeBytes = 30 * 1024 * 1024; // 30 MB
     private const long MaxLogoSizeBytes = 5 * 1024 * 1024; // 5 MB
 
     private readonly IWebHostEnvironment _environment;
@@ -58,6 +62,17 @@ public sealed class ChallengeMediaUploadProcessor : IChallengeMediaUploadProcess
             if (file.Length > MaxVideoSizeBytes)
             {
                 throw new InvalidOperationException("Video size must be <= 100 MB.");
+            }
+        }
+        else if (string.Equals(expectedUploadType, "Audio", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!AllowedAudioExtensions.Contains(extension) || !AllowedAudioContentTypes.Contains(contentType))
+            {
+                throw new InvalidOperationException("Only mp3, wav, ogg, aac, and m4a are allowed for audio submissions.");
+            }
+            if (file.Length > MaxAudioSizeBytes)
+            {
+                throw new InvalidOperationException("Audio size must be <= 30 MB.");
             }
         }
         else if (string.Equals(expectedUploadType, "Logo", StringComparison.OrdinalIgnoreCase))

@@ -45,6 +45,7 @@ public class ChallengeChatHub : Hub
             ChallengeId = challengeId,
             UserId = userId,
             UserName = user.Username,
+            UserPhotoUrl = user.PhotoUrl,
             UserColor = "var(--accent-blue)", // Or some user-based color logic
             Text = text,
             CreatedAtUtc = message.CreatedAtUtc

@@ -42,9 +42,11 @@ export default function SubmissionGrid({
       ) : (
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(3, 1fr)', 
+          gridTemplateColumns: submissions.length <= 2 ? `repeat(${submissions.length}, 1fr)` : 'repeat(3, 1fr)', 
           gap: '50px 40px',
-          textAlign: 'left'
+          textAlign: 'left',
+          maxWidth: submissions.length <= 2 ? `${submissions.length * 400}px` : 'none',
+          marginInline: 'auto'
         }} className="submissions-grid">
           <AnimatePresence>
             {submissions.map((sub) => (

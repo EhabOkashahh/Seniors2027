@@ -96,6 +96,11 @@ export default function UploadEntryForm({
                 <>
                   {file?.type.startsWith('video/') ? (
                     <video src={previewUrl} controls style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }} />
+                  ) : file?.type.startsWith('audio/') ? (
+                    <div style={{ width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                      <audio src={previewUrl} controls style={{ width: '80%' }} />
+                      <p style={{ fontWeight: 800, fontSize: '1rem', opacity: 0.6 }}>{file.name}</p>
+                    </div>
                   ) : (
                     <img src={previewUrl} alt="Preview" style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }} />
                   )}
@@ -128,7 +133,7 @@ export default function UploadEntryForm({
                 type="file" 
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept="image/*,video/*"
+                accept="image/*,video/*,audio/*"
                 style={{ display: 'none' }}
                 disabled={isLoading}
               />

@@ -87,3 +87,17 @@ export interface ChallengeComment {
   text: string;
   color: string;
 }
+
+export interface ChallengeWithWinners {
+  id: number;
+  title: string;
+  description: string;
+  logoUrl?: string | null;
+  uploadType: 'Video' | 'Image' | 'Audio';
+  prizePoints: {
+    first: number;
+    second: number;
+    third: number;
+  };
+  winners: ChallengeLeaderboardItem[];
+}

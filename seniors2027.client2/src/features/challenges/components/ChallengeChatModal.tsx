@@ -3,11 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, MessageCircle } from 'lucide-react'
 import * as signalR from '@microsoft/signalr'
 import { API_BASE_URL } from '../../../lib/authApi'
-import { getAuthToken } from '../../../lib/session'
+import { getAuthToken, getCurrentUserId } from '../../../lib/session'
+import { resolveMediaUrl } from '../../../lib/challengeApi'
 
 interface ChatMessage {
   id: number
+  userId: number
   userName: string
+  userPhotoUrl?: string | null
   text: string
   userColor: string
 }
@@ -40,7 +43,7 @@ export default function ChallengeChatModal({
         })
         if (response.ok) {
           const data = await response.json()
-          setMessages(data)
+          setMessages(data.map((m: any) => ({ ...m, userPhotoUrl: resolveMediaUrl(m.userPhotoUrl) })))
         }
       } catch (err) {
         console.error('Failed to load chat history', err)
@@ -68,11 +71,13 @@ export default function ChallengeChatModal({
       .then(() => connection.invoke('JoinChallenge', challengeId))
       .catch(console.error)
 
-    connection.on('ReceiveMessage', (message: ChatMessage) => {
+    const handler = (message: ChatMessage) => {
       setMessages(prev => [...prev, message])
-    })
+    }
+    connection.on('ReceiveMessage', handler)
 
     return () => {
+      connection.off('ReceiveMessage', handler)
       connection.stop()
     }
   }, [connection, challengeId])
@@ -115,7 +120,7 @@ export default function ChallengeChatModal({
         }}
         className="neo-btn"
       >
-        <MessageCircle size={22} /> CHALLENGE CHAT
+        <MessageCircle size={22} />
       </button>
 
       <AnimatePresence>
@@ -158,34 +163,37 @@ export default function ChallengeChatModal({
                 {/* Message List */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '25px', display: 'flex', flexDirection: 'column', gap: '20px', background: '#fdfdfd' }}>
                   {messages.map((chat, idx) => {
-                    // Assuming 'You' needs comparison with stored username, for now we just style as left
+                    const isOwn = chat.userId === getCurrentUserId()
                     return (
-                      <div key={chat.id ?? idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <div key={chat.id ?? idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexDirection: isOwn ? 'row-reverse' : 'row' }}>
                         <div style={{ 
                           width: '36px', 
                           height: '36px', 
-                          background: chat.userColor, 
                           border: '2px solid black', 
                           borderRadius: '50%',
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center', 
-                          fontWeight: 900, 
-                          fontSize: '0.9rem',
-                          flexShrink: 0
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                          background: chat.userColor
                         }}>
-                          {chat.userName.charAt(0)}
+                          {chat.userPhotoUrl ? (
+                            <img src={chat.userPhotoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.9rem' }}>
+                              {chat.userName.charAt(0)}
+                            </div>
+                          )}
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '75%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '75%', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
                           <span style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.5, margin: '0 0 0 4px' }}>
                             {chat.userName}
                           </span>
                           <div style={{ 
-                            background: '#f0f0f0', 
+                            background: isOwn ? 'var(--accent-cyan)' : '#f0f0f0', 
                             border: '2px solid black', 
                             padding: '12px 16px', 
                             borderRadius: '16px',
-                            borderTopLeftRadius: '4px',
+                            borderTopLeftRadius: isOwn ? '16px' : '4px',
+                            borderTopRightRadius: isOwn ? '4px' : '16px',
                             boxShadow: '4px 4px 0 rgba(0,0,0,0.08)'
                           }}>
                             <p style={{ fontWeight: 800, fontSize: '0.95rem', margin: 0, lineHeight: '1.4', wordBreak: 'break-word' }}>{chat.text}</p>
@@ -203,6 +211,7 @@ export default function ChallengeChatModal({
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    maxLength={1000}
                     placeholder="Write a comment..." 
                     style={{ 
                       flex: 1, 

@@ -61,4 +61,5 @@ public class Challenge
     public ICollection<ChallengeParticipant> Participants { get; set; } = new List<ChallengeParticipant>();
     public ICollection<ChallengeSubmission> Submissions { get; set; } = new List<ChallengeSubmission>();
     public ICollection<ChallengeVote> Votes { get; set; } = new List<ChallengeVote>();
+    public ICollection<ChallengeMessage> Messages { get; set; } = new List<ChallengeMessage>();
 }

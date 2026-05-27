@@ -9,6 +9,8 @@ interface ChallengeActionsProps {
   onExit: () => void
   onChangeRole: () => void
   canSwitchRole: boolean
+  canShowSound?: boolean
+  isUploadPhase?: boolean
 }
 
 export default function ChallengeActions({
@@ -18,7 +20,9 @@ export default function ChallengeActions({
   onGoToSound,
   onExit,
   onChangeRole,
-  canSwitchRole
+  canSwitchRole,
+  canShowSound = true,
+  isUploadPhase = false
 }: ChallengeActionsProps) {
   return (
     <>
@@ -67,7 +71,7 @@ export default function ChallengeActions({
 
       {/* Main Interaction Buttons */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '50px' }}>
-        {selectedRole === 'challenger' && (
+        {selectedRole === 'challenger' && isUploadPhase && (
           <button 
             onClick={onUploadClick}
             disabled={challengeStatus !== 'Active'}
@@ -86,20 +90,22 @@ export default function ChallengeActions({
             <Upload size={24} /> UPLOAD ENTRY
           </button>
         )}
-        <button 
-          onClick={onGoToSound}
-          className="neo-btn"
-          style={{ 
-            padding: '15px 40px', 
-            background: 'white', 
-            fontSize: '1.1rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}
-        >
-          <Music size={24} /> GO TO SOUND
-        </button>
+        {canShowSound && (
+          <button 
+            onClick={onGoToSound}
+            className="neo-btn"
+            style={{ 
+              padding: '15px 40px', 
+              background: 'white', 
+              fontSize: '1.1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}
+          >
+            <Music size={24} /> GO TO SOUND
+          </button>
+        )}
       </div>
     </>
   )

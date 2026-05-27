@@ -19,7 +19,6 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [myProfilePath, setMyProfilePath] = useState('/profile/1')
   const [myRole, setMyRole] = useState<AppUserRole | null>(null)
-  const [hasChallenge, setHasChallenge] = useState(false)
 
   useEffect(() => {
     const run = async () => {
@@ -36,9 +35,6 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
 
       if (challengeResult.ok && challengeResult.data) {
         // Only show if not hidden
-        setHasChallenge(true)
-      } else {
-        setHasChallenge(false)
       }
     }
     void run()

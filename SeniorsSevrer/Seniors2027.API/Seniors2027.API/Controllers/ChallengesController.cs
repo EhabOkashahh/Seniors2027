@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Seniors2027.API.Extensions;
 using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs.Challenges;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Data;
+using Seniors2027.DAL.Entities;
 
 namespace Seniors2027.API.Controllers;
 
@@ -13,7 +15,7 @@ namespace Seniors2027.API.Controllers;
 [Route("api/[controller]")]
 [Authorize]
 public class ChallengesController(
-    IChallengeService challengeService, 
+    IChallengeService challengeService,
     IChallengeMediaUploadProcessor challengeMediaUploadProcessor,
     AppDbContext context) : ControllerBase
 {
@@ -29,7 +31,7 @@ public class ChallengesController(
         try
         {
             var challenge = await _challengeService.GetCurrentChallengeAsync(currentUserId);
-            
+
             if (challenge == null)
             {
                 return NotFound("No active challenge right now.");
@@ -87,10 +89,21 @@ public class ChallengesController(
         }
     }
 
+    [HttpGet("latest-ended")]
+    public async Task<ActionResult<ChallengeWithLeaderboardResponseDto>> GetLatestEndedChallenge()
+    {
+        if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
+
+        var result = await _challengeService.GetLatestEndedChallengeAsync(currentUserId);
+        if (result == null) return NotFound("No ended challenge found.");
+
+        return Ok(result);
+    }
+
     [HttpPost("{challengeId:int}/submissions")]
     public async Task<ActionResult<ChallengeSubmissionResponseDto>> UploadSubmission(
-        int challengeId, 
-        [FromForm] IFormFile media, 
+        int challengeId,
+        [FromForm] IFormFile media,
         [FromForm] string? caption)
     {
         if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
@@ -101,17 +114,38 @@ public class ChallengesController(
             var challenge = await _context.Challenges.FindAsync(challengeId);
             if (challenge == null) return NotFound("Challenge not found.");
 
-            var mediaUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(media, challenge.UploadType);
-            
+            var relativeUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(media, challenge.UploadType);
+            var mediaUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+
             var dto = new CreateChallengeSubmissionRequestDto { Caption = caption };
             var response = await _challengeService.UploadChallengeSubmissionAsync(
-                challengeId, 
-                currentUserId, 
-                mediaUrl, 
-                challenge.UploadType, 
+                challengeId,
+                currentUserId,
+                mediaUrl,
+                challenge.UploadType,
                 dto);
 
             return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpDelete("{challengeId:int}/submissions")]
+    public async Task<ActionResult> DeleteSubmission(int challengeId)
+    {
+        if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
+
+        try
+        {
+            await _challengeService.DeleteChallengeSubmissionAsync(challengeId, currentUserId);
+            return Ok("Submission deleted.");
         }
         catch (InvalidOperationException ex)
         {
@@ -165,10 +199,8 @@ public class ChallengesController(
         {
             return BadRequest(ex.Message);
         }
-    using Microsoft.EntityFrameworkCore;
-// ... (existing imports)
+    }
 
-// Inside the class:
     [HttpGet("{challengeId:int}/messages")]
     public async Task<ActionResult<List<ChallengeMessageDto>>> GetMessages(int challengeId)
     {
@@ -181,6 +213,7 @@ public class ChallengesController(
                 ChallengeId = m.ChallengeId,
                 UserId = m.UserId,
                 UserName = m.User.Username,
+                UserPhotoUrl = m.User.PhotoUrl,
                 UserColor = "var(--accent-blue)",
                 Text = m.Text,
                 CreatedAtUtc = m.CreatedAtUtc
