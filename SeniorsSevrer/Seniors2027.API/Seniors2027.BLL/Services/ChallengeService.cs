@@ -58,6 +58,12 @@ public class ChallengeService : IChallengeService
                 throw new InvalidOperationException("Start date for 'BeforeStart' challenge cannot be in the past.");
         }
 
+        if (dto.MinParticipants < 1)
+            throw new InvalidOperationException("Minimum participants must be at least 1.");
+
+        if (dto.MinSubmissions < 1)
+            throw new InvalidOperationException("Minimum submissions must be at least 1.");
+
         var challenge = new Challenge
         {
             Title = dto.Title,
@@ -72,6 +78,8 @@ public class ChallengeService : IChallengeService
             FirstPlacePts = dto.FirstPlacePts,
             SecondPlacePts = dto.SecondPlacePts,
             ThirdPlacePts = dto.ThirdPlacePts,
+            MinParticipants = dto.MinParticipants,
+            MinSubmissions = dto.MinSubmissions,
             CreatedByUserId = createdByUserId,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
@@ -174,6 +182,20 @@ public class ChallengeService : IChallengeService
             if (participant.Role != dto.Role)
             {
                 participant.Role = dto.Role;
+
+                // Delete user's submission when switching roles
+                var existingSubmission = challenge.Submissions.FirstOrDefault(s => s.UserId == currentUserId);
+                if (existingSubmission != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
+                    {
+                        var oldFileName = Path.GetFileName(existingSubmission.MediaUrl);
+                        var oldMediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldFileName);
+                        if (File.Exists(oldMediaPath))
+                            File.Delete(oldMediaPath);
+                    }
+                    _context.ChallengeSubmissions.Remove(existingSubmission);
+                }
             }
         }
         else
@@ -489,8 +511,20 @@ public class ChallengeService : IChallengeService
 
         // Cancel if too few challengers or submissions
         var challengerCount = challenge.Participants.Count(p => p.Role == "Challenger");
-        if (challengerCount < 6 || challenge.Submissions.Count < 4)
+        if (challengerCount < challenge.MinParticipants || challenge.Submissions.Count < challenge.MinSubmissions)
         {
+            // Delete uploaded submission media files
+            foreach (var submission in challenge.Submissions)
+            {
+                if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
+                {
+                    var fileName = Path.GetFileName(submission.MediaUrl);
+                    var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
+                    if (File.Exists(mediaPath))
+                        File.Delete(mediaPath);
+                }
+            }
+
             await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE Challenges SET Status = 'Hidden', UpdatedAtUtc = {0} WHERE Id = {1}",
                 new object[] { now, challengeId }, cancellationToken);
@@ -662,6 +696,12 @@ public class ChallengeService : IChallengeService
         if (dto.EndAtUtc <= dto.StartAtUtc)
             throw new InvalidOperationException("End date must be after start date.");
 
+        if (dto.MinParticipants < 1)
+            throw new InvalidOperationException("Minimum participants must be at least 1.");
+
+        if (dto.MinSubmissions < 1)
+            throw new InvalidOperationException("Minimum submissions must be at least 1.");
+
         // When reactivating from Ended, wipe all old data so it starts fresh
         if (challenge.Status == "Ended" && (dto.Status == "Active" || dto.Status == "BeforeStart"))
         {
@@ -689,6 +729,8 @@ public class ChallengeService : IChallengeService
         challenge.FirstPlacePts = dto.FirstPlacePts;
         challenge.SecondPlacePts = dto.SecondPlacePts;
         challenge.ThirdPlacePts = dto.ThirdPlacePts;
+        challenge.MinParticipants = dto.MinParticipants;
+        challenge.MinSubmissions = dto.MinSubmissions;
         challenge.UpdatedAtUtc = DateTime.UtcNow;
 
         if (logoUrl != null)
@@ -778,8 +820,20 @@ public class ChallengeService : IChallengeService
         foreach (var c in cancelCandidates)
         {
             var challengerCount = c.Participants.Count(p => p.Role == "Challenger");
-            if (challengerCount < 6 || c.Submissions.Count < 4)
+            if (challengerCount < c.MinParticipants || c.Submissions.Count < c.MinSubmissions)
             {
+                // Delete uploaded submission media files
+                foreach (var submission in c.Submissions)
+                {
+                    if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
+                    {
+                        var fileName = Path.GetFileName(submission.MediaUrl);
+                        var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
+                        if (File.Exists(mediaPath))
+                            File.Delete(mediaPath);
+                    }
+                }
+
                 // Atomically mark as Hidden — only the first request wins
                 var rows = await _context.Database.ExecuteSqlRawAsync(
                     "UPDATE Challenges SET Status = 'Hidden', UpdatedAtUtc = {0} WHERE Id = {1} AND Status = 'Active'",
@@ -867,6 +921,8 @@ public class ChallengeService : IChallengeService
             FirstPlacePts = challenge.FirstPlacePts,
             SecondPlacePts = challenge.SecondPlacePts,
             ThirdPlacePts = challenge.ThirdPlacePts,
+            MinParticipants = challenge.MinParticipants,
+            MinSubmissions = challenge.MinSubmissions,
             CurrentUserRoleId = participant?.Id,
             CurrentUserRole = participant?.Role,
             CurrentUserSubmissionId = submission?.Id,

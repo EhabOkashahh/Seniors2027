@@ -131,6 +131,8 @@ export default function AdminJoinRequests() {
   const [challengeFirstPoints, setChallengeFirstPoints] = useState(100)
   const [challengeSecondPoints, setChallengeSecondPoints] = useState(50)
   const [challengeThirdPoints, setChallengeThirdPoints] = useState(25)
+  const [challengeMinParticipants, setChallengeMinParticipants] = useState(6)
+  const [challengeMinSubmissions, setChallengeMinSubmissions] = useState(4)
   const [challengeStatusInput, setChallengeStatusInput] = useState<'Active' | 'Hidden' | 'BeforeStart' | 'Ended'>('Active')
   
   const [challengeActionId, setChallengeActionId] = useState<number | null>(null)
@@ -177,6 +179,8 @@ export default function AdminJoinRequests() {
     setChallengeFirstPoints(100)
     setChallengeSecondPoints(50)
     setChallengeThirdPoints(25)
+    setChallengeMinParticipants(6)
+    setChallengeMinSubmissions(4)
     setChallengeStatusInput('Active')
     setEditingChallengeId(null)
     setChallengeMessage(null)
@@ -201,6 +205,8 @@ export default function AdminJoinRequests() {
     setChallengeFirstPoints(challenge.prizePoints.first)
     setChallengeSecondPoints(challenge.prizePoints.second)
     setChallengeThirdPoints(challenge.prizePoints.third)
+    setChallengeMinParticipants(challenge.minParticipants)
+    setChallengeMinSubmissions(challenge.minSubmissions)
     setChallengeStatusInput(challenge.status)
     setIsChallengeModalOpen(true)
   }
@@ -229,6 +235,8 @@ export default function AdminJoinRequests() {
         firstPlacePts: challengeFirstPoints,
         secondPlacePts: challengeSecondPoints,
         thirdPlacePts: challengeThirdPoints,
+        minParticipants: challengeMinParticipants,
+        minSubmissions: challengeMinSubmissions,
         logo: challengeLogoFile,
         removeLogo: challengeRemoveLogo
       }
@@ -295,6 +303,8 @@ export default function AdminJoinRequests() {
         firstPlacePts: challenge.prizePoints.first,
         secondPlacePts: challenge.prizePoints.second,
         thirdPlacePts: challenge.prizePoints.third,
+        minParticipants: challenge.minParticipants,
+        minSubmissions: challenge.minSubmissions,
         removeLogo: false
       })
 
@@ -1836,6 +1846,17 @@ export default function AdminJoinRequests() {
                     <input type="number" value={challengeFirstPoints} onChange={(e) => setChallengeFirstPoints(Number(e.target.value))} required />
                     <input type="number" value={challengeSecondPoints} onChange={(e) => setChallengeSecondPoints(Number(e.target.value))} required />
                     <input type="number" value={challengeThirdPoints} onChange={(e) => setChallengeThirdPoints(Number(e.target.value))} required />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Min Participants *</label>
+                    <input type="number" min="1" value={challengeMinParticipants} onChange={(e) => setChallengeMinParticipants(Number(e.target.value))} required />
+                  </div>
+                  <div>
+                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Min Submissions *</label>
+                    <input type="number" min="1" value={challengeMinSubmissions} onChange={(e) => setChallengeMinSubmissions(Number(e.target.value))} required />
                   </div>
                 </div>
 

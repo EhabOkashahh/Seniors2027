@@ -18,6 +18,8 @@ export interface Challenge {
     second: number;
     third: number;
   };
+  minParticipants: number;
+  minSubmissions: number;
   currentUserRoleId?: number | null;
   currentUserRole?: ChallengeRole;
   currentUserSubmissionId?: number | null;
@@ -75,6 +77,8 @@ export interface CreateChallengePayload {
   firstPlacePts: number;
   secondPlacePts: number;
   thirdPlacePts: number;
+  minParticipants: number;
+  minSubmissions: number;
   logo?: File | null;
 }
 

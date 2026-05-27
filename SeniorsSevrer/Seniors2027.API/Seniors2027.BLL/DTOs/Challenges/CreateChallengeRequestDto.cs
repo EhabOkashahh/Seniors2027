@@ -40,4 +40,10 @@ public class CreateChallengeRequestDto
 
     [Required]
     public int ThirdPlacePts { get; set; }
+
+    [Required]
+    public int MinParticipants { get; set; } = 6;
+
+    [Required]
+    public int MinSubmissions { get; set; } = 4;
 }

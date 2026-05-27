@@ -68,6 +68,8 @@ function mapChallenge(data: any): Challenge {
       third: data.thirdPlacePts
     },
     currentUserRoleId: data.currentUserRoleId,
+    minParticipants: data.minParticipants,
+    minSubmissions: data.minSubmissions,
     // Map backend PascalCase to frontend lowercase
     currentUserRole: data.currentUserRole ? (data.currentUserRole.toLowerCase() as ChallengeRole) : null,
     currentUserSubmissionId: data.currentUserSubmissionId,
@@ -160,6 +162,8 @@ export async function adminCreateChallengeRequest(payload: CreateChallengePayloa
     formData.append('FirstPlacePts', String(payload.firstPlacePts))
     formData.append('SecondPlacePts', String(payload.secondPlacePts))
     formData.append('ThirdPlacePts', String(payload.thirdPlacePts))
+    formData.append('MinParticipants', String(payload.minParticipants))
+    formData.append('MinSubmissions', String(payload.minSubmissions))
     if (payload.logo) formData.append('logo', payload.logo)
 
     const response = await fetch(`${API_BASE_URL}/api/admin/challenges`, {
@@ -200,6 +204,8 @@ export async function adminUpdateChallengeRequest(
     formData.append('FirstPlacePts', String(payload.firstPlacePts))
     formData.append('SecondPlacePts', String(payload.secondPlacePts))
     formData.append('ThirdPlacePts', String(payload.thirdPlacePts))
+    formData.append('MinParticipants', String(payload.minParticipants))
+    formData.append('MinSubmissions', String(payload.minSubmissions))
     if (payload.logo) formData.append('logo', payload.logo)
     if (payload.removeLogo) formData.append('RemoveLogo', 'true')
 

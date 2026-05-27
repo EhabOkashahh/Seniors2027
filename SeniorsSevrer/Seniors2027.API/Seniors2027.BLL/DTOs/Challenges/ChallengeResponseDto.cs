@@ -16,6 +16,9 @@ public class ChallengeResponseDto
     public int SecondPlacePts { get; set; }
     public int ThirdPlacePts { get; set; }
 
+    public int MinParticipants { get; set; }
+    public int MinSubmissions { get; set; }
+
     public int? CurrentUserRoleId { get; set; }
     public string? CurrentUserRole { get; set; }
     public int? CurrentUserSubmissionId { get; set; }

@@ -13,6 +13,8 @@ export const MOCK_CHALLENGE: Challenge = {
     second: 50,
     third: 25
   },
+  minParticipants: 6,
+  minSubmissions: 4,
   hasCurrentUserJoined: false,
   hasCurrentUserSubmitted: false,
   hasCurrentUserVoted: false
