@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Seniors2027.DAL.Data;
 
@@ -11,9 +12,11 @@ using Seniors2027.DAL.Data;
 namespace Seniors2027.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260528174302_AddChallengeTeams")]
+    partial class AddChallengeTeams
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -56,7 +59,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("CreatedByUserId");
 
-                    b.ToTable("Announcements", (string)null);
+                    b.ToTable("Announcements");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.AnnouncementPollVote", b =>
@@ -95,7 +98,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("AnnouncementId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("AnnouncementPollVotes", (string)null);
+                    b.ToTable("AnnouncementPollVotes");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.Challenge", b =>
@@ -175,7 +178,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("DeadlineUtc");
 
-                    b.ToTable("Challenges", (string)null);
+                    b.ToTable("Challenges");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeMessage", b =>
@@ -206,7 +209,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ChallengeMessages", (string)null);
+                    b.ToTable("ChallengeMessages");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeParticipant", b =>
@@ -238,7 +241,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("ChallengeId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("ChallengeParticipants", (string)null);
+                    b.ToTable("ChallengeParticipants");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeSubmission", b =>
@@ -286,7 +289,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("ChallengeId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("ChallengeSubmissions", (string)null);
+                    b.ToTable("ChallengeSubmissions");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeTeam", b =>
@@ -317,7 +320,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("SubmissionId");
 
-                    b.ToTable("ChallengeTeams", (string)null);
+                    b.ToTable("ChallengeTeams");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeTeamMember", b =>
@@ -341,7 +344,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("TeamId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("ChallengeTeamMembers", (string)null);
+                    b.ToTable("ChallengeTeamMembers");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.ChallengeVote", b =>
@@ -375,7 +378,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("ChallengeId", "VoterUserId")
                         .IsUnique();
 
-                    b.ToTable("ChallengeVotes", (string)null);
+                    b.ToTable("ChallengeVotes");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.DailyHighlight", b =>
@@ -406,7 +409,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("UserId", "CreatedAt");
 
-                    b.ToTable("DailyHighlights", (string)null);
+                    b.ToTable("DailyHighlights");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.DailyHighlightMention", b =>
@@ -435,7 +438,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("DailyHighlightId", "MentionedUserId")
                         .IsUnique();
 
-                    b.ToTable("DailyHighlightMentions", (string)null);
+                    b.ToTable("DailyHighlightMentions");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.DailyHighlightReaction", b =>
@@ -469,7 +472,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("DailyHighlightId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("DailyHighlightReactions", (string)null);
+                    b.ToTable("DailyHighlightReactions");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.GalleryPhoto", b =>
@@ -495,7 +498,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("UserId", "CreatedAt");
 
-                    b.ToTable("GalleryPhotos", (string)null);
+                    b.ToTable("GalleryPhotos");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.JoinRequest", b =>
@@ -534,7 +537,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("Email", "Status");
 
-                    b.ToTable("JoinRequests", (string)null);
+                    b.ToTable("JoinRequests");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.MemoryBoardPhoto", b =>
@@ -576,7 +579,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("Status", "ExifTakenAtUtc", "CreatedAt");
 
-                    b.ToTable("MemoryBoardPhotos", (string)null);
+                    b.ToTable("MemoryBoardPhotos");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.Note", b =>
@@ -607,7 +610,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("RecipientId", "CreatedAt");
 
-                    b.ToTable("Notes", (string)null);
+                    b.ToTable("Notes");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.NoteReaction", b =>
@@ -641,7 +644,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("NoteId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("NoteReactions", (string)null);
+                    b.ToTable("NoteReactions");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.Notification", b =>
@@ -690,7 +693,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("UserId", "IsRead");
 
-                    b.ToTable("Notifications", (string)null);
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.PortalEvent", b =>
@@ -735,7 +738,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("EventDate");
 
-                    b.ToTable("Events", (string)null);
+                    b.ToTable("Events");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.User", b =>
@@ -798,7 +801,7 @@ namespace Seniors2027.DAL.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.UserOtp", b =>
@@ -839,7 +842,7 @@ namespace Seniors2027.DAL.Migrations
 
                     b.HasIndex("Email", "CreatedAt");
 
-                    b.ToTable("UsersOTPs", (string)null);
+                    b.ToTable("UsersOTPs");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.Announcement", b =>

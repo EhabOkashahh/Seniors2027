@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { Clock, X, AlertCircle, LogOut } from 'lucide-react'
+import { Clock, X, AlertCircle, LogOut, Users } from 'lucide-react'
+import { getCurrentUserId } from '../lib/session'
 import RetroGridBackground from '../components/landing/RetroGridBackground'
 
 // Types & Mock Data
@@ -206,7 +207,7 @@ export default function ChallengeMode() {
     }
   }
 
-  const handleSubmitEntry = async (file: File, caption: string) => {
+  const handleSubmitEntry = async (file: File, caption: string, teamName?: string, teamMemberIds?: number[]) => {
     if (!challenge) return
 
     setIsUploading(true)
@@ -214,7 +215,7 @@ export default function ChallengeMode() {
     busyRef.current = true
 
     try {
-      const result = await uploadChallengeSubmissionRequest(challenge.id, file, caption)
+      const result = await uploadChallengeSubmissionRequest(challenge.id, file, caption, teamName, teamMemberIds)
 
       if (result.ok && result.data) {
         setHasSubmitted(true)
@@ -284,6 +285,11 @@ export default function ChallengeMode() {
   const nowMs = Date.now()
   const isUploadPhase = challengeStatus === 'Active' && startAtMs > nowMs
   const isVotingPhase = challengeStatus === 'Active' && startAtMs <= nowMs
+
+  const currentUserIdNum = getCurrentUserId()
+  const isInTeamWithSubmission = challenge?.participants?.some(p =>
+    p.userId === currentUserIdNum && p.teamId != null
+  ) ?? false
 
   // Countdown timer during upload phase — auto-refetch when time comes
   useEffect(() => {
@@ -451,6 +457,20 @@ export default function ChallengeMode() {
               {['Challenger', 'Spectator'].map((role) => {
                 const items = challenge.participants.filter(p => p.role === role)
                 if (items.length === 0) return null
+
+                // Group challengers by team
+                const teams = new Map<string | number, typeof items>()
+                const solo: typeof items = []
+                for (const p of items) {
+                  if (p.teamId) {
+                    const key = p.teamId
+                    if (!teams.has(key)) teams.set(key, [])
+                    teams.get(key)!.push(p)
+                  } else {
+                    solo.push(p)
+                  }
+                }
+
                 return (
                   <div key={role} className="window" style={{ padding: 0, flex: '1 1 300px', minWidth: 0 }}>
                     <div className="window-header" style={{
@@ -471,7 +491,59 @@ export default function ChallengeMode() {
                       overflowY: 'auto',
                       padding: '8px 0'
                     }}>
-                      {items.map(p => (
+                      {Array.from(teams.entries()).map(([teamId, members]) => (
+                        <div key={teamId} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '8px 16px',
+                          borderBottom: '1px solid rgba(0,0,0,0.08)',
+                          background: 'rgba(255,215,0,0.06)'
+                        }}>
+                          {members.map(p => (
+                            <div key={p.userId} style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              background: p.isTeamOwner ? 'var(--accent-yellow)' : 'var(--accent-cyan)',
+                              border: '2px solid black',
+                              padding: '4px 10px 4px 4px',
+                              borderRadius: '20px',
+                              fontSize: '0.8rem',
+                              fontWeight: 800
+                            }}>
+                              <div style={{
+                                width: '26px',
+                                height: '26px',
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                border: '2px solid black',
+                                flexShrink: 0,
+                                background: '#eee'
+                              }}>
+                                {p.photoUrl ? (
+                                  <img src={p.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.6rem', background: 'var(--accent-pink-soft)' }}>
+                                    {p.username[0]?.toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                              <span>{p.username}</span>
+                            </div>
+                          ))}
+                          <span style={{
+                            fontWeight: 900,
+                            fontSize: '0.75rem',
+                            textTransform: 'uppercase',
+                            opacity: 0.7,
+                            marginLeft: '4px'
+                          }}>
+                            {members[0]?.teamName || `Team ${teamId}`}
+                          </span>
+                        </div>
+                      ))}
+                      {solo.map(p => (
                         <div key={p.userId} style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -506,7 +578,7 @@ export default function ChallengeMode() {
             </div>
           )}
 
-          {isUploadPhase && hasSubmitted && selectedRole === 'challenger' && (
+          {isUploadPhase && (hasSubmitted || isInTeamWithSubmission) && selectedRole === 'challenger' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', marginTop: '-10px' }}>
               <div style={{ fontWeight: 900, fontSize: '0.9rem', textTransform: 'uppercase', opacity: 0.6 }}>Your Entry</div>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -629,6 +701,8 @@ export default function ChallengeMode() {
                 isLoading={isUploading}
                 externalError={uploadError}
                 onClose={() => setIsUploadModalOpen(false)}
+                currentUserId={getCurrentUserId() ?? undefined}
+                challengers={challenge?.participants?.filter(p => p.role === 'Challenger')}
               />
             </motion.div>
           </div>

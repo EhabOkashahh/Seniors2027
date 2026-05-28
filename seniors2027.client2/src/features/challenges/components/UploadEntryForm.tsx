@@ -1,14 +1,17 @@
 import React, { useRef, useState, type FormEvent, type ChangeEvent } from 'react'
 import { motion } from 'framer-motion'
-import { Upload, X, Trophy, AlertCircle } from 'lucide-react'
+import { Upload, X, Trophy, AlertCircle, Users } from 'lucide-react'
+import type { ChallengeParticipantInfo } from '../types'
 
 interface UploadEntryFormProps {
   hasSubmitted: boolean
-  onSubmit: (file: File, caption: string) => void
+  onSubmit: (file: File, caption: string, teamName?: string, teamMemberIds?: number[]) => void
   uploadFormRef: React.RefObject<HTMLDivElement | null>
   isLoading?: boolean
   externalError?: string | null
   onClose?: () => void
+  currentUserId?: number
+  challengers?: ChallengeParticipantInfo[]
 }
 
 export default function UploadEntryForm({
@@ -17,15 +20,22 @@ export default function UploadEntryForm({
   uploadFormRef,
   isLoading = false,
   externalError = null,
-  onClose
+  onClose,
+  currentUserId,
+  challengers = []
 }: UploadEntryFormProps) {
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
+  const [teamName, setTeamName] = useState('')
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([])
+  const [showTeamSection, setShowTeamSection] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const error = localError || externalError
+
+  const availableChallengers = challengers.filter(c => c.userId !== currentUserId && !c.teamId)
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -43,6 +53,12 @@ export default function UploadEntryForm({
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  const toggleMember = (userId: number) => {
+    setSelectedMemberIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    )
+  }
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     
@@ -56,7 +72,17 @@ export default function UploadEntryForm({
       return
     }
 
-    onSubmit(file, caption)
+    if (showTeamSection && selectedMemberIds.length > 0 && !teamName.trim()) {
+      setLocalError('A Team Name is required when adding teammates.')
+      return
+    }
+
+    if (showTeamSection && teamName.trim() && selectedMemberIds.length === 0) {
+      setLocalError('Select at least one teammate or disable team mode.')
+      return
+    }
+
+    onSubmit(file, caption, showTeamSection ? teamName.trim() : undefined, showTeamSection ? selectedMemberIds : undefined)
     setLocalError(null)
   }
 
@@ -173,6 +199,111 @@ export default function UploadEntryForm({
                   background: isLoading ? '#f5f5f5' : 'white'
                 }}
               />
+            </div>
+
+            {/* Team Section Toggle */}
+            <div style={{ borderTop: '2px solid rgba(0,0,0,0.1)', paddingTop: '20px' }}>
+              <button
+                type="button"
+                onClick={() => { setShowTeamSection(!showTeamSection); if (showTeamSection) { setTeamName(''); setSelectedMemberIds([]) } }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontWeight: 900,
+                  fontSize: '1rem',
+                  padding: '10px 0',
+                  color: 'black'
+                }}
+              >
+                <Users size={20} />
+                {showTeamSection ? '— HIDE TEAM OPTIONS' : '+ ADD TEAM MEMBERS'}
+              </button>
+
+              {showTeamSection && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '15px' }}>
+                  <div>
+                    <label style={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>Team Name</label>
+                    <input
+                      type="text"
+                      value={teamName}
+                      onChange={(e) => setTeamName(e.target.value)}
+                      placeholder="e.g. The Dream Team"
+                      maxLength={200}
+                      disabled={isLoading}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '3px solid black',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        outline: 'none',
+                        background: isLoading ? '#f5f5f5' : 'white'
+                      }}
+                    />
+                  </div>
+
+                  {availableChallengers.length > 0 && (
+                    <div>
+                      <label style={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '0.85rem', display: 'block', marginBottom: '8px' }}>
+                        Select Teammates ({selectedMemberIds.length} selected)
+                      </label>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '3px solid black', background: 'white' }}>
+                        {availableChallengers.map(c => (
+                          <label
+                            key={c.userId}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              padding: '10px 16px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid rgba(0,0,0,0.06)',
+                              background: selectedMemberIds.includes(c.userId) ? 'var(--accent-yellow)' : 'white',
+                              fontWeight: 700
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedMemberIds.includes(c.userId)}
+                              onChange={() => toggleMember(c.userId)}
+                              disabled={isLoading}
+                              style={{ width: '20px', height: '20px', accentColor: 'black' }}
+                            />
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              border: '2px solid black',
+                              flexShrink: 0,
+                              background: '#eee'
+                            }}>
+                              {c.photoUrl ? (
+                                <img src={c.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.7rem', background: 'var(--accent-cyan)' }}>
+                                  {c.username[0]?.toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <span style={{ flex: 1 }}>{c.username}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {availableChallengers.length === 0 && (
+                    <p style={{ fontWeight: 800, fontSize: '0.9rem', opacity: 0.5 }}>
+                      No other challengers available to add. Other challengers must join first.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {error && (

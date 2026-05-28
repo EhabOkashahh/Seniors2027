@@ -27,6 +27,8 @@ public class AppDbContext : DbContext
     public DbSet<ChallengeParticipant> ChallengeParticipants { get; set; }
     public DbSet<ChallengeSubmission> ChallengeSubmissions { get; set; }
     public DbSet<ChallengeVote> ChallengeVotes { get; set; }
+    public DbSet<ChallengeTeam> ChallengeTeams { get; set; }
+    public DbSet<ChallengeTeamMember> ChallengeTeamMembers { get; set; }
     public DbSet<Notification> Notifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -332,6 +334,39 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(e => new { e.UserId, e.IsRead });
             entity.HasIndex(e => e.CreatedAt);
+        });
+
+        modelBuilder.Entity<ChallengeTeam>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+
+            entity.HasOne(e => e.Challenge)
+                .WithMany(c => c.Teams)
+                .HasForeignKey(e => e.ChallengeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(e => e.Submission)
+                .WithMany()
+                .HasForeignKey(e => e.SubmissionId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ChallengeTeamMember>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+
+            entity.HasOne(e => e.Team)
+                .WithMany(t => t.Members)
+                .HasForeignKey(e => e.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ChallengeTeamMemberships)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TeamId, e.UserId }).IsUnique();
         });
     }
 }

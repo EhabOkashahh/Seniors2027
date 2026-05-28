@@ -13,4 +13,9 @@ public class ChallengeLeaderboardItemDto
     public int Votes { get; set; }
     public int PointsEarned { get; set; }
     public bool IsOwn { get; set; }
+
+    // Team support
+    public string? TeamName { get; set; }
+    public List<TeamMemberInfoDto> TeamMembers { get; set; } = [];
+    public bool IsTeamOwner { get; set; }
 }

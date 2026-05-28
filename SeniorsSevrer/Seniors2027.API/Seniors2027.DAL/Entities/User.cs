@@ -45,5 +45,6 @@ public class User
     public ICollection<ChallengeParticipant> ChallengeParticipations { get; set; } = new List<ChallengeParticipant>();
     public ICollection<ChallengeSubmission> ChallengeSubmissions { get; set; } = new List<ChallengeSubmission>();
     public ICollection<ChallengeVote> ChallengeVotes { get; set; } = new List<ChallengeVote>();
+    public ICollection<ChallengeTeamMember> ChallengeTeamMemberships { get; set; } = new List<ChallengeTeamMember>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }

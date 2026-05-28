@@ -14,4 +14,9 @@ public class ChallengeSubmissionResponseDto
     public bool IsOwn { get; set; }
     public bool IsVotedByCurrentUser { get; set; }
     public DateTime CreatedAtUtc { get; set; }
+
+    // Team support
+    public string? TeamName { get; set; }
+    public List<TeamMemberInfoDto> TeamMembers { get; set; } = [];
+    public bool IsTeamOwner { get; set; }
 }

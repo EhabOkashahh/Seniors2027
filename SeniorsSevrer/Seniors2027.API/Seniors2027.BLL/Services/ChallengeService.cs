@@ -121,6 +121,11 @@ public class ChallengeService : IChallengeService
                 .ThenInclude(p => p.User)
             .Include(c => c.Submissions.Where(s => s.UserId == currentUserId))
             .Include(c => c.Votes.Where(v => v.VoterUserId == currentUserId))
+            .Include(c => c.Teams)
+                .ThenInclude(t => t.Members)
+                    .ThenInclude(m => m.User)
+            .Include(c => c.Teams)
+                .ThenInclude(t => t.Submission)
             .Where(c => c.Status != "Hidden" && c.Status != "Ended")
             .OrderByDescending(c => c.Status == "Active" ? 3 : c.Status == "BeforeStart" ? 2 : 1)
             .ThenByDescending(c => c.CreatedAtUtc)
@@ -290,8 +295,10 @@ public class ChallengeService : IChallengeService
         await AutoEndExpiredChallengesAsync(cancellationToken);
 
         var challenge = await _context.Challenges
-            .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
-            .Include(c => c.Submissions.Where(s => s.UserId == currentUserId))
+            .Include(c => c.Participants)
+            .Include(c => c.Submissions)
+            .Include(c => c.Teams)
+                .ThenInclude(t => t.Members)
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -303,7 +310,7 @@ public class ChallengeService : IChallengeService
         if (DateTime.UtcNow >= challenge.StartAtUtc)
             throw new InvalidOperationException("Upload period has ended. Voting has already started.");
 
-        var participant = challenge.Participants.FirstOrDefault();
+        var participant = challenge.Participants.FirstOrDefault(p => p.UserId == currentUserId);
         if (participant == null)
             throw new InvalidOperationException("You must join the challenge before uploading.");
 
@@ -313,53 +320,165 @@ public class ChallengeService : IChallengeService
         if (dto.Caption?.Length > 120)
             throw new InvalidOperationException("Caption cannot exceed 120 characters.");
 
-        // If user already has a submission, delete the old one (allow re-upload)
-        var existingSubmission = challenge.Submissions.FirstOrDefault();
-        if (existingSubmission != null)
-        {
-            // Delete old media file
-            if (!string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
-            {
-                var oldFileName = Path.GetFileName(existingSubmission.MediaUrl);
-                var oldMediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldFileName);
-                if (File.Exists(oldMediaPath))
-                    File.Delete(oldMediaPath);
-            }
+        // --- Parse team member IDs ---
+        var allTeamMemberIds = dto.TeamMemberIds?.Distinct().ToList() ?? new List<int>();
+        
+        if (allTeamMemberIds.Contains(currentUserId))
+            throw new InvalidOperationException("You cannot add yourself as a team member.");
 
-            _context.ChallengeSubmissions.Remove(existingSubmission);
+        if (allTeamMemberIds.Count > 10)
+            throw new InvalidOperationException("Team cannot have more than 10 members.");
+
+        // Verify all team members are challengers
+        foreach (var memberId in allTeamMemberIds)
+        {
+            var memberParticipant = challenge.Participants.FirstOrDefault(p => p.UserId == memberId);
+            if (memberParticipant == null)
+                throw new InvalidOperationException($"User {memberId} has not joined this challenge.");
+            if (memberParticipant.Role != "Challenger")
+                throw new InvalidOperationException($"User {memberId} is a spectator, not a challenger.");
         }
 
-        var submission = new ChallengeSubmission
+        // --- Handle re-submission FIRST (before team conflict check) ---
+        var existingSubmission = await _context.ChallengeSubmissions
+            .FirstOrDefaultAsync(s => s.ChallengeId == challengeId && s.UserId == currentUserId, cancellationToken);
+
+        await using var tx = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            ChallengeId = challengeId,
-            UserId = currentUserId,
-            MediaUrl = mediaUrl,
-            MediaType = mediaType,
-            Caption = dto.Caption,
-            CreatedAtUtc = DateTime.UtcNow
-        };
+            if (existingSubmission != null)
+            {
+                // Delete old media file
+                if (!string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
+                {
+                    var oldFileName = Path.GetFileName(existingSubmission.MediaUrl);
+                    var oldMediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldFileName);
+                    if (File.Exists(oldMediaPath))
+                        File.Delete(oldMediaPath);
+                }
 
-        _context.ChallengeSubmissions.Add(submission);
-        await _context.SaveChangesAsync(cancellationToken);
+                // If submission was part of a team, delete the team too
+                if (existingSubmission.TeamId.HasValue)
+                {
+                    var oldTeam = await _context.ChallengeTeams
+                        .FirstOrDefaultAsync(t => t.Id == existingSubmission.TeamId.Value, cancellationToken);
+                    if (oldTeam != null)
+                    {
+                        var localTeam = challenge.Teams.FirstOrDefault(t => t.Id == oldTeam.Id);
+                        if (localTeam != null) challenge.Teams.Remove(localTeam);
 
-        // Fetch user info for the response
-        var user = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == currentUserId, cancellationToken);
+                        // Break circular dependency
+                        oldTeam.SubmissionId = null;
+                        existingSubmission.TeamId = null;
+                        await _context.SaveChangesAsync(cancellationToken);
 
-        return new ChallengeSubmissionResponseDto
+                        _context.ChallengeTeams.Remove(oldTeam);
+                    }
+                }
+
+                _context.ChallengeSubmissions.Remove(existingSubmission);
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            // --- Verify selected team members aren't already in another team ---
+            if (allTeamMemberIds.Count > 0)
+            {
+                var existingTeamUserIds = await _context.ChallengeTeamMembers
+                    .Where(m => m.Team.ChallengeId == challengeId && m.Team.SubmissionId != null)
+                    .Select(m => m.UserId)
+                    .ToListAsync(cancellationToken);
+
+                var conflictId = allTeamMemberIds.FirstOrDefault(mid => existingTeamUserIds.Contains(mid));
+                if (conflictId != 0)
+                    throw new InvalidOperationException($"User {conflictId} is already part of another team.");
+            }
+
+            var submission = new ChallengeSubmission
+            {
+                ChallengeId = challengeId,
+                UserId = currentUserId,
+                MediaUrl = mediaUrl,
+                MediaType = mediaType,
+                Caption = dto.Caption,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            _context.ChallengeSubmissions.Add(submission);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Create team if TeamName provided OR team members provided
+            if (!string.IsNullOrWhiteSpace(dto.TeamName) || allTeamMemberIds.Count > 0)
+            {
+                var user = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == currentUserId, cancellationToken);
+                var teamName = string.IsNullOrWhiteSpace(dto.TeamName) ? $"Team {user.Username}" : dto.TeamName;
+
+                var team = new ChallengeTeam
+                {
+                    ChallengeId = challengeId,
+                    SubmissionId = submission.Id,
+                    Name = teamName,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+
+                // Add uploader as a team member
+                team.Members.Add(new ChallengeTeamMember { UserId = currentUserId });
+
+                foreach (var memberId in allTeamMemberIds)
+                {
+                    team.Members.Add(new ChallengeTeamMember { UserId = memberId });
+                }
+
+                _context.ChallengeTeams.Add(team);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                submission.TeamId = team.Id;
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            await tx.CommitAsync(cancellationToken);
+
+            // Build response
+            var finalUser = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == currentUserId, cancellationToken);
+            var response = new ChallengeSubmissionResponseDto
+            {
+                Id = submission.Id,
+                ChallengeId = submission.ChallengeId,
+                UserId = submission.UserId,
+                UserName = finalUser.Username,
+                UserPhotoUrl = finalUser.PhotoUrl,
+                MediaUrl = submission.MediaUrl,
+                MediaType = submission.MediaType,
+                Caption = submission.Caption,
+                Votes = 0,
+                IsOwn = true,
+                IsVotedByCurrentUser = false,
+                CreatedAtUtc = submission.CreatedAtUtc
+            };
+
+            if (submission.TeamId.HasValue)
+            {
+                var team = await _context.ChallengeTeams
+                    .AsNoTracking()
+                    .Include(t => t.Members).ThenInclude(m => m.User)
+                    .FirstAsync(t => t.Id == submission.TeamId.Value, cancellationToken);
+
+                response.TeamName = team.Name;
+                response.IsTeamOwner = true;
+                response.TeamMembers = team.Members.Select(m => new TeamMemberInfoDto
+                {
+                    UserId = m.UserId,
+                    Username = m.User?.Username ?? "Unknown",
+                    PhotoUrl = m.User?.PhotoUrl
+                }).ToList();
+            }
+
+            return response;
+        }
+        catch
         {
-            Id = submission.Id,
-            ChallengeId = submission.ChallengeId,
-            UserId = submission.UserId,
-            UserName = user.Username,
-            UserPhotoUrl = user.PhotoUrl,
-            MediaUrl = submission.MediaUrl,
-            MediaType = submission.MediaType,
-            Caption = submission.Caption,
-            Votes = 0,
-            IsOwn = true,
-            IsVotedByCurrentUser = false,
-            CreatedAtUtc = submission.CreatedAtUtc
-        };
+            await tx.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task DeleteChallengeSubmissionAsync(
@@ -368,6 +487,7 @@ public class ChallengeService : IChallengeService
         CancellationToken cancellationToken = default)
     {
         var challenge = await _context.Challenges
+            .Include(c => c.Teams).ThenInclude(t => t.Members)
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -380,7 +500,16 @@ public class ChallengeService : IChallengeService
             throw new InvalidOperationException("Upload period has ended. You cannot delete your submission.");
 
         var submission = await _context.ChallengeSubmissions
+            .Include(s => s.Team).ThenInclude(t => t.Members)
             .FirstOrDefaultAsync(s => s.ChallengeId == challengeId && s.UserId == currentUserId, cancellationToken);
+
+        // If not the owner, check if user is a team member of a submission
+        if (submission == null)
+        {
+            submission = await _context.ChallengeSubmissions
+                .Include(s => s.Team).ThenInclude(t => t.Members)
+                .FirstOrDefaultAsync(s => s.ChallengeId == challengeId && s.Team != null && s.Team.Members.Any(m => m.UserId == currentUserId), cancellationToken);
+        }
 
         if (submission == null)
             throw new InvalidOperationException("You don't have a submission to delete.");
@@ -400,6 +529,22 @@ public class ChallengeService : IChallengeService
             .ToListAsync(cancellationToken);
         if (votes.Any())
             _context.ChallengeVotes.RemoveRange(votes);
+
+        // Delete team if this submission was part of a team
+        if (submission.TeamId.HasValue)
+        {
+            var team = await _context.ChallengeTeams
+                .FirstOrDefaultAsync(t => t.Id == submission.TeamId.Value, cancellationToken);
+            if (team != null)
+            {
+                // Break circular dependency before deletion
+                team.SubmissionId = null;
+                submission.TeamId = null;
+                await _context.SaveChangesAsync(cancellationToken);
+
+                _context.ChallengeTeams.Remove(team);
+            }
+        }
 
         _context.ChallengeSubmissions.Remove(submission);
         await _context.SaveChangesAsync(cancellationToken);
@@ -495,6 +640,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Votes)
             .Include(c => c.Submissions)
             .Include(c => c.Messages)
+            .Include(c => c.Teams).ThenInclude(t => t.Members)
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -527,6 +673,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Votes)
             .Include(c => c.Submissions)
             .Include(c => c.Messages)
+            .Include(c => c.Teams).ThenInclude(t => t.Members)
             .FirstAsync(c => c.Id == challengeId, cancellationToken);
 
         // Cancel if too few challengers or submissions
@@ -551,10 +698,26 @@ public class ChallengeService : IChallengeService
             return new List<ChallengeLeaderboardItemDto>();
         }
 
-        // Penalize challengers who didn't upload
+        // Build set of userIds covered by a submission (direct or via team)
+        var coveredUserIds = new HashSet<int>();
+        foreach (var s in challenge.Submissions)
+        {
+            coveredUserIds.Add(s.UserId);
+            if (s.TeamId.HasValue)
+            {
+                var team = challenge.Teams?.FirstOrDefault(t => t.Id == s.TeamId.Value);
+                if (team != null)
+                {
+                    foreach (var m in team.Members)
+                        coveredUserIds.Add(m.UserId);
+                }
+            }
+        }
+
+        // Penalize challengers who didn't upload or join a team
         foreach (var participant in challenge.Participants.Where(p => p.Role == "Challenger"))
         {
-            if (!challenge.Submissions.Any(s => s.UserId == participant.UserId))
+            if (!coveredUserIds.Contains(participant.UserId))
             {
                 var user = await _context.Users.FindAsync([participant.UserId], cancellationToken);
                 if (user != null)
@@ -569,10 +732,25 @@ public class ChallengeService : IChallengeService
 
         foreach (var winner in winners)
         {
-            var user = await _context.Users.FindAsync([winner.UserId], cancellationToken);
-            if (user != null)
+            if (winner.TeamMembers.Count > 0)
             {
-                user.Points += winner.PointsEarned;
+                // Split points among all team members
+                foreach (var member in winner.TeamMembers)
+                {
+                    var user = await _context.Users.FindAsync([member.UserId], cancellationToken);
+                    if (user != null)
+                    {
+                        user.Points += winner.PointsEarned;
+                    }
+                }
+            }
+            else
+            {
+                var user = await _context.Users.FindAsync([winner.UserId], cancellationToken);
+                if (user != null)
+                {
+                    user.Points += winner.PointsEarned;
+                }
             }
         }
 
@@ -602,6 +780,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Votes)
             .Include(c => c.Submissions)
             .Include(c => c.Participants)
+            .Include(c => c.Teams).ThenInclude(t => t.Members)
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -620,6 +799,16 @@ public class ChallengeService : IChallengeService
         if (challenge.Votes.Any())
         {
             _context.ChallengeVotes.RemoveRange(challenge.Votes);
+        }
+
+        // Break circular dependencies before bulk delete
+        foreach (var team in challenge.Teams) team.SubmissionId = null;
+        foreach (var sub in challenge.Submissions) sub.TeamId = null;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        if (challenge.Teams.Any())
+        {
+            _context.ChallengeTeams.RemoveRange(challenge.Teams);
         }
 
         if (challenge.Submissions.Any())
@@ -810,6 +999,7 @@ public class ChallengeService : IChallengeService
     {
         var topSubmissions = await _context.ChallengeSubmissions
             .AsNoTracking()
+            .Include(s => s.Team).ThenInclude(t => t.Members).ThenInclude(m => m.User)
             .Where(s => s.ChallengeId == challenge.Id)
             .Select(s => new
             {
@@ -821,6 +1011,7 @@ public class ChallengeService : IChallengeService
                 s.MediaType,
                 s.Caption,
                 s.CreatedAtUtc,
+                s.Team,
                 VoteCount = s.Votes.Count
             })
             .OrderByDescending(s => s.VoteCount)
@@ -828,21 +1019,53 @@ public class ChallengeService : IChallengeService
             .Take(3)
             .ToListAsync(cancellationToken);
 
-        return topSubmissions.Select((s, index) => new ChallengeLeaderboardItemDto
+        // Points per member for team entries
+        int splitAmong(int place)
         {
-            Rank = index + 1,
-            SubmissionId = s.Id,
-            UserId = s.UserId,
-            UserName = s.Username,
-            UserPhotoUrl = s.PhotoUrl,
-            MediaUrl = s.MediaUrl,
-            MediaType = s.MediaType,
-            Caption = s.Caption,
-            Votes = s.VoteCount,
-            IsOwn = s.UserId == currentUserId,
-            PointsEarned = index == 0 ? challenge.FirstPlacePts :
-                           index == 1 ? challenge.SecondPlacePts :
-                           challenge.ThirdPlacePts
+            var pts = place == 0 ? challenge.FirstPlacePts :
+                      place == 1 ? challenge.SecondPlacePts :
+                      challenge.ThirdPlacePts;
+            return pts;
+        }
+
+        return topSubmissions.Select((s, index) =>
+        {
+            var basePts = splitAmong(index);
+            var isTeam = s.Team != null && s.Team.Members.Count > 1;
+            var memberCount = isTeam ? s.Team.Members.Count : 1;
+            var ptsPerMember = isTeam ? basePts / memberCount : basePts;
+
+            var dto = new ChallengeLeaderboardItemDto
+            {
+                Rank = index + 1,
+                SubmissionId = s.Id,
+                UserId = s.UserId,
+                UserName = s.Username,
+                UserPhotoUrl = s.PhotoUrl,
+                MediaUrl = s.MediaUrl,
+                MediaType = s.MediaType,
+                Caption = s.Caption,
+                Votes = s.VoteCount,
+                IsOwn = s.UserId == currentUserId || (s.Team != null && s.Team.Members.Any(m => m.UserId == currentUserId)),
+                PointsEarned = isTeam ? ptsPerMember : basePts
+            };
+
+            if (isTeam)
+            {
+                dto.TeamName = s.Team.Name;
+                dto.IsTeamOwner = s.UserId == currentUserId;
+                dto.UserId = 0; // Not meaningful for teams
+                dto.UserName = s.Team.Name;
+                dto.UserPhotoUrl = null;
+                dto.TeamMembers = s.Team.Members.Select(m => new TeamMemberInfoDto
+                {
+                    UserId = m.UserId,
+                    Username = m.User?.Username ?? "Unknown",
+                    PhotoUrl = m.User?.PhotoUrl
+                }).ToList();
+            }
+
+            return dto;
         }).ToList();
     }
 
@@ -888,6 +1111,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Votes)
             .Include(c => c.Submissions)
             .Include(c => c.Messages)
+            .Include(c => c.Teams).ThenInclude(t => t.Members)
             .Where(c => c.Status == "Active" && c.EndAtUtc <= now)
             .ToListAsync(cancellationToken);
 
@@ -899,10 +1123,26 @@ public class ChallengeService : IChallengeService
                 new object[] { now, c.Id }, cancellationToken);
             if (rows == 0) continue;
 
-            // Penalize challengers who didn't upload
+            // Build set of userIds covered by a submission (direct or via team)
+            var coveredUserIds = new HashSet<int>();
+            foreach (var s in c.Submissions)
+            {
+                coveredUserIds.Add(s.UserId);
+                if (s.TeamId.HasValue)
+                {
+                    var team = c.Teams?.FirstOrDefault(t => t.Id == s.TeamId.Value);
+                    if (team != null)
+                    {
+                        foreach (var m in team.Members)
+                            coveredUserIds.Add(m.UserId);
+                    }
+                }
+            }
+
+            // Penalize challengers who didn't upload or join a team
             foreach (var participant in c.Participants.Where(p => p.Role == "Challenger"))
             {
-                if (!c.Submissions.Any(s => s.UserId == participant.UserId))
+                if (!coveredUserIds.Contains(participant.UserId))
                 {
                     var user = await _context.Users.FindAsync([participant.UserId], cancellationToken);
                     if (user != null)
@@ -916,10 +1156,20 @@ public class ChallengeService : IChallengeService
             var winners = await GetLeaderboardInternalAsync(c, 0, cancellationToken);
             foreach (var winner in winners)
             {
-                var user = await _context.Users.FindAsync([winner.UserId], cancellationToken);
-                if (user != null)
+                if (winner.TeamMembers.Count > 0)
                 {
-                    user.Points += winner.PointsEarned;
+                    foreach (var member in winner.TeamMembers)
+                    {
+                        var user = await _context.Users.FindAsync([member.UserId], cancellationToken);
+                        if (user != null)
+                            user.Points += winner.PointsEarned;
+                    }
+                }
+                else
+                {
+                    var user = await _context.Users.FindAsync([winner.UserId], cancellationToken);
+                    if (user != null)
+                        user.Points += winner.PointsEarned;
                 }
             }
 
@@ -945,6 +1195,20 @@ public class ChallengeService : IChallengeService
         var participant = challenge.Participants?.FirstOrDefault(p => p.UserId == currentUserId);
         var submission = challenge.Submissions?.FirstOrDefault(s => s.UserId == currentUserId);
         var vote = challenge.Votes?.FirstOrDefault(v => v.VoterUserId == currentUserId);
+
+        // Build a lookup of userId -> team info for team members
+        var teamLookup = new Dictionary<int, (string Name, int TeamId, bool IsOwner)>();
+        if (challenge.Teams != null)
+        {
+            foreach (var team in challenge.Teams)
+            {
+                if (team.Members == null) continue;
+                foreach (var member in team.Members)
+                {
+                    teamLookup[member.UserId] = (team.Name, team.Id, team.Submission?.UserId == member.UserId);
+                }
+            }
+        }
 
         return new ChallengeResponseDto
         {
@@ -972,12 +1236,24 @@ public class ChallengeService : IChallengeService
             HasCurrentUserJoined = participant != null,
             HasCurrentUserSubmitted = submission != null,
             HasCurrentUserVoted = vote != null,
-            Participants = challenge.Participants?.Select(p => new ChallengeParticipantDto
+            Participants = challenge.Participants?.Select(p =>
             {
-                UserId = p.UserId,
-                Username = p.User?.Username ?? "Unknown",
-                PhotoUrl = p.User?.PhotoUrl,
-                Role = p.Role
+                var dto = new ChallengeParticipantDto
+                {
+                    UserId = p.UserId,
+                    Username = p.User?.Username ?? "Unknown",
+                    PhotoUrl = p.User?.PhotoUrl,
+                    Role = p.Role
+                };
+
+                if (teamLookup.TryGetValue(p.UserId, out var teamInfo))
+                {
+                    dto.TeamName = teamInfo.Name;
+                    dto.TeamId = teamInfo.TeamId;
+                    dto.IsTeamOwner = teamInfo.IsOwner;
+                }
+
+                return dto;
             }).ToList() ?? []
         };
     }

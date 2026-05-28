@@ -6,4 +6,7 @@ public class ChallengeParticipantDto
     public string Username { get; set; } = string.Empty;
     public string? PhotoUrl { get; set; }
     public string Role { get; set; } = string.Empty;
+    public string? TeamName { get; set; }
+    public int? TeamId { get; set; }
+    public bool IsTeamOwner { get; set; }
 }

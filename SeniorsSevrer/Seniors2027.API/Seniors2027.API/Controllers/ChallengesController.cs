@@ -6,6 +6,7 @@ using Seniors2027.API.Extensions;
 using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs.Challenges;
 using Seniors2027.BLL.Interfaces;
+using Seniors2027.API.Models;
 using Seniors2027.DAL.Data;
 using Seniors2027.DAL.Entities;
 
@@ -103,8 +104,7 @@ public class ChallengesController(
     [HttpPost("{challengeId:int}/submissions")]
     public async Task<ActionResult<ChallengeSubmissionResponseDto>> UploadSubmission(
         int challengeId,
-        [FromForm] IFormFile media,
-        [FromForm] string? caption)
+        [FromForm] UploadSubmissionFormDto form)
     {
         if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
 
@@ -114,10 +114,23 @@ public class ChallengesController(
             var challenge = await _context.Challenges.FindAsync(challengeId);
             if (challenge == null) return NotFound("Challenge not found.");
 
-            var relativeUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(media, challenge.UploadType);
+            var relativeUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(form.Media, challenge.UploadType);
             var mediaUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
 
-            var dto = new CreateChallengeSubmissionRequestDto { Caption = caption };
+            var teamMemberIds = string.IsNullOrWhiteSpace(form.TeamMemberIdsCsv)
+                ? []
+                : form.TeamMemberIdsCsv
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(s => int.TryParse(s, out var id) ? id : -1)
+                    .Where(id => id > 0)
+                    .ToList();
+
+            var dto = new CreateChallengeSubmissionRequestDto
+            {
+                Caption = form.Caption,
+                TeamName = form.TeamName,
+                TeamMemberIds = teamMemberIds
+            };
             var response = await _challengeService.UploadChallengeSubmissionAsync(
                 challengeId,
                 currentUserId,

@@ -31,4 +31,8 @@ public class ChallengeSubmission
     public Challenge Challenge { get; set; } = null!;
     public User User { get; set; } = null!;
     public ICollection<ChallengeVote> Votes { get; set; } = new List<ChallengeVote>();
+
+    // Team support
+    public int? TeamId { get; set; }
+    public ChallengeTeam? Team { get; set; }
 }

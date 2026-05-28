@@ -83,7 +83,10 @@ function mapChallenge(data: any): Challenge {
       userId: p.userId,
       username: p.username,
       photoUrl: resolveMediaUrl(p.photoUrl),
-      role: p.role
+      role: p.role,
+      teamName: p.teamName,
+      teamId: p.teamId,
+      isTeamOwner: p.isTeamOwner
     }))
   }
 }
@@ -251,7 +254,12 @@ export async function adminEndChallengeRequest(challengeId: number): Promise<Api
     }
 
     const data = (await response.json()) as ChallengeLeaderboardItem[]
-    return { ok: true, data: data.map(item => ({ ...item, userPhotoUrl: resolveMediaUrl(item.userPhotoUrl), mediaUrl: resolveMediaUrl(item.mediaUrl) })) }
+    return { ok: true, data: data.map(item => ({ 
+      ...item, 
+      userPhotoUrl: resolveMediaUrl(item.userPhotoUrl), 
+      mediaUrl: resolveMediaUrl(item.mediaUrl),
+      teamMembers: (item.teamMembers || []).map(m => ({ ...m, photoUrl: resolveMediaUrl(m.photoUrl) }))
+    })) }
   } catch {
     return { ok: false, error: 'Server is unreachable.' }
   }
@@ -310,15 +318,21 @@ export async function getChallengeSubmissionsRequest(challengeId: number): Promi
 export async function uploadChallengeSubmissionRequest(
   challengeId: number, 
   file: File, 
-  caption?: string
+  caption?: string,
+  teamName?: string,
+  teamMemberIds?: number[]
 ): Promise<ApiResult<ChallengeSubmission>> {
   try {
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const formData = new FormData()
-    formData.append('media', file)
-    if (caption) formData.append('caption', caption)
+    formData.append('Media', file)
+    if (caption) formData.append('Caption', caption)
+    if (teamName) formData.append('TeamName', teamName)
+    if (teamMemberIds && teamMemberIds.length > 0) {
+      formData.append('TeamMemberIdsCsv', teamMemberIds.join(','))
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/submissions`, {
       method: 'POST',
@@ -332,7 +346,15 @@ export async function uploadChallengeSubmissionRequest(
     }
 
     const data = (await response.json()) as ChallengeSubmission
-    return { ok: true, data: { ...data, mediaUrl: resolveMediaUrl(data.mediaUrl), userPhotoUrl: resolveMediaUrl(data.userPhotoUrl) } }
+    return { 
+      ok: true, 
+      data: { 
+        ...data, 
+        mediaUrl: resolveMediaUrl(data.mediaUrl), 
+        userPhotoUrl: resolveMediaUrl(data.userPhotoUrl),
+        teamMembers: (data.teamMembers || []).map(m => ({ ...m, photoUrl: resolveMediaUrl(m.photoUrl) }))
+      } 
+    }
   } catch {
     return { ok: false, error: 'Server is unreachable.' }
   }
@@ -378,7 +400,12 @@ export async function getChallengeLeaderboardRequest(challengeId: number): Promi
     }
 
     const data = (await response.json()) as ChallengeLeaderboardItem[]
-    return { ok: true, data: data.map(item => ({ ...item, userPhotoUrl: resolveMediaUrl(item.userPhotoUrl), mediaUrl: resolveMediaUrl(item.mediaUrl) })) }
+    return { ok: true, data: data.map(item => ({ 
+      ...item, 
+      userPhotoUrl: resolveMediaUrl(item.userPhotoUrl), 
+      mediaUrl: resolveMediaUrl(item.mediaUrl),
+      teamMembers: (item.teamMembers || []).map(m => ({ ...m, photoUrl: resolveMediaUrl(m.photoUrl) }))
+    })) }
   } catch {
     return { ok: false, error: 'Server is unreachable.' }
   }

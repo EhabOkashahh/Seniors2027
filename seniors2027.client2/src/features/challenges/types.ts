@@ -2,11 +2,20 @@ export type ChallengeStatus = 'BeforeStart' | 'Active' | 'Ended' | 'Hidden';
 
 export type ChallengeRole = 'challenger' | 'spectator' | null;
 
+export interface TeamMemberInfoDto {
+  userId: number;
+  username: string;
+  photoUrl?: string | null;
+}
+
 export interface ChallengeParticipantInfo {
   userId: number;
   username: string;
   photoUrl?: string | null;
   role: string;
+  teamName?: string | null;
+  teamId?: number | null;
+  isTeamOwner?: boolean;
 }
 
 export interface Challenge {
@@ -52,6 +61,9 @@ export interface ChallengeSubmission {
   isOwn: boolean;
   isVotedByCurrentUser: boolean;
   createdAtUtc: string;
+  teamName?: string | null;
+  teamMembers?: TeamMemberInfoDto[];
+  isTeamOwner?: boolean;
 }
 
 export interface ChallengeLeaderboardItem {
@@ -66,6 +78,9 @@ export interface ChallengeLeaderboardItem {
   votes: number;
   pointsEarned: number;
   isOwn: boolean;
+  teamName?: string | null;
+  teamMembers?: TeamMemberInfoDto[];
+  isTeamOwner?: boolean;
 }
 
 export interface VoteChallengeSubmissionResponse {
