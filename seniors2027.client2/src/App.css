@@ -661,6 +661,14 @@ button:active { transform: translate(1px, 1px); box-shadow: 5px 5px 0px var(--sh
     width: min(88vw, 300px);
     transform: translateX(-110%);
     box-shadow: 10px 0 0 black;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    min-height: 0;
+  }
+  .portal-sidebar .portal-nav {
+    flex: none;
+    min-height: 0;
   }
 
   .portal-sidebar.open {
