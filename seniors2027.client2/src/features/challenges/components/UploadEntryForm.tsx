@@ -8,6 +8,7 @@ interface UploadEntryFormProps {
   uploadFormRef: React.RefObject<HTMLDivElement | null>
   isLoading?: boolean
   externalError?: string | null
+  onClose?: () => void
 }
 
 export default function UploadEntryForm({
@@ -15,7 +16,8 @@ export default function UploadEntryForm({
   onSubmit,
   uploadFormRef,
   isLoading = false,
-  externalError = null
+  externalError = null,
+  onClose
 }: UploadEntryFormProps) {
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -66,11 +68,20 @@ export default function UploadEntryForm({
       className="window"
       style={{ maxWidth: '100%' }}
     >
-      <div className="window-header" style={{ background: 'var(--accent-orange)' }}>
+      <div className="window-header" style={{ background: 'var(--accent-orange)', display: 'flex', alignItems: 'center' }}>
         <div className="dot red" />
         <div className="dot yellow" />
         <div className="dot green" />
-        <span style={{ marginLeft: '12px', fontWeight: 900, textTransform: 'uppercase' }}>Upload Your Entry</span>
+        <span style={{ marginLeft: '12px', fontWeight: 900, textTransform: 'uppercase', flex: 1 }}>Upload Your Entry</span>
+        {onClose && (
+          <button 
+            onClick={onClose}
+            disabled={isLoading}
+            style={{ background: 'white', border: '3px solid black', padding: '4px', cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1, lineHeight: 0, boxShadow: '4px 4px 0 black' }}
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
       <div className="window-content" style={{ padding: '40px' }}>
         {!hasSubmitted ? (

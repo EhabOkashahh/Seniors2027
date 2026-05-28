@@ -534,26 +534,21 @@ export default function ChallengeMode() {
 
       <AnimatePresence>
         {isUploadModalOpen && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', overflowY: 'auto' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', overflowY: 'auto' }} onClick={() => setIsUploadModalOpen(false)}>
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              style={{ maxWidth: '800px', width: '100%', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}
+              style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <button 
-                onClick={() => setIsUploadModalOpen(false)}
-                disabled={isUploading}
-                style={{ position: 'absolute', top: '-50px', right: '0', background: 'white', border: '3px solid black', padding: '10px', cursor: isUploading ? 'not-allowed' : 'pointer', zIndex: 10, boxShadow: '4px 4px 0 black', opacity: isUploading ? 0.5 : 1 }}
-              >
-                <X size={24} />
-              </button>
               <UploadEntryForm 
                 hasSubmitted={hasSubmitted}
                 onSubmit={handleSubmitEntry}
                 uploadFormRef={uploadFormRef}
                 isLoading={isUploading}
                 externalError={uploadError}
+                onClose={() => setIsUploadModalOpen(false)}
               />
             </motion.div>
           </div>
