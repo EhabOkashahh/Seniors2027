@@ -178,6 +178,8 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
             .Include(c => c.Submissions.Where(s => s.UserId == currentUserId))
             .Include(c => c.Votes.Where(v => v.VoterUserId == currentUserId))
+            .Include(c => c.Teams)
+                .ThenInclude(t => t.Members)
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -262,26 +264,43 @@ public class ChallengeService : IChallengeService
 
         var submissions = await _context.ChallengeSubmissions
             .AsNoTracking()
+            .Include(s => s.Team).ThenInclude(t => t.Members)
+            .Include(s => s.Votes)
+            .Include(s => s.User)
             .Where(s => s.ChallengeId == challengeId)
             .OrderByDescending(s => s.CreatedAtUtc)
-            .Select(s => new ChallengeSubmissionResponseDto
+            .ToListAsync(cancellationToken);
+
+        return submissions.Select(s =>
+        {
+            var isTeam = s.Team != null;
+            var isOwn = s.UserId == currentUserId || (isTeam && s.Team.Members.Any(m => m.UserId == currentUserId));
+            return new ChallengeSubmissionResponseDto
             {
                 Id = s.Id,
                 ChallengeId = s.ChallengeId,
                 UserId = s.UserId,
-                UserName = s.User.Username,
-                UserPhotoUrl = s.User.PhotoUrl,
+                UserName = s.User?.Username ?? "Unknown",
+                UserPhotoUrl = s.User?.PhotoUrl,
                 MediaUrl = s.MediaUrl,
                 MediaType = s.MediaType,
                 Caption = s.Caption,
-                Votes = s.Votes.Count,
-                IsOwn = s.UserId == currentUserId,
-                IsVotedByCurrentUser = s.Votes.Any(v => v.VoterUserId == currentUserId),
-                CreatedAtUtc = s.CreatedAtUtc
-            })
-            .ToListAsync(cancellationToken);
-
-        return submissions;
+                Votes = s.Votes?.Count ?? 0,
+                IsOwn = isOwn,
+                IsVotedByCurrentUser = s.Votes != null && s.Votes.Any(v => v.VoterUserId == currentUserId),
+                CreatedAtUtc = s.CreatedAtUtc,
+                TeamName = isTeam ? s.Team.Name : null,
+                IsTeamOwner = isTeam && s.UserId == currentUserId,
+                TeamMembers = isTeam
+                    ? s.Team.Members.Select(m => new TeamMemberInfoDto
+                    {
+                        UserId = m.UserId,
+                        Username = m.User?.Username ?? "Unknown",
+                        PhotoUrl = m.User?.PhotoUrl
+                    }).ToList()
+                    : new List<TeamMemberInfoDto>()
+            };
+        }).ToList();
     }
 
     public async Task<ChallengeSubmissionResponseDto> UploadChallengeSubmissionAsync(
@@ -586,6 +605,16 @@ public class ChallengeService : IChallengeService
 
         if (submission.UserId == currentUserId)
             throw new InvalidOperationException("You cannot vote for your own submission.");
+
+        // Team members cannot vote for their own team's submission
+        if (submission.TeamId.HasValue)
+        {
+            var team = await _context.ChallengeTeams
+                .Include(t => t.Members)
+                .FirstOrDefaultAsync(t => t.Id == submission.TeamId.Value, cancellationToken);
+            if (team != null && team.Members.Any(m => m.UserId == currentUserId))
+                throw new InvalidOperationException("You cannot vote for your own team's submission.");
+        }
 
         var vote = new ChallengeVote
         {
@@ -1197,15 +1226,19 @@ public class ChallengeService : IChallengeService
         var vote = challenge.Votes?.FirstOrDefault(v => v.VoterUserId == currentUserId);
 
         // Build a lookup of userId -> team info for team members
+        var subOwnerByTeamId = challenge.Submissions?
+            .Where(s => s.TeamId.HasValue)
+            .ToDictionary(s => s.TeamId!.Value, s => s.UserId);
         var teamLookup = new Dictionary<int, (string Name, int TeamId, bool IsOwner)>();
         if (challenge.Teams != null)
         {
             foreach (var team in challenge.Teams)
             {
                 if (team.Members == null) continue;
+                int? ownerId = subOwnerByTeamId?.TryGetValue(team.Id, out var oid) == true ? oid : null;
                 foreach (var member in team.Members)
                 {
-                    teamLookup[member.UserId] = (team.Name, team.Id, team.Submission?.UserId == member.UserId);
+                    teamLookup[member.UserId] = (team.Name, team.Id, ownerId == member.UserId);
                 }
             }
         }
