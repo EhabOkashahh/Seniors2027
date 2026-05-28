@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { pushGlobalToast } from '../../lib/globalToast'
 
 const MOBILE_BREAKPOINT = 640
-const MOBILE_CROP_SIZE = 220
+const MOBILE_CROP_SIZE = 200
 const DESKTOP_CROP_SIZE = 280
 const OUTPUT_SIZE = 720
 
@@ -164,7 +165,8 @@ export default function ImageCropEditorModal({
         display: 'grid',
         placeItems: 'center',
         zIndex: 10000,
-        padding: '20px'
+        padding: isMobile ? '16px' : '20px',
+        overflowY: 'auto'
       }}
     >
       <div
@@ -172,17 +174,18 @@ export default function ImageCropEditorModal({
         style={{
           width: 'min(560px, 100%)',
           border: '4px solid black',
-          boxShadow: '12px 12px 0 black',
+          boxShadow: isMobile ? '8px 8px 0 black' : '12px 12px 0 black',
           background: 'var(--retro-paper)',
-          padding: isMobile ? '12px' : '16px',
+          padding: isMobile ? '10px' : '16px',
           display: 'grid',
-          gap: '12px'
+          gap: '10px',
+          margin: 'auto'
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-          <h3 style={{ margin: 0, textTransform: 'uppercase' }}>{title}</h3>
-          <button type="button" className="neo-btn" onClick={onCancel} disabled={isBusy}>
-            Close
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+          <h3 style={{ margin: 0, textTransform: 'uppercase', fontSize: isMobile ? '1rem' : undefined }}>{title}</h3>
+          <button type="button" onClick={onCancel} disabled={isBusy} style={{ background: 'none', border: 'none', padding: '4px', cursor: isBusy ? 'not-allowed' : 'pointer', lineHeight: 0, opacity: isBusy ? 0.5 : 1 }}>
+            <X size={20} />
           </button>
         </div>
 
@@ -243,7 +246,7 @@ export default function ImageCropEditorModal({
           {error && <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#7e0000' }}>{error}</div>}
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button
             type="button"
             className="neo-btn"
@@ -253,10 +256,11 @@ export default function ImageCropEditorModal({
               setOffsetY(0)
             }}
             disabled={isBusy}
+            style={isMobile ? { padding: '8px 14px', fontSize: '0.85rem', width: 'auto', minWidth: 0 } : undefined}
           >
             Reset
           </button>
-          <button type="button" className="neo-btn" onClick={handleApply} disabled={isBusy}>
+          <button type="button" className="neo-btn" onClick={handleApply} disabled={isBusy} style={isMobile ? { padding: '8px 14px', fontSize: '0.85rem', width: 'auto', minWidth: 0 } : undefined}>
             {isBusy ? 'Saving...' : confirmLabel}
           </button>
         </div>

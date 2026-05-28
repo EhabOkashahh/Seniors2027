@@ -68,8 +68,8 @@ export default function PictureUploadStep({ value, onChange }: PictureUploadStep
             <span>Choose image then adjust zoom and crop</span>
           </div>
         )}
-        <div style={{ marginTop: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <button type="button" className="neo-btn" onClick={() => fileInputRef.current?.click()}>
+        <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button type="button" className="neo-btn" onClick={() => fileInputRef.current?.click()} style={{ padding: '6px 14px', fontSize: '0.8rem', minWidth: 0, width: 'auto' }}>
             {value ? 'Choose Another' : 'Choose Photo'}
           </button>
           <button
@@ -80,6 +80,7 @@ export default function PictureUploadStep({ value, onChange }: PictureUploadStep
               if (!currentFile) return
               openEditorForFile(currentFile)
             }}
+            style={{ padding: '6px 14px', fontSize: '0.8rem', minWidth: 0, width: 'auto' }}
           >
             Edit Crop
           </button>

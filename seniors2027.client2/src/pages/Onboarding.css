@@ -74,11 +74,8 @@
 .neo-btn:active { background: var(--retro-yellow); transform: translate(3px, 3px); box-shadow: 3px 3px 0 var(--retro-ink); }
 
 .auth-page {
-  padding-top: 24px;
   overflow-x: hidden;
   overflow-y: auto;
-  place-items: start center;
-  align-content: start;
 }
 .auth-card {
   width: min(760px, 96vw);
@@ -89,9 +86,9 @@
   box-shadow: 12px 12px 0 var(--retro-ink);
   border-radius: 14px;
   color: var(--retro-ink);
-  padding: 18px;
+  padding: 14px;
   display: grid;
-  gap: 10px;
+  gap: 6px;
   justify-items: stretch;
   position: relative;
   z-index: 2;
@@ -123,16 +120,16 @@
 .step-panel {
   width: 100%;
   min-width: 100%;
-  min-height: 360px;
-  padding: 20px;
+  min-height: 320px;
+  padding: 14px;
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 8px;
 }
 
 .step-title { margin: 0; font-family: 'Archivo Black', sans-serif; font-size: clamp(1.25rem, 3.7vw, 2rem); text-transform: uppercase; line-height: 1; }
 .form-step-subtitle { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 0.92rem; font-weight: 500; }
-.form-step-body { margin-top: 4px; }
+.form-step-body { margin-top: 2px; }
 
 .retro-field { width: 100%; display: grid; gap: 10px; }
 .retro-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.86rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -211,6 +208,7 @@
   border-radius: 10px;
   padding: 10px;
   cursor: pointer;
+  box-sizing: border-box;
 }
 .retro-upload input { display: none; }
 .retro-upload-placeholder {
@@ -242,24 +240,24 @@
   .sticker-b, .shape-triangle, .spark-b { display: none; }
   .auth-page {
     padding: 12px;
-    place-items: start center;
   }
   .auth-card {
     width: 100%;
-    padding: 12px;
+    padding: 10px;
     box-shadow: 8px 8px 0 var(--retro-ink);
     max-height: none;
     min-height: 0;
-    overflow: visible;
-    margin-bottom: 12px;
+    overflow-y: auto;
   }
   .step-slider {
     box-shadow: 7px 7px 0 var(--retro-ink);
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   .step-panel {
-    padding: 12px;
+    padding: 10px;
     min-height: 0;
-    gap: 8px;
+    gap: 6px;
   }
   .step-caption {
     display: none;
