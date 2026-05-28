@@ -78,7 +78,13 @@ function mapChallenge(data: any): Challenge {
     currentUserVotedSubmissionId: data.currentUserVotedSubmissionId,
     hasCurrentUserJoined: data.hasCurrentUserJoined,
     hasCurrentUserSubmitted: data.hasCurrentUserSubmitted,
-    hasCurrentUserVoted: data.hasCurrentUserVoted
+    hasCurrentUserVoted: data.hasCurrentUserVoted,
+    participants: (data.participants || []).map((p: any) => ({
+      userId: p.userId,
+      username: p.username,
+      photoUrl: resolveMediaUrl(p.photoUrl),
+      role: p.role
+    }))
   }
 }
 

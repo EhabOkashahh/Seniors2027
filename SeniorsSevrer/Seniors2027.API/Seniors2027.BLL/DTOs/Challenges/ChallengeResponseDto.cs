@@ -29,4 +29,6 @@ public class ChallengeResponseDto
     public bool HasCurrentUserJoined { get; set; }
     public bool HasCurrentUserSubmitted { get; set; }
     public bool HasCurrentUserVoted { get; set; }
+
+    public List<ChallengeParticipantDto> Participants { get; set; } = [];
 }

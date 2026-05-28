@@ -445,6 +445,67 @@ export default function ChallengeMode() {
             canJoinAsChallenger={challengeStatus === 'BeforeStart' || isUploadPhase}
           />
 
+          {/* Challengers & Spectators Tables — hide once voting phase starts */}
+          {(challengeStatus === 'BeforeStart' || isUploadPhase) && challenge.participants && challenge.participants.length > 0 && (
+            <div style={{ display: 'flex', gap: '30px', marginTop: '20px', flexWrap: 'wrap' }}>
+              {['Challenger', 'Spectator'].map((role) => {
+                const items = challenge.participants.filter(p => p.role === role)
+                if (items.length === 0) return null
+                return (
+                  <div key={role} className="window" style={{ padding: 0, flex: '1 1 300px', minWidth: 0 }}>
+                    <div className="window-header" style={{
+                      background: role === 'Challenger' ? 'var(--accent-pink-soft)' : 'var(--accent-cyan)',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 900,
+                      fontSize: '0.85rem',
+                      textTransform: 'uppercase',
+                      borderBottom: '2px solid black'
+                    }}>
+                      {role}s ({items.length})
+                    </div>
+                    <div style={{
+                      maxHeight: '280px',
+                      overflowY: 'auto',
+                      padding: '8px 0'
+                    }}>
+                      {items.map(p => (
+                        <div key={p.userId} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '8px 16px',
+                          borderBottom: '1px solid rgba(0,0,0,0.08)'
+                        }}>
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            border: '2px solid black',
+                            flexShrink: 0,
+                            background: '#eee'
+                          }}>
+                            {p.photoUrl ? (
+                              <img src={p.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.8rem', background: 'var(--accent-cyan)' }}>
+                                {p.username[0]?.toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{p.username}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           {isUploadPhase && hasSubmitted && selectedRole === 'challenger' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', marginTop: '-10px' }}>
               <div style={{ fontWeight: 900, fontSize: '0.9rem', textTransform: 'uppercase', opacity: 0.6 }}>Your Entry</div>

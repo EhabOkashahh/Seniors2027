@@ -2,6 +2,13 @@ export type ChallengeStatus = 'BeforeStart' | 'Active' | 'Ended' | 'Hidden';
 
 export type ChallengeRole = 'challenger' | 'spectator' | null;
 
+export interface ChallengeParticipantInfo {
+  userId: number;
+  username: string;
+  photoUrl?: string | null;
+  role: string;
+}
+
 export interface Challenge {
   id: number;
   title: string;
@@ -29,6 +36,7 @@ export interface Challenge {
   hasCurrentUserJoined: boolean;
   hasCurrentUserSubmitted: boolean;
   hasCurrentUserVoted: boolean;
+  participants: ChallengeParticipantInfo[];
 }
 
 export interface ChallengeSubmission {

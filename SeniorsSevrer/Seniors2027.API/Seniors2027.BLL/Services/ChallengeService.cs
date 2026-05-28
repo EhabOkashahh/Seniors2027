@@ -117,7 +117,8 @@ public class ChallengeService : IChallengeService
         await AutoEndExpiredChallengesAsync(cancellationToken);
 
         var challenge = await _context.Challenges
-            .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
+            .Include(c => c.Participants)
+                .ThenInclude(p => p.User)
             .Include(c => c.Submissions.Where(s => s.UserId == currentUserId))
             .Include(c => c.Votes.Where(v => v.VoterUserId == currentUserId))
             .Where(c => c.Status != "Hidden" && c.Status != "Ended")
@@ -970,7 +971,14 @@ public class ChallengeService : IChallengeService
             CurrentUserVotedSubmissionId = vote?.SubmissionId,
             HasCurrentUserJoined = participant != null,
             HasCurrentUserSubmitted = submission != null,
-            HasCurrentUserVoted = vote != null
+            HasCurrentUserVoted = vote != null,
+            Participants = challenge.Participants?.Select(p => new ChallengeParticipantDto
+            {
+                UserId = p.UserId,
+                Username = p.User?.Username ?? "Unknown",
+                PhotoUrl = p.User?.PhotoUrl,
+                Role = p.Role
+            }).ToList() ?? []
         };
     }
 }
