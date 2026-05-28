@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { Clock, X, AlertCircle, LogOut, Users } from 'lucide-react'
+import { Clock, X, AlertCircle, LogOut } from 'lucide-react'
 import { getCurrentUserId } from '../lib/session'
 import RetroGridBackground from '../components/landing/RetroGridBackground'
 
