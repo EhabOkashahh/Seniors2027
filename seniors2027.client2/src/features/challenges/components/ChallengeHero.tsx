@@ -9,7 +9,7 @@ interface ChallengeHeroProps {
 
 export default function ChallengeHero({ title, description, logoUrl, bigLogo }: ChallengeHeroProps) {
   return (
-    <div style={{ textAlign: 'center', marginBottom: '80px', marginTop: '20px' }}>
+    <div style={{ textAlign: 'center', marginBottom: '20px', marginTop: '20px' }}>
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -20,8 +20,8 @@ export default function ChallengeHero({ title, description, logoUrl, bigLogo }: 
             src={logoUrl} 
             alt={title} 
             style={{ 
-              maxHeight: bigLogo ? '150px' : '80px', 
-              maxWidth: bigLogo ? '350px' : '200px', 
+              maxHeight: bigLogo ? '200px' : '80px', 
+              maxWidth: bigLogo ? '450px' : '200px', 
               objectFit: 'contain',
               filter: 'drop-shadow(5px 5px 0px black)'
             }} 

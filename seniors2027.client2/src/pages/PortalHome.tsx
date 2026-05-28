@@ -740,6 +740,7 @@ export default function PortalHome() {
       }
       return next
     })
+    setArchiveHighlightsForCount((prev) => prev.filter((item) => item.id !== current.id))
     setHighlightsMessage('Photo deleted from daily highlights and your gallery.')
   }
 

@@ -23,6 +23,8 @@ export interface Challenge {
   currentUserRoleId?: number | null;
   currentUserRole?: ChallengeRole;
   currentUserSubmissionId?: number | null;
+  currentUserSubmissionMediaUrl?: string | null;
+  currentUserSubmissionMediaType?: string | null;
   currentUserVotedSubmissionId?: number | null;
   hasCurrentUserJoined: boolean;
   hasCurrentUserSubmitted: boolean;

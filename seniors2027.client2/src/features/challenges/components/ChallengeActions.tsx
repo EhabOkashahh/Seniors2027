@@ -1,4 +1,4 @@
-import { Upload, Music, LogOut, UserCircle } from 'lucide-react'
+import { Upload, Music } from 'lucide-react'
 import type { ChallengeStatus, ChallengeRole } from '../types'
 
 interface ChallengeActionsProps {
@@ -6,9 +6,6 @@ interface ChallengeActionsProps {
   selectedRole: ChallengeRole
   onUploadClick: () => void
   onGoToSound: () => void
-  onExit: () => void
-  onChangeRole: () => void
-  canSwitchRole: boolean
   canShowSound?: boolean
   isUploadPhase?: boolean
 }
@@ -18,59 +15,14 @@ export default function ChallengeActions({
   selectedRole,
   onUploadClick,
   onGoToSound,
-  onExit,
-  onChangeRole,
-  canSwitchRole,
   canShowSound = true,
   isUploadPhase = false
 }: ChallengeActionsProps) {
   return (
     <>
-      {/* Top Header Navigation */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', position: 'relative', zIndex: 10 }}>
-        <button 
-          onClick={onExit}
-          style={{ 
-            padding: '10px 15px', 
-            background: 'white', 
-            border: '2px solid black',
-            boxShadow: '4px 4px 0 black',
-            fontSize: '0.75rem',
-            fontWeight: 900,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer'
-          }}
-        >
-          <LogOut size={14} /> EXIT
-        </button>
-
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {canSwitchRole && selectedRole && (
-            <button 
-              onClick={onChangeRole}
-              style={{ 
-                padding: '10px 15px', 
-                background: 'var(--accent-cyan)', 
-                border: '2px solid black',
-                boxShadow: '4px 4px 0 black',
-                fontSize: '0.75rem',
-                fontWeight: 900,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              <UserCircle size={14} /> SWITCH MODE
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* Main Interaction Buttons */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '50px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '20px' }}>
         {selectedRole === 'challenger' && isUploadPhase && (
           <button 
             onClick={onUploadClick}

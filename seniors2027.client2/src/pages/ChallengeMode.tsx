@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Clock, X, AlertCircle } from 'lucide-react'
+import { Clock, X, AlertCircle, LogOut } from 'lucide-react'
 import RetroGridBackground from '../components/landing/RetroGridBackground'
 
 // Types & Mock Data
@@ -53,6 +53,9 @@ export default function ChallengeMode() {
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [viewMediaError, setViewMediaError] = useState<string | null>(null)
+  const [myEntryMedia, setMyEntryMedia] = useState<{ url: string; type: string; caption?: string } | null>(null)
   const [countdown, setCountdown] = useState('')
   
   const uploadFormRef = useRef<HTMLDivElement>(null)
@@ -94,6 +97,9 @@ export default function ChallengeMode() {
     setSelectedRole(c.currentUserRole || null)
     setHasSubmitted(c.hasCurrentUserSubmitted)
     setVotedSubmissionId(c.currentUserVotedSubmissionId || null)
+    if (c.currentUserSubmissionMediaUrl && c.currentUserSubmissionMediaType) {
+      setMyEntryMedia({ url: c.currentUserSubmissionMediaUrl, type: c.currentUserSubmissionMediaType })
+    }
 
     void Promise.all([
       fetchSubmissions(c.id),
@@ -116,6 +122,10 @@ export default function ChallengeMode() {
     if (!mountedRef.current) return
     if (result.ok && result.data) {
       setSubmissions(result.data)
+      const own = result.data.find((s) => s.isOwn)
+      if (own) {
+        setMyEntryMedia({ url: own.mediaUrl, type: own.mediaType, caption: own.caption ?? undefined })
+      }
     }
   }, [])
 
@@ -190,6 +200,7 @@ export default function ChallengeMode() {
       if (result.ok && result.data) {
         setHasSubmitted(true)
         setIsUploadModalOpen(false)
+        setMyEntryMedia({ url: result.data.mediaUrl, type: result.data.mediaType, caption: result.data.caption ?? undefined })
         void Promise.all([
           fetchSubmissions(challenge.id),
           fetchLeaderboard(challenge.id)
@@ -214,6 +225,7 @@ export default function ChallengeMode() {
       const result = await deleteChallengeSubmissionRequest(challenge.id)
       if (result.ok) {
         setHasSubmitted(false)
+        setMyEntryMedia(null)
         await Promise.all([
           fetchSubmissions(challenge.id),
           fetchLeaderboard(challenge.id)
@@ -356,6 +368,29 @@ export default function ChallengeMode() {
   return (
     <div className="portal-container" style={{ display: 'block', overflowY: 'auto', background: 'var(--bg-color)' }}>
       <RetroGridBackground />
+
+      <button 
+        onClick={() => navigate('/portal')}
+        style={{ 
+          position: 'fixed',
+          top: '15px',
+          left: '15px',
+          zIndex: 100,
+          padding: '10px 15px', 
+          background: '#ff6b6b', 
+          border: '2px solid black',
+          boxShadow: '4px 4px 0 black',
+          fontSize: '0.75rem',
+          fontWeight: 900,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          color: 'white'
+        }}
+      >
+        <LogOut size={14} /> EXIT
+      </button>
       
       <div style={{ padding: '40px 20px', minHeight: '100vh', width: '100%', maxWidth: '1250px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
         
@@ -371,9 +406,6 @@ export default function ChallengeMode() {
           selectedRole={selectedRole}
           onUploadClick={handleUploadClick}
           onGoToSound={handleGoToSound}
-          onExit={() => navigate('/portal')}
-          onChangeRole={() => setSelectedRole(null)}
-          canSwitchRole={challengeStatus === 'BeforeStart' || challengeStatus === 'Active' && isUploadPhase}
           canShowSound={isVotingPhase || challengeStatus === 'Ended' || (isUploadPhase && selectedRole === 'challenger')}
           isUploadPhase={isUploadPhase}
         />
@@ -395,26 +427,50 @@ export default function ChallengeMode() {
           />
 
           {isUploadPhase && hasSubmitted && selectedRole === 'challenger' && (
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '-20px' }}>
-              <button
-                onClick={handleDeleteSubmission}
-                disabled={isDeleting}
-                className="neo-btn"
-                style={{
-                  padding: '10px 25px',
-                  fontSize: '0.8rem',
-                  background: isDeleting ? '#eee' : 'var(--accent-pink-soft)',
-                  border: '2px solid black',
-                  fontWeight: 900,
-                  cursor: isDeleting ? 'not-allowed' : 'pointer',
-                  color: isDeleting ? '#999' : 'black',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                {isDeleting ? 'DELETING...' : 'DELETE MY ENTRY'}
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', marginTop: '-10px' }}>
+              <div style={{ fontWeight: 900, fontSize: '0.9rem', textTransform: 'uppercase', opacity: 0.6 }}>Your Entry</div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button
+                  onClick={() => {
+                    setViewMediaError(null)
+                    setIsViewModalOpen(true)
+                  }}
+                  className="neo-btn"
+                  style={{
+                    padding: '10px 25px',
+                    fontSize: '0.8rem',
+                    background: 'var(--accent-cyan)',
+                    border: '2px solid black',
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    color: 'black',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  VIEW MY ENTRY
+                </button>
+                <button
+                  onClick={handleDeleteSubmission}
+                  disabled={isDeleting}
+                  className="neo-btn"
+                  style={{
+                    padding: '10px 25px',
+                    fontSize: '0.8rem',
+                    background: isDeleting ? '#eee' : 'var(--accent-pink-soft)',
+                    border: '2px solid black',
+                    fontWeight: 900,
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    color: isDeleting ? '#999' : 'black',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {isDeleting ? 'DELETING...' : 'DELETE MY ENTRY'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -483,7 +539,7 @@ export default function ChallengeMode() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              style={{ maxWidth: '800px', width: '100%', position: 'relative' }}
+              style={{ maxWidth: '800px', width: '100%', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}
             >
               <button 
                 onClick={() => setIsUploadModalOpen(false)}
@@ -503,6 +559,47 @@ export default function ChallengeMode() {
           </div>
         )}
       </AnimatePresence>
+
+      {isViewModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1150, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }} onClick={() => { setViewMediaError(null); setIsViewModalOpen(false) }}>
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            style={{ maxWidth: '600px', width: '100%', position: 'relative' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => { setViewMediaError(null); setIsViewModalOpen(false) }}
+              style={{ position: 'absolute', top: '-45px', right: '0', background: 'white', border: '3px solid black', padding: '8px', cursor: 'pointer', zIndex: 10, boxShadow: '4px 4px 0 black' }}
+            >
+              <X size={20} />
+            </button>
+            <div style={{ border: '4px solid black', boxShadow: '10px 10px 0 black', background: '#111', overflow: 'hidden' }}>
+              {viewMediaError && (
+                <div style={{ padding: '20px', color: '#ff6b6b', textAlign: 'center', fontWeight: 900, fontSize: '0.85rem', wordBreak: 'break-all' }}>
+                  {viewMediaError}
+                </div>
+              )}
+              {!myEntryMedia && !viewMediaError && (
+                <div style={{ padding: '40px', color: '#999', textAlign: 'center', fontWeight: 900 }}>
+                  Loading media...
+                </div>
+              )}
+              {myEntryMedia?.type === 'Image' && (
+                <img src={myEntryMedia.url} alt="Your entry" style={{ width: '100%', display: 'block' }} onError={() => setViewMediaError('Failed to load image')} />
+              )}
+              {myEntryMedia?.type === 'Video' && (
+                <video key={myEntryMedia.url} src={myEntryMedia.url} controls playsInline crossOrigin="anonymous" style={{ width: '100%', display: 'block', maxHeight: '70vh' }} onError={(e) => setViewMediaError(`Video error: ${(e.target as HTMLVideoElement).error?.message || 'failed to load'}`)} />
+              )}
+              {myEntryMedia?.type === 'Audio' && (
+                <div style={{ padding: '40px', display: 'flex', justifyContent: 'center' }}>
+                  <audio src={myEntryMedia.url} controls style={{ width: '100%' }} onError={(e) => setViewMediaError(`Audio error: ${(e.target as HTMLAudioElement).error?.message || 'failed to load'}`)} />
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <style>{`
         .window { max-width: none !important; }

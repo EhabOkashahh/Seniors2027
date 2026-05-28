@@ -73,6 +73,8 @@ function mapChallenge(data: any): Challenge {
     // Map backend PascalCase to frontend lowercase
     currentUserRole: data.currentUserRole ? (data.currentUserRole.toLowerCase() as ChallengeRole) : null,
     currentUserSubmissionId: data.currentUserSubmissionId,
+    currentUserSubmissionMediaUrl: resolveMediaUrl(data.currentUserSubmissionMediaUrl),
+    currentUserSubmissionMediaType: data.currentUserSubmissionMediaType,
     currentUserVotedSubmissionId: data.currentUserVotedSubmissionId,
     hasCurrentUserJoined: data.hasCurrentUserJoined,
     hasCurrentUserSubmitted: data.hasCurrentUserSubmitted,

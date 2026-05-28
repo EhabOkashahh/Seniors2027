@@ -69,7 +69,7 @@ export default function SubmissionCard({
         {submission.mediaType === 'Image' ? (
           <img src={submission.mediaUrl} alt="Submission" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <video src={submission.mediaUrl} controls playsInline muted style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          <video src={submission.mediaUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         )}
         
         {/* Floating User Info over media */}

@@ -926,6 +926,8 @@ public class ChallengeService : IChallengeService
             CurrentUserRoleId = participant?.Id,
             CurrentUserRole = participant?.Role,
             CurrentUserSubmissionId = submission?.Id,
+            CurrentUserSubmissionMediaUrl = submission?.MediaUrl,
+            CurrentUserSubmissionMediaType = submission?.MediaType,
             CurrentUserVotedSubmissionId = vote?.SubmissionId,
             HasCurrentUserJoined = participant != null,
             HasCurrentUserSubmitted = submission != null,

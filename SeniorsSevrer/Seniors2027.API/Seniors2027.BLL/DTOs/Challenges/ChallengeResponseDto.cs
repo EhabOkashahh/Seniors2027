@@ -22,6 +22,8 @@ public class ChallengeResponseDto
     public int? CurrentUserRoleId { get; set; }
     public string? CurrentUserRole { get; set; }
     public int? CurrentUserSubmissionId { get; set; }
+    public string? CurrentUserSubmissionMediaUrl { get; set; }
+    public string? CurrentUserSubmissionMediaType { get; set; }
     public int? CurrentUserVotedSubmissionId { get; set; }
 
     public bool HasCurrentUserJoined { get; set; }
