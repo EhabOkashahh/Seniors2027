@@ -17,7 +17,8 @@ export const MOCK_CHALLENGE: Challenge = {
   minSubmissions: 4,
   hasCurrentUserJoined: false,
   hasCurrentUserSubmitted: false,
-  hasCurrentUserVoted: false
+  hasCurrentUserVoted: false,
+  participants: []
 };
 
 export const INITIAL_MOCK_SUBMISSIONS: ChallengeSubmission[] = [
