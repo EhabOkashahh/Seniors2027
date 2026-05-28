@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Heart, MessageCircle, Megaphone, Calendar, Swords, CheckSquare, Check, X, UserCheck, Trash2 } from 'lucide-react'
+import { Bell, Heart, MessageCircle, Megaphone, Calendar, Swords, CheckSquare, Check, UserCheck, Trash2 } from 'lucide-react'
 import { getNotificationsRequest, getUnreadCountRequest, markNotificationReadRequest, markAllNotificationsReadRequest, clearAllNotificationsRequest, type NotificationItem } from '../lib/notificationApi'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
 

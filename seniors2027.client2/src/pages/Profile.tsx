@@ -57,7 +57,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [, setSearchParams] = useSearchParams()
   const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
   const storyAutoOpenHandledRef = useRef(false)

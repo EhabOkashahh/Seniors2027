@@ -121,7 +121,7 @@ type AnnouncementPollVotersModalState = {
 export default function PortalHome() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [, setSearchParams] = useSearchParams()
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
   const [events, setEvents] = useState<PortalEventItem[]>([])
