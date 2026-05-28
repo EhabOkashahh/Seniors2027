@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<ChallengeParticipant> ChallengeParticipants { get; set; }
     public DbSet<ChallengeSubmission> ChallengeSubmissions { get; set; }
     public DbSet<ChallengeVote> ChallengeVotes { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -309,6 +310,28 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(e => new { e.ChallengeId, e.VoterUserId }).IsUnique();
             entity.HasIndex(e => e.CreatedAtUtc);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Link).HasMaxLength(300);
+            entity.Property(e => e.ImageUrl).HasMaxLength(2048);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Notifications)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(e => e.Actor)
+                .WithMany()
+                .HasForeignKey(e => e.ActorId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(e => new { e.UserId, e.IsRead });
+            entity.HasIndex(e => e.CreatedAt);
         });
     }
 }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Clock, X, AlertCircle, LogOut } from 'lucide-react'
 import RetroGridBackground from '../components/landing/RetroGridBackground'
 
@@ -30,6 +30,8 @@ import ChallengeChatModal from '../features/challenges/components/ChallengeChatM
 
 export default function ChallengeMode() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [, setSearchParams] = useSearchParams()
   
   // Data State
   const [challenge, setChallenge] = useState<Challenge | null>(null)
@@ -90,6 +92,23 @@ export default function ChallengeMode() {
     void fetchChallenge()
     return () => { mountedRef.current = false }
   }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (!params.get('challengeId')) return
+    if (!challenge) return
+
+    const next = new URLSearchParams(location.search)
+    next.delete('challengeId')
+    setSearchParams(next, { replace: true })
+
+    requestAnimationFrame(() => {
+      const el = document.getElementById('current-challenge')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    })
+  }, [location.search, challenge])
 
   const hydrateChallengeData = (c: Challenge) => {
     setChallenge(c)
@@ -392,7 +411,7 @@ export default function ChallengeMode() {
         <LogOut size={14} /> EXIT
       </button>
       
-      <div style={{ padding: '40px 20px', minHeight: '100vh', width: '100%', maxWidth: '1250px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+      <div id="current-challenge" style={{ padding: '40px 20px', minHeight: '100vh', width: '100%', maxWidth: '1250px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
         
         <ChallengeHero 
           title={challenge.title}

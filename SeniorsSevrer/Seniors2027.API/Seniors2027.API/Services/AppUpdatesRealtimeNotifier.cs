@@ -67,6 +67,19 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
             userId);
     }
 
+    public async Task NotifyNotificationReceivedAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _hubContext.Clients.User(userId.ToString()).SendAsync(
+                AppUpdatesHub.NotificationReceivedEvent, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send notification received event to user {UserId}.", userId);
+        }
+    }
+
     private async Task TryBroadcastAsync(
         Func<Task> action,
         string message,

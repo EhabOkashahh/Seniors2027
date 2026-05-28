@@ -10,7 +10,8 @@ const APP_UPDATES_EVENTS = {
   portalContentUpdated: 'PortalContentUpdated',
   memoryBoardUpdated: 'MemoryBoardUpdated',
   joinRequestsUpdated: 'JoinRequestsUpdated',
-  userPointsUpdated: 'UserPointsUpdated'
+  userPointsUpdated: 'UserPointsUpdated',
+  notificationReceived: 'NotificationReceived'
 } as const
 
 type AppUpdatesRealtimeHandlers = {
@@ -20,6 +21,7 @@ type AppUpdatesRealtimeHandlers = {
   onMemoryBoardUpdated?: () => void
   onJoinRequestsUpdated?: () => void
   onUserPointsUpdated?: (userId: number, points: number) => void
+  onNotificationReceived?: () => void
   onConnected?: () => void
   onReconnected?: () => void
 }
@@ -35,6 +37,7 @@ export function subscribeAppUpdatesRealtime(handlers: AppUpdatesRealtimeHandlers
     || handlers.onMemoryBoardUpdated
     || handlers.onJoinRequestsUpdated
     || handlers.onUserPointsUpdated
+    || handlers.onNotificationReceived
   )
   if (!hasEventHandler) return () => {}
 
@@ -84,6 +87,12 @@ export function subscribeAppUpdatesRealtime(handlers: AppUpdatesRealtimeHandlers
     })
   }
 
+  if (handlers.onNotificationReceived) {
+    connection.on(APP_UPDATES_EVENTS.notificationReceived, () => {
+      handlers.onNotificationReceived?.()
+    })
+  }
+
   connection.onreconnected(() => {
     handlers.onReconnected?.()
   })
@@ -119,6 +128,14 @@ export function subscribeAppUpdatesRealtime(handlers: AppUpdatesRealtimeHandlers
 
     if (handlers.onJoinRequestsUpdated) {
       connection.off(APP_UPDATES_EVENTS.joinRequestsUpdated)
+    }
+
+    if (handlers.onUserPointsUpdated) {
+      connection.off(APP_UPDATES_EVENTS.userPointsUpdated)
+    }
+
+    if (handlers.onNotificationReceived) {
+      connection.off(APP_UPDATES_EVENTS.notificationReceived)
     }
 
     void startPromise.finally(() => {

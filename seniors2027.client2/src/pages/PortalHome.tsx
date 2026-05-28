@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import {
   Bell,
   BookImage,
@@ -120,6 +120,8 @@ type AnnouncementPollVotersModalState = {
 
 export default function PortalHome() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
   const [events, setEvents] = useState<PortalEventItem[]>([])
@@ -432,6 +434,26 @@ export default function PortalHome() {
   useEffect(() => {
     void fetchHighlights()
   }, [fetchHighlights])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const highlightIdParam = params.get('highlight')
+    if (!highlightIdParam) return
+    if (highlights.length === 0) return
+
+    const next = new URLSearchParams(location.search)
+    next.delete('highlight')
+    setSearchParams(next, { replace: true })
+
+    const targetId = Number(highlightIdParam)
+    if (!targetId) return
+
+    const targetIndex = highlights.findIndex((h) => h.id === targetId)
+    if (targetIndex >= 0) {
+      setActiveIndex(targetIndex)
+      setIsArchiveOpen(true)
+    }
+  }, [location.search, highlights])
 
   useEffect(() => {
     void fetchPortalContent()

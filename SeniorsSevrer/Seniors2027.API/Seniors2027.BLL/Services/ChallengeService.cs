@@ -9,10 +9,12 @@ namespace Seniors2027.BLL.Services;
 public class ChallengeService : IChallengeService
 {
     private readonly AppDbContext _context;
+    private readonly INotificationService _notificationService;
 
-    public ChallengeService(AppDbContext context)
+    public ChallengeService(AppDbContext context, INotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<ChallengeResponseDto> CreateChallengeAsync(
@@ -87,6 +89,23 @@ public class ChallengeService : IChallengeService
 
         _context.Challenges.Add(challenge);
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (dto.Status != "Hidden" && dto.Status != "Ended")
+        {
+            var allUserIds = await _context.Users
+                .Where(u => u.IsLocked == false)
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+
+            foreach (var uid in allUserIds)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    uid,
+                    "new_challenge",
+                    $"New challenge: {challenge.Title}",
+                    $"/challenge?challengeId={challenge.Id}");
+            }
+        }
 
         return MapToChallengeResponseDto(challenge, createdByUserId);
     }
@@ -718,6 +737,8 @@ public class ChallengeService : IChallengeService
                 throw new InvalidOperationException("Another active challenge already exists.");
         }
 
+        var oldStatus = challenge.Status;
+
         challenge.Title = dto.Title;
         challenge.Description = dto.Description;
         challenge.SoundUrl = dto.SoundUrl;
@@ -759,6 +780,24 @@ public class ChallengeService : IChallengeService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        var newStatus = challenge.Status;
+        if (oldStatus == "Hidden" && newStatus != "Hidden" && newStatus != "Ended")
+        {
+            var allUserIds = await _context.Users
+                .Where(u => u.IsLocked == false)
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+
+            foreach (var uid in allUserIds)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    uid,
+                    "new_challenge",
+                    $"New challenge: {challenge.Title}",
+                    $"/challenge?challengeId={challenge.Id}");
+            }
+        }
 
         return MapToChallengeResponseDto(challenge, adminUserId);
     }

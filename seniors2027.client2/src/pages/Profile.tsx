@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type MouseEvent } from 'react'
 import { motion } from 'framer-motion'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import {
   Heart,
   Laugh,
@@ -55,7 +55,9 @@ import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 
 export default function Profile() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const userId = parsePositiveIntRouteParam(id)
   const profilePhotoInputRef = useRef<HTMLInputElement>(null)
   const storyAutoOpenHandledRef = useRef(false)
@@ -468,6 +470,32 @@ export default function Profile() {
     window.history.replaceState({}, '', nextUrl)
     setStoryShareModalOpen(true)
   }, [isOwnProfile])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('scroll') !== 'notes') return
+
+    const noteIdParam = params.get('noteId')
+
+    const next = new URLSearchParams(location.search)
+    next.delete('scroll')
+    next.delete('noteId')
+    setSearchParams(next, { replace: true })
+
+    requestAnimationFrame(() => {
+      if (noteIdParam) {
+        const noteEl = document.getElementById(`note-${noteIdParam}`)
+        if (noteEl) {
+          noteEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          return
+        }
+      }
+      const el = document.getElementById('profile-notes-section')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    })
+  }, [location.search])
 
   const navigateExpandedGalleryPhoto = (direction: 'prev' | 'next') => {
     if (!expandedGalleryPhoto || galleryPhotos.length === 0) return
@@ -1423,7 +1451,7 @@ export default function Profile() {
           </div>
         </motion.div>
 
-        <div className="window" style={{ maxWidth: 'none', background: 'white' }}>
+        <div id="profile-notes-section" className="window" style={{ maxWidth: 'none', background: 'white' }}>
           <div className="window-header" style={{ background: 'var(--retro-peach)' }}>
             <BookOpen size={18} />
             <span style={{ fontWeight: 900 }}>NOTES</span>
@@ -1511,7 +1539,7 @@ export default function Profile() {
                     const isDeleting = deletingNoteIds.includes(note.id)
 
                     return (
-                    <div key={note.id} style={{ border: '2px solid black', background: 'white', padding: '10px', display: 'grid', gap: '8px' }}>
+                    <div key={note.id} id={`note-${note.id}`} style={{ border: '2px solid black', background: 'white', padding: '10px', display: 'grid', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"
@@ -2184,7 +2212,7 @@ export default function Profile() {
                     const isDeleting = deletingNoteIds.includes(note.id)
 
                     return (
-                    <div key={note.id} style={{ border: '3px solid black', background: 'white', padding: '12px', display: 'grid', gap: '10px' }}>
+                    <div key={note.id} id={`note-${note.id}`} style={{ border: '3px solid black', background: 'white', padding: '12px', display: 'grid', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"

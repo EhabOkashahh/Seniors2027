@@ -11,11 +11,13 @@ public class NoteService : INoteService
     private const int NotePointsAward = 1;
     private readonly AppDbContext _context;
     private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier;
+    private readonly INotificationService _notificationService;
 
-    public NoteService(AppDbContext context, IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier)
+    public NoteService(AppDbContext context, IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier, INotificationService notificationService)
     {
         _context = context;
         _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
+        _notificationService = notificationService;
     }
 
     public async Task<NoteDto> CreateNoteAsync(int senderId, CreateNoteDto dto)
@@ -40,6 +42,14 @@ public class NoteService : INoteService
         await _context.Notes.AddAsync(note);
         sender.Points += NotePointsAward;
         await _context.SaveChangesAsync();
+
+        await _notificationService.CreateNotificationAsync(
+            dto.RecipientId,
+            "note_received",
+            $"{sender.Username} sent you a note",
+            $"/profile/{dto.RecipientId}?scroll=notes&noteId={note.Id}",
+            sender.Id);
+
         await _appUpdatesRealtimeNotifier.NotifyUserPointsUpdatedAsync(sender.Id, sender.Points);
 
         return new NoteDto
@@ -102,11 +112,13 @@ public class NoteService : INoteService
     public async Task<NoteDto?> ToggleReactionAsync(int noteId, int userId, NoteReactionType type)
     {
         var note = await QueryNotesWithRelations(asNoTracking: false)
+            .Include(n => n.Sender)
             .FirstOrDefaultAsync(n => n.Id == noteId);
         if (note == null) return null;
 
         var existingReaction = note.Reactions.FirstOrDefault(r => r.UserId == userId);
         var now = DateTime.UtcNow;
+        var isNewReaction = false;
 
         if (existingReaction == null)
         {
@@ -118,6 +130,7 @@ public class NoteService : INoteService
                 CreatedAt = now
             };
             _context.NoteReactions.Add(reaction);
+            isNewReaction = true;
         }
         else if (existingReaction.Type == type)
         {
@@ -127,9 +140,31 @@ public class NoteService : INoteService
         {
             existingReaction.Type = type;
             existingReaction.CreatedAt = now;
+            isNewReaction = true;
         }
 
         await _context.SaveChangesAsync();
+
+        if (isNewReaction && note.SenderId != userId)
+        {
+            var reactor = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.Username)
+                .FirstOrDefaultAsync();
+
+            if (reactor != null)
+            {
+                var contentPreview = note.Content.Length > 80
+                    ? note.Content[..80] + "..."
+                    : note.Content;
+                await _notificationService.CreateNotificationAsync(
+                    note.SenderId,
+                    "note_liked",
+                    $"{reactor} liked: \"{contentPreview}\"",
+                    $"/profile/{note.RecipientId}?scroll=notes&noteId={note.Id}",
+                    userId);
+            }
+        }
 
         var updated = await QueryNotesWithRelations()
             .FirstOrDefaultAsync(n => n.Id == noteId);

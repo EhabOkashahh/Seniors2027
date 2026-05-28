@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Trash2, Upload, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import PortalLayout from '../components/PortalLayout'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
@@ -31,6 +31,8 @@ const MEMORYBOARD_EDGE_PULL_Y_PX = 10
 
 export default function MemoryBoard() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [, setSearchParams] = useSearchParams()
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [photos, setPhotos] = useState<MemoryBoardPhoto[]>([])
   const [myPendingPhotos, setMyPendingPhotos] = useState<MemoryBoardPhoto[]>([])
@@ -185,6 +187,30 @@ export default function MemoryBoard() {
 
     setViewerIndex((prev) => Math.min(prev, sortedPhotos.length - 1))
   }, [sortedPhotos])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const photoIdParam = params.get('photoId')
+    if (!photoIdParam) return
+    if (sortedPhotos.length === 0) return
+
+    const next = new URLSearchParams(location.search)
+    next.delete('photoId')
+    setSearchParams(next, { replace: true })
+
+    const targetIndex = sortedPhotos.findIndex((p) => p.id === Number(photoIdParam))
+    if (targetIndex < 0) return
+
+    const targetPage = Math.floor(targetIndex / boardPageSize)
+    setBoardPage(targetPage)
+
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`memory-photo-${photoIdParam}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    })
+  }, [location.search, sortedPhotos])
 
   const handleOpenFilePicker = () => {
     fileInputRef.current?.click()
@@ -460,6 +486,7 @@ export default function MemoryBoard() {
                               return (
                                 <motion.div
                                   key={item.id}
+                                  id={`memory-photo-${item.id}`}
                                   initial={{ opacity: 0 }}
                                   animate={{ opacity: 1 }}
                                   transition={{

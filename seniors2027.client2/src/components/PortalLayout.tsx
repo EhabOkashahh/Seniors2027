@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, Users, LogOut, Shield, User as UserIcon, Images, Trophy, Swords } from 'lucide-react'
 import '../App.css'
 import RetroGridBackground from './landing/RetroGridBackground'
+import NotificationBell from './NotificationBell'
 import { getMeRequest } from '../lib/authApi'
 import { getCurrentChallengeRequest } from '../lib/challengeApi'
 import { clearSession, setStoredRole, type AppUserRole } from '../lib/session'
@@ -79,6 +80,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
         <span className="dash-line" />
         <span className="dash-line" />
       </button>
+      <NotificationBell />
       {isMenuOpen && <div className="portal-sidebar-overlay" onClick={() => setIsMenuOpen(false)} />}
       {/* Sidebar */}
       <aside className={`portal-sidebar ${isMenuOpen ? 'open' : ''}`}>

@@ -11,11 +11,13 @@ public class DailyHighlightService : IDailyHighlightService
     private const int HighlightPointsAward = 2;
     private readonly AppDbContext _context;
     private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier;
+    private readonly INotificationService _notificationService;
 
-    public DailyHighlightService(AppDbContext context, IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier)
+    public DailyHighlightService(AppDbContext context, IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier, INotificationService notificationService)
     {
         _context = context;
         _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
+        _notificationService = notificationService;
     }
 
     public async Task<DailyHighlightDto> AddHighlightAsync(int userId, string photoUrl, IReadOnlyCollection<int>? mentionUserIds = null)
@@ -71,6 +73,20 @@ public class DailyHighlightService : IDailyHighlightService
         await _context.DailyHighlights.AddAsync(highlight);
         user.Points += HighlightPointsAward;
         await _context.SaveChangesAsync();
+
+        if (normalizedMentionIds.Count > 0)
+        {
+            foreach (var mentionedUserId in normalizedMentionIds)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    mentionedUserId,
+                    "highlight_mention",
+                    $"{user.Username} mentioned you in a highlight",
+                    $"/portal?highlight={highlight.Id}",
+                    userId);
+            }
+        }
+
         await _appUpdatesRealtimeNotifier.NotifyUserPointsUpdatedAsync(user.Id, user.Points);
 
         var createdHighlight = await QueryHighlightsWithRelations()
@@ -142,12 +158,14 @@ public class DailyHighlightService : IDailyHighlightService
     public async Task<DailyHighlightDto?> ToggleReactionAsync(int highlightId, int userId, DailyHighlightReactionType type)
     {
         var highlight = await QueryHighlightsWithRelations(asNoTracking: false)
+            .Include(h => h.User)
             .FirstOrDefaultAsync(h => h.Id == highlightId);
 
         if (highlight == null) return null;
 
         var existingReaction = highlight.Reactions.FirstOrDefault(r => r.UserId == userId);
         var now = DateTime.UtcNow;
+        var isNewReaction = false;
 
         if (existingReaction == null)
         {
@@ -159,6 +177,7 @@ public class DailyHighlightService : IDailyHighlightService
                 CreatedAt = now
             };
             _context.DailyHighlightReactions.Add(reaction);
+            isNewReaction = true;
         }
         else if (existingReaction.Type == type)
         {
@@ -168,9 +187,29 @@ public class DailyHighlightService : IDailyHighlightService
         {
             existingReaction.Type = type;
             existingReaction.CreatedAt = now;
+            isNewReaction = true;
         }
 
         await _context.SaveChangesAsync();
+
+        if (isNewReaction && highlight.UserId != userId)
+        {
+            var reactor = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.Username)
+                .FirstOrDefaultAsync();
+
+            if (reactor != null)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    highlight.UserId,
+                    "highlight_liked",
+                    $"{reactor} liked your highlight",
+                    $"/portal?highlight={highlightId}",
+                    userId,
+                    highlight.GalleryPhoto?.PhotoUrl);
+            }
+        }
 
         var updated = await QueryHighlightsWithRelations()
             .FirstOrDefaultAsync(h => h.Id == highlightId);

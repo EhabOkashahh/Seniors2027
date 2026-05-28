@@ -18,13 +18,15 @@ public class AdminController(
     AppDbContext context,
     IWebHostEnvironment environment,
     IImageUploadProcessor imageUploadProcessor,
-    IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier) : ControllerBase
+    IAppUpdatesRealtimeNotifier appUpdatesRealtimeNotifier,
+    INotificationService notificationService) : ControllerBase
 {
     private readonly IJoinRequestService _joinRequestService = joinRequestService;
     private readonly AppDbContext _context = context;
     private readonly IWebHostEnvironment _environment = environment;
     private readonly IImageUploadProcessor _imageUploadProcessor = imageUploadProcessor;
     private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier = appUpdatesRealtimeNotifier;
+    private readonly INotificationService _notificationService = notificationService;
 
     [HttpGet("join-requests")]
     public async Task<ActionResult<IReadOnlyList<JoinRequestDto>>> GetJoinRequests([FromQuery] JoinRequestStatus? status = null)
@@ -215,6 +217,14 @@ public class AdminController(
                 _context.MemoryBoardPhotos.RemoveRange(userMemoryBoardPhotos);
             }
 
+            var userNotifications = await _context.Notifications
+                .Where(n => n.UserId == userId || n.ActorId == userId)
+                .ToListAsync();
+            if (userNotifications.Count > 0)
+            {
+                _context.Notifications.RemoveRange(userNotifications);
+            }
+
             var userNotes = await _context.Notes
                 .Where(n => n.SenderId == userId || n.RecipientId == userId)
                 .ToListAsync();
@@ -373,6 +383,21 @@ public class AdminController(
             .FirstAsync();
 
         await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
+
+        var allUserIds = await _context.Users
+            .Where(u => u.IsLocked == false)
+            .Select(u => u.Id)
+            .ToListAsync();
+
+        foreach (var uid in allUserIds)
+        {
+            await _notificationService.CreateNotificationAsync(
+                uid,
+                "announcement",
+                $"New announcement: {title}",
+                "/portal");
+        }
+
         var created = AnnouncementPollMapper.ToAnnouncementDto(createdAnnouncement, Array.Empty<AnnouncementPollVote>());
         return Ok(created);
     }
@@ -644,6 +669,21 @@ public class AdminController(
             .FirstAsync();
 
         await _appUpdatesRealtimeNotifier.NotifyPortalContentUpdatedAsync(HttpContext.RequestAborted);
+
+        var allUserIds = await _context.Users
+            .Where(u => u.IsLocked == false)
+            .Select(u => u.Id)
+            .ToListAsync();
+
+        foreach (var uid in allUserIds)
+        {
+            await _notificationService.CreateNotificationAsync(
+                uid,
+                "event",
+                $"New event: {title}",
+                "/portal");
+        }
+
         return Ok(created);
     }
 
@@ -861,6 +901,13 @@ public class AdminController(
             .FirstAsync();
 
         await _appUpdatesRealtimeNotifier.NotifyMemoryBoardUpdatedAsync(HttpContext.RequestAborted);
+
+        await _notificationService.CreateNotificationAsync(
+            photo.UserId,
+            "memoryboard_approved",
+            "Your memory board photo was approved",
+            $"/memoryboard?photoId={photo.Id}");
+
         return Ok(updated);
     }
 
