@@ -157,28 +157,10 @@ export default function PortalHome() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null)
   const [endedChallenge, setEndedChallenge] = useState<ChallengeWithWinners | null>(null)
-  const [archiveHighlightsForCount, setArchiveHighlightsForCount] = useState<DailyHighlight[]>([])
-
   const totalMentionCount = useMemo(() => {
     if (!currentUserId) return 0
-    return archiveHighlightsForCount.filter((h) => h.mentionedUsers.some((m) => m.id === currentUserId)).length
-  }, [archiveHighlightsForCount, currentUserId])
-
-  useEffect(() => {
-    if (!currentUserId) return
-
-    const fetchArchive = () => {
-      void getHighlightsArchiveRequest(1000).then((result) => {
-        if (result.ok && result.data) {
-          setArchiveHighlightsForCount(result.data)
-        }
-      })
-    }
-
-    fetchArchive()
-    const interval = window.setInterval(fetchArchive, 60_000)
-    return () => clearInterval(interval)
-  }, [currentUserId])
+    return highlights.filter((h) => h.mentionedUsers.some((m) => m.id === currentUserId)).length
+  }, [highlights, currentUserId])
   const [monthlyDumpOpen, setMonthlyDumpOpen] = useState(false)
   const [monthlyDumpLoading, setMonthlyDumpLoading] = useState(false)
   const [monthlyDumpMessage, setMonthlyDumpMessage] = useState<string | null>(null)
@@ -708,7 +690,6 @@ export default function PortalHome() {
       }
 
       setHighlights((prev) => [createdHighlight, ...prev])
-      setArchiveHighlightsForCount((prev) => [createdHighlight, ...prev])
       setActiveIndex(0)
       setFlipDirection('next')
       setHighlightsMessage('Daily highlight added. It will expire automatically after 24h.')
@@ -769,7 +750,6 @@ export default function PortalHome() {
       }
       return next
     })
-    setArchiveHighlightsForCount((prev) => prev.filter((item) => item.id !== current.id))
     setHighlightsMessage('Photo deleted from daily highlights and your gallery.')
   }
 
