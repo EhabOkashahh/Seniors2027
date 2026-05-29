@@ -880,6 +880,7 @@ export default function AdminJoinRequests() {
   }
 
   const handleDeleteAnnouncement = async (announcementId: number) => {
+    if (!window.confirm('Delete this announcement? This cannot be undone.')) return
     setAnnouncementActionId(announcementId)
     setAnnouncementsMessage(null)
     const result = await deleteAdminAnnouncementRequest(announcementId)
@@ -895,6 +896,7 @@ export default function AdminJoinRequests() {
   }
 
   const handleDeleteEvent = async (eventId: number) => {
+    if (!window.confirm('Delete this event? This cannot be undone.')) return
     setEventActionId(eventId)
     setAnnouncementsMessage(null)
     const result = await deleteAdminEventRequest(eventId)

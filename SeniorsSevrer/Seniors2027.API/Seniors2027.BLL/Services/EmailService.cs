@@ -19,10 +19,11 @@ public class EmailService(IConfiguration config) : IEmailService
             var smtpPortRaw = GetRequiredSetting("EmailSetting:SmtpPort");
             var emailPassword = _config["EmailSetting:Password"] ?? Environment.GetEnvironmentVariable("EMAIL_PASSWORD");
 
-            // For local development, we always log the OTP to the console.
+#if DEBUG
             Console.WriteLine("=================================================");
             Console.WriteLine($"[DEVELOPMENT] OTP for {toEmail}: {otp}");
             Console.WriteLine("=================================================");
+#endif
 
             if (!int.TryParse(smtpPortRaw, out var smtpPort))
             {
@@ -31,8 +32,6 @@ public class EmailService(IConfiguration config) : IEmailService
 
             if (string.IsNullOrWhiteSpace(emailPassword))
             {
-                // If password is missing, we just log and return in development instead of crashing
-                Console.WriteLine("[WARNING] EMAIL_PASSWORD environment variable is missing. Email will not be sent.");
                 return;
             }
 
@@ -76,10 +75,9 @@ public class EmailService(IConfiguration config) : IEmailService
 
             await smtp.SendMailAsync(message);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[ERROR] Failed to send email via SMTP: {ex.Message}");
-            // We don't re-throw here because we've already logged the OTP to the console for dev purposes.
+            throw;
         }
     }
 

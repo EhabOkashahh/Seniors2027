@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.StaticFiles;
 using Seniors2027.API.Hubs;
 using Seniors2027.API.Middleware;
 using Seniors2027.BLL.Interfaces;
@@ -13,8 +15,29 @@ using Seniors2027.DAL.Repositories;
 using System.Text;
 using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "";
+var knownInsecureKeys = new[]
+{
+    "ThisIsAVeryLongAndSecureSecretKeyThatIsAtLeast64CharactersLongForHMACSHA512",
+    "",
+};
+if (knownInsecureKeys.Contains(jwtKey))
+{
+    throw new InvalidOperationException(
+        "JWT signing key is not configured. Set the Jwt__Key environment variable or configure it in production. " +
+        "The default/insecure key is not allowed in production.");
+}
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Database connection string is not configured. Set the ConnectionStrings__DefaultConnection environment variable.");
+}
 
 bool IsAllowedClientOrigin(string? origin)
 {
@@ -33,8 +56,7 @@ bool IsAllowedClientOrigin(string? origin)
     }
 
     return uri.Scheme == Uri.UriSchemeHttps &&
-           (uri.Host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase));
+           uri.Host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase);
 }
 
 // Add services to the container.
@@ -109,10 +131,31 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactApp", policy =>
     {
         policy.SetIsOriginAllowed(IsAllowedClientOrigin)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
+              .WithHeaders("Content-Type", "Authorization", "X-Requested-With", "X-SignalR-User-Agent")
+              .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
               .AllowCredentials();
     });
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("AuthLogin", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(15);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+
+    options.AddFixedWindowLimiter("AuthVerifyOtp", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(15);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -139,13 +182,28 @@ using (var scope = app.Services.CreateScope())
 
 app.UseMiddleware<ErrorMiddleware>();
 
-app.MapOpenApi();
-app.MapScalarApiReference(options =>
+app.Use(async (context, next) =>
 {
-    options.WithTitle("Seniors 2027 API")
-           .WithTheme(ScalarTheme.Moon)
-           .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
+    context.Response.Headers["X-XSS-Protection"] = "0";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    await next();
 });
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options.WithTitle("Seniors 2027 API")
+               .WithTheme(ScalarTheme.Moon)
+               .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
+}
+
+app.UseRateLimiter();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -171,12 +229,21 @@ app.UseStaticFiles(new StaticFileOptions
 
 var challengeMediaDirectory = Path.Combine(app.Environment.ContentRootPath, "ChallengeMedia");
 Directory.CreateDirectory(challengeMediaDirectory);
+var challengeMediaContentTypeProvider = new FileExtensionContentTypeProvider();
+challengeMediaContentTypeProvider.Mappings.Clear();
+challengeMediaContentTypeProvider.Mappings[".jpg"] = "image/jpeg";
+challengeMediaContentTypeProvider.Mappings[".jpeg"] = "image/jpeg";
+challengeMediaContentTypeProvider.Mappings[".png"] = "image/png";
+challengeMediaContentTypeProvider.Mappings[".gif"] = "image/gif";
+challengeMediaContentTypeProvider.Mappings[".webp"] = "image/webp";
+challengeMediaContentTypeProvider.Mappings[".mp4"] = "video/mp4";
+challengeMediaContentTypeProvider.Mappings[".pdf"] = "application/pdf";
+challengeMediaContentTypeProvider.Mappings[".mp3"] = "audio/mpeg";
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(challengeMediaDirectory),
     RequestPath = "/ChallengeMedia",
-    ServeUnknownFileTypes = true,
-    DefaultContentType = "application/octet-stream",
+    ContentTypeProvider = challengeMediaContentTypeProvider,
     OnPrepareResponse = context =>
     {
         context.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";

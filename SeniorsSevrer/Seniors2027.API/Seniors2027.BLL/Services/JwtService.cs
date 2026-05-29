@@ -17,6 +17,10 @@ public class JwtService : IJwtService
     {
         _config = config;
         var tokenKey = _config["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key is missing");
+        if (string.IsNullOrWhiteSpace(tokenKey) || tokenKey == "ThisIsAVeryLongAndSecureSecretKeyThatIsAtLeast64CharactersLongForHMACSHA512")
+        {
+            throw new InvalidOperationException("JWT signing key is not configured or is using the default insecure key. Set the Jwt__Key environment variable.");
+        }
         _key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenKey));
     }
 
@@ -35,7 +39,7 @@ public class JwtService : IJwtService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddDays(7),
+            Expires = DateTime.UtcNow.AddDays(14),
             SigningCredentials = creds,
             Issuer = _config["Jwt:Issuer"],
             Audience = _config["Jwt:Audience"]

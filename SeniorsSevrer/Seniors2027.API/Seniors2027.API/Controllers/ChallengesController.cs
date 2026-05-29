@@ -217,6 +217,13 @@ public class ChallengesController(
     [HttpGet("{challengeId:int}/messages")]
     public async Task<ActionResult<List<ChallengeMessageDto>>> GetMessages(int challengeId)
     {
+        if (!User.TryGetUserId(out var userId)) return Unauthorized();
+
+        var isParticipant = await _context.ChallengeParticipants
+            .AnyAsync(p => p.ChallengeId == challengeId && p.UserId == userId);
+
+        if (!isParticipant) return Forbid();
+
         var messages = await _context.ChallengeMessages
             .Where(m => m.ChallengeId == challengeId)
             .OrderBy(m => m.CreatedAtUtc)

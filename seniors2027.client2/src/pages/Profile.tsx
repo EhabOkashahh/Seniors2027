@@ -423,7 +423,8 @@ export default function Profile() {
   const profilePoints = Math.max(0, profileUser?.points ?? 0)
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
   const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
-  const sharedSongPlaybackUrl = sharedSongEmbedUrl ? buildSpotifyEmbedPlaybackUrl(sharedSongEmbedUrl) : null
+  const sharedSongPlaybackUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? buildSpotifyEmbedPlaybackUrl(sharedSongEmbedUrl) : null
+  const safeSharedSongEmbedUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? sharedSongEmbedUrl : null
   const showAdminUserDetails = Boolean(isAdmin && profileUser)
   const showAdminProfileActions = Boolean(isAdmin && !isOwnProfile && profileUser)
   const isTargetLocked = adminTargetUser?.isLocked === true
@@ -578,7 +579,7 @@ export default function Profile() {
       return
     }
 
-    const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://sneiors2027.runasp.net')
+    const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://seniors2027.runasp.net')
       .replace(/^http:\/\//i, 'https://')
       .replace(/\/+$/, '')
     setDescriptionSaving(true)
@@ -762,6 +763,13 @@ export default function Profile() {
 
     setFavoriteSongSaving(true)
     setFavoriteSongMessage(null)
+
+    const extractedUrl = extractEmbedUrl(favoriteSongInput)
+    if (extractedUrl && !isSafeEmbedUrl(extractedUrl)) {
+      setFavoriteSongSaving(false)
+      setFavoriteSongMessage('Only Spotify, YouTube, SoundCloud, or Bandcamp links are allowed.')
+      return
+    }
 
     const result = await updateMyFavoriteSongRequest(favoriteSongInput)
     setFavoriteSongSaving(false)
@@ -1392,10 +1400,10 @@ export default function Profile() {
                     maxWidth: '320px'
                   }}
                 >
-                  {sharedSongEmbedUrl && (
+                  {safeSharedSongEmbedUrl && (
                     <iframe
                       title={`${displayName} favorite song`}
-                      src={sharedSongPlaybackUrl ?? sharedSongEmbedUrl}
+                      src={sharedSongPlaybackUrl ?? safeSharedSongEmbedUrl}
                       width="100%"
                       height="80"
                       loading="lazy"
@@ -1413,8 +1421,8 @@ export default function Profile() {
                   {isOwnProfile && (
                     <button
                       type="button"
-                      aria-label={sharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
-                      title={sharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
+                      aria-label={safeSharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
+                      title={safeSharedSongEmbedUrl ? 'Edit shared song' : 'Share favorite song'}
                       onClick={openFavoriteSongModal}
                       style={{
                         height: '34px',
@@ -2882,16 +2890,41 @@ function getWebsiteFaviconUrl(link: string): string | null {
   }
 }
 
-function buildSpotifyEmbedPlaybackUrl(embedUrl: string): string {
+const ALLOWED_EMBED_DOMAINS = [
+  'spotify.com', 'spotify.net',
+  'youtube.com', 'youtu.be',
+  'soundcloud.com',
+  'bandcamp.com',
+  'open.spotify.com'
+]
+
+function extractEmbedUrl(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+
+  const iframeMatch = trimmed.match(/<iframe\s[^>]*src=["']([^"']+)["']/i)
+  return iframeMatch ? iframeMatch[1] : trimmed
+}
+
+function isSafeEmbedUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:') return false
+    const host = url.hostname.toLowerCase()
+    return ALLOWED_EMBED_DOMAINS.some((domain) => host === domain || host.endsWith('.' + domain))
+  } catch {
+    return false
+  }
+}
+
+function buildSpotifyEmbedPlaybackUrl(embedUrl: string): string | null {
+  if (!isSafeEmbedUrl(embedUrl)) return null
   try {
     const url = new URL(embedUrl)
-    const host = url.hostname.toLowerCase()
-    if (!host.includes('spotify.com')) return embedUrl
-
     url.searchParams.set('autoplay', '1')
     return url.toString()
   } catch {
-    return embedUrl
+    return null
   }
 }
 

@@ -45,8 +45,8 @@ export default function ChallengeChatModal({
           const data = await response.json()
           setMessages(data.map((m: any) => ({ ...m, userPhotoUrl: resolveMediaUrl(m.userPhotoUrl) })))
         }
-      } catch (err) {
-        console.error('Failed to load chat history', err)
+      } catch {
+        // Silently ignore — chat history fetch is non-critical
       }
     }
     void fetchMessages()

@@ -18,13 +18,25 @@ public class ChallengeChatHub : Hub
 
     public async Task JoinChallenge(int challengeId)
     {
+        if (!Context.User!.TryGetUserId(out var userId)) return;
+
+        var isParticipant = await _context.ChallengeParticipants
+            .AnyAsync(p => p.ChallengeId == challengeId && p.UserId == userId);
+
+        if (!isParticipant) return;
+
         await Groups.AddToGroupAsync(Context.ConnectionId, challengeId.ToString());
     }
 
     public async Task SendMessage(int challengeId, string text)
     {
         if (!Context.User!.TryGetUserId(out var userId)) return;
-        
+
+        var isParticipant = await _context.ChallengeParticipants
+            .AnyAsync(p => p.ChallengeId == challengeId && p.UserId == userId);
+
+        if (!isParticipant) return;
+
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return;
 

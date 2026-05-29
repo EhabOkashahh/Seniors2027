@@ -418,6 +418,7 @@ export default function SeniorStoryShareModal(props: SeniorStoryShareModalProps)
                     <img
                       src={storyPhotoUrl}
                       alt="Story preview"
+                      crossOrigin="anonymous"
                       draggable={false}
                       style={{
                         position: 'absolute',

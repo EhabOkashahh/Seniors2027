@@ -3,8 +3,22 @@ export const ROLE_STORAGE_KEY = 'seniors2027.role'
 
 export type AppUserRole = 'Member' | 'Admin'
 
+export function isTokenExpired(token: string): boolean {
+  const payload = parseJwtPayload(token)
+  if (!payload) return true
+  const exp = readNumeric(payload, 'exp')
+  if (exp === null) return false
+  return Date.now() >= exp * 1000
+}
+
 export function getAuthToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY)
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY)
+  if (!token) return null
+  if (isTokenExpired(token)) {
+    clearSession()
+    return null
+  }
+  return token
 }
 
 export function getStoredRole(): AppUserRole | null {
@@ -87,4 +101,15 @@ function readString(payload: Record<string, unknown> | null, key: string): strin
   if (!payload) return null
   const value = payload[key]
   return typeof value === 'string' ? value : null
+}
+
+function readNumeric(payload: Record<string, unknown> | null, key: string): number | null {
+  if (!payload) return null
+  const value = payload[key]
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return isNaN(parsed) ? null : parsed
+  }
+  return null
 }

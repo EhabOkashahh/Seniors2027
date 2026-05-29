@@ -1,6 +1,6 @@
 import { clearSession, getAuthToken, type AppUserRole } from './session'
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'https://sneiors2027.runasp.net')
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'https://seniors2027.runasp.net')
   .replace(/\/+$/, '')
 const EMAIL_EXISTS_ENDPOINT = import.meta.env.VITE_AUTH_EMAIL_EXISTS_ENDPOINT ?? '/api/auth/recognize/{email}'
 
@@ -963,11 +963,10 @@ export async function updateMyUsernameRequest(
 }
 
 export async function updateMySocialLinksRequest(
-  links: string[],
-  tokenOverride?: string
+  links: string[]
 ): Promise<ApiResult<{ message?: string; socialLinks?: string[] }>> {
   try {
-    const token = tokenOverride ?? getAuthToken()
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/auth/me/social-links`, {
@@ -992,11 +991,10 @@ export async function updateMySocialLinksRequest(
 }
 
 export async function updateMyFavoriteSongRequest(
-  input: string,
-  tokenOverride?: string
+  input: string
 ): Promise<ApiResult<{ message?: string; favoriteSongEmbedUrl?: string | null }>> {
   try {
-    const token = tokenOverride ?? getAuthToken()
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const response = await fetch(`${API_BASE_URL}/api/auth/me/favorite-song`, {
@@ -1021,11 +1019,10 @@ export async function updateMyFavoriteSongRequest(
 }
 
 export async function checkMyUsernameAvailabilityRequest(
-  username: string,
-  tokenOverride?: string
+  username: string
 ): Promise<ApiResult<{ exists: boolean; available: boolean; username?: string }>> {
   try {
-    const token = tokenOverride ?? getAuthToken()
+    const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
     const trimmedUsername = username.trim()

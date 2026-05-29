@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 using Seniors2027.DAL.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -10,10 +11,12 @@ namespace Seniors2027.API.Middleware;
 public class AccountLockMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly ILogger<AccountLockMiddleware> _logger;
 
-    public AccountLockMiddleware(RequestDelegate next)
+    public AccountLockMiddleware(RequestDelegate next, ILogger<AccountLockMiddleware> logger)
     {
         _next = next;
+        _logger = logger;
     }
 
     public async Task InvokeAsync(HttpContext context, AppDbContext dbContext)
@@ -49,7 +52,7 @@ public class AccountLockMiddleware
         }
         catch (SqlException ex) when (ex.Message.Contains("Invalid column name 'IsLocked'", StringComparison.OrdinalIgnoreCase))
         {
-            // Backward-compatible fallback while pending migrations are being applied.
+            _logger.LogWarning(ex, "AccountLockMiddleware skipped: 'IsLocked' column not found. Pending migration?");
             await _next(context);
             return;
         }

@@ -1,5 +1,14 @@
 import type { CSSProperties } from 'react'
 
+export function isSafeImageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 type GenderCapAvatarProps = {
   src?: string | null
   alt: string
@@ -29,6 +38,7 @@ export default function GenderCapAvatar({
   fallbackStyle,
   capScale = 0.56
 }: GenderCapAvatarProps) {
+  const safeSrc = src && isSafeImageUrl(src) ? src : null
   const normalizedGender = normalizeGender(gender)
   const capMain = normalizedGender === 'female' ? '#ec4899' : '#2563eb'
   const capDark = normalizedGender === 'female' ? '#be185d' : '#1d4ed8'
@@ -43,9 +53,9 @@ export default function GenderCapAvatar({
         ...containerStyle
       }}
     >
-      {src ? (
+      {safeSrc ? (
         <img
-          src={src}
+          src={safeSrc}
           alt={alt}
           style={{
             width: '100%',

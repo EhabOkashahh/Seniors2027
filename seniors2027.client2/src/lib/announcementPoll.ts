@@ -29,7 +29,16 @@ export function parseAnnouncementBody(rawBody: string): ParsedAnnouncementBody {
   if (!decodedPayload) return { body, poll: null }
 
   try {
-    const parsed = JSON.parse(decodedPayload) as Partial<AnnouncementPoll>
+    const parsed = JSON.parse(decodedPayload)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { body, poll: null }
+    }
+
+    const allowedKeys = new Set(['question', 'options'])
+    for (const key of Object.keys(parsed)) {
+      if (!allowedKeys.has(key)) return { body, poll: null }
+    }
+
     const question = normalizeSingleLine(parsed.question)
     const options = normalizePollOptions(parsed.options)
 

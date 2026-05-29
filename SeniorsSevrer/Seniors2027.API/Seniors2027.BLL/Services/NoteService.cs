@@ -9,6 +9,7 @@ namespace Seniors2027.BLL.Services;
 public class NoteService : INoteService
 {
     private const int NotePointsAward = 1;
+    private const int MaxDailyNotePoints = 20;
     private readonly AppDbContext _context;
     private readonly IAppUpdatesRealtimeNotifier _appUpdatesRealtimeNotifier;
     private readonly INotificationService _notificationService;
@@ -40,7 +41,17 @@ public class NoteService : INoteService
         };
 
         await _context.Notes.AddAsync(note);
-        sender.Points += NotePointsAward;
+
+        var todayStart = DateTime.UtcNow.Date;
+        var todayPoints = await _context.Notes
+            .Where(n => n.SenderId == senderId && n.CreatedAt >= todayStart)
+            .CountAsync();
+
+        if (todayPoints < MaxDailyNotePoints)
+        {
+            sender.Points += NotePointsAward;
+        }
+
         await _context.SaveChangesAsync();
 
         await _notificationService.CreateNotificationAsync(

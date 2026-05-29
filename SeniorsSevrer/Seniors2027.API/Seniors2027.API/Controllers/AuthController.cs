@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Seniors2027.API.Extensions;
 using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs;
@@ -181,6 +182,7 @@ public class AuthController(
         return Ok(new { exists });
     }
 
+    [Authorize]
     [HttpPost("upload-photo")]
     public async Task<ActionResult> UploadPhoto([FromForm] IFormFile photo)
     {
@@ -245,6 +247,7 @@ public class AuthController(
         });
     }
 
+    [EnableRateLimiting("AuthLogin")]
     [HttpPost("login")]
     public async Task<ActionResult<LoginStartResponseDto>> Login(LoginDto loginDto)
     {
@@ -259,6 +262,7 @@ public class AuthController(
         }
     }
 
+    [EnableRateLimiting("AuthVerifyOtp")]
     [HttpPost("verify-otp")]
     public async Task<ActionResult<AuthResponseDto>> VerifyOtp(VerifyOtpDto verifyOtpDto)
     {

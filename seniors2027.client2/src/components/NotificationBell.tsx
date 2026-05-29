@@ -131,6 +131,7 @@ export default function NotificationBell() {
   }
 
   const handleClearAll = async () => {
+    if (!window.confirm('Clear all notifications? This cannot be undone.')) return
     await clearAllNotificationsRequest()
     setNotifications([])
     setUnreadCount(0)

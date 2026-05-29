@@ -16,8 +16,34 @@ export async function optimizeDailyHighlightFileForUpload(file: File): Promise<F
   return optimizeImageForUpload(file, DAILY_HIGHLIGHT_OPTIONS)
 }
 
+const IMAGE_MAGIC_BYTES: { offset: number; bytes: number[] }[] = [
+  { offset: 0, bytes: [0xFF, 0xD8, 0xFF] },
+  { offset: 0, bytes: [0x89, 0x50, 0x4E, 0x47] },
+  { offset: 0, bytes: [0x47, 0x49, 0x46, 0x38] },
+  { offset: 0, bytes: [0x52, 0x49, 0x46, 0x46] },
+  { offset: 8, bytes: [0x57, 0x45, 0x42, 0x50] },
+  { offset: 0, bytes: [0x42, 0x4D] },
+]
+
+async function hasImageMagicBytes(file: File): Promise<boolean> {
+  try {
+    const headerSize = 12
+    const blob = file.slice(0, headerSize)
+    const buffer = await blob.arrayBuffer()
+    const view = new Uint8Array(buffer)
+
+    return IMAGE_MAGIC_BYTES.some((sig) => {
+      if (view.length < sig.offset + sig.bytes.length) return false
+      return sig.bytes.every((byte, i) => view[sig.offset + i] === byte)
+    })
+  } catch {
+    return false
+  }
+}
+
 async function optimizeImageForUpload(file: File, options: ImageOptimizationOptions): Promise<File> {
   if (!file.type.startsWith('image/')) return file
+  if (!(await hasImageMagicBytes(file))) return file
   if (file.size < options.minBytesToOptimize) return file
 
   let image: HTMLImageElement
