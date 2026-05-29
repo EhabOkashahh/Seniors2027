@@ -56,7 +56,8 @@ bool IsAllowedClientOrigin(string? origin)
     }
 
     return uri.Scheme == Uri.UriSchemeHttps &&
-           uri.Host.Equals("seniors2027-dh5g55hvy-okashahehab-6438s-projects.vercel.app", StringComparison.OrdinalIgnoreCase);
+           (uri.Host.Equals("seniors2027.vercel.app", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase));
 }
 
 // Add services to the container.
