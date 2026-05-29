@@ -165,13 +165,19 @@ export default function PortalHome() {
   }, [archiveHighlightsForCount, currentUserId])
 
   useEffect(() => {
-    if (currentUserId) {
+    if (!currentUserId) return
+
+    const fetchArchive = () => {
       void getHighlightsArchiveRequest(1000).then((result) => {
         if (result.ok && result.data) {
           setArchiveHighlightsForCount(result.data)
         }
       })
     }
+
+    fetchArchive()
+    const interval = window.setInterval(fetchArchive, 60_000)
+    return () => clearInterval(interval)
   }, [currentUserId])
   const [monthlyDumpOpen, setMonthlyDumpOpen] = useState(false)
   const [monthlyDumpLoading, setMonthlyDumpLoading] = useState(false)
@@ -702,6 +708,7 @@ export default function PortalHome() {
       }
 
       setHighlights((prev) => [createdHighlight, ...prev])
+      setArchiveHighlightsForCount((prev) => [createdHighlight, ...prev])
       setActiveIndex(0)
       setFlipDirection('next')
       setHighlightsMessage('Daily highlight added. It will expire automatically after 24h.')
