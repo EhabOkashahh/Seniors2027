@@ -1,13 +1,12 @@
 using Seniors2027.DAL.Data;
 using Seniors2027.DAL.Interfaces;
-using System.Collections;
 
 namespace Seniors2027.DAL.Repositories;
 
 public class UnitOfWork : IUnitOfWork
 {
     private readonly AppDbContext _context;
-    private Hashtable? _repositories;
+    private Dictionary<string, object>? _repositories;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -16,19 +15,20 @@ public class UnitOfWork : IUnitOfWork
 
     public IGenericRepository<T> Repository<T>() where T : class
     {
-        if (_repositories == null) _repositories = new Hashtable();
+        _repositories ??= [];
 
         var type = typeof(T).Name;
 
-        if (!_repositories.ContainsKey(type))
+        if (!_repositories.TryGetValue(type, out var repository))
         {
             var repositoryType = typeof(GenericRepository<>);
-            var repositoryInstance = Activator.CreateInstance(repositoryType.MakeGenericType(typeof(T)), _context);
+            var repositoryInstance = Activator.CreateInstance(repositoryType.MakeGenericType(typeof(T)), _context)!;
 
-            _repositories.Add(type, repositoryInstance);
+            _repositories[type] = repositoryInstance;
+            repository = repositoryInstance;
         }
 
-        return (IGenericRepository<T>)_repositories[type]!;
+        return (IGenericRepository<T>)repository;
     }
 
     public async Task<int> CompleteAsync()

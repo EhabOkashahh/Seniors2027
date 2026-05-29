@@ -32,7 +32,7 @@ public sealed class ErrorMiddleware
         if (context.Response.HasStarted)
         {
             _logger.LogError(ex, "Unhandled exception after response started.");
-            throw ex;
+            return;
         }
 
         var (statusCode, message) = ex switch

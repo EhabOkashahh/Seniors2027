@@ -31,7 +31,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
         return await _dbSet.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
     }
 
-    public IEnumerable<T> Find(Expression<Func<T, bool>> expression)
+    public IQueryable<T> Find(Expression<Func<T, bool>> expression)
     {
         return _dbSet.Where(expression);
     }
@@ -43,7 +43,6 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
 
     public void Update(T entity)
     {
-        _dbSet.Attach(entity);
         _context.Entry(entity).State = EntityState.Modified;
     }
 

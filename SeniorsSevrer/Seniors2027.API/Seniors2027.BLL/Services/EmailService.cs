@@ -12,30 +12,28 @@ public class EmailService(IConfiguration config) : IEmailService
 
     public async Task SendOtpEmailAsync(string toEmail, string otp)
     {
-        try
-        {
-            var fromEmail = GetRequiredSetting("EmailSetting:FromEmail");
-            var smtpHost = GetRequiredSetting("EmailSetting:SmtpHost");
-            var smtpPortRaw = GetRequiredSetting("EmailSetting:SmtpPort");
-            var emailPassword = _config["EmailSetting:Password"] ?? Environment.GetEnvironmentVariable("EMAIL_PASSWORD");
+        var fromEmail = GetRequiredSetting("EmailSetting:FromEmail");
+        var smtpHost = GetRequiredSetting("EmailSetting:SmtpHost");
+        var smtpPortRaw = GetRequiredSetting("EmailSetting:SmtpPort");
+        var emailPassword = _config["EmailSetting:Password"] ?? Environment.GetEnvironmentVariable("EMAIL_PASSWORD");
 
 #if DEBUG
-            Console.WriteLine("=================================================");
-            Console.WriteLine($"[DEVELOPMENT] OTP for {toEmail}: {otp}");
-            Console.WriteLine("=================================================");
+        Console.WriteLine("=================================================");
+        Console.WriteLine($"[DEVELOPMENT] OTP for {toEmail}: {otp}");
+        Console.WriteLine("=================================================");
 #endif
 
-            if (!int.TryParse(smtpPortRaw, out var smtpPort))
-            {
-                throw new InvalidOperationException("EmailSetting:SmtpPort must be a valid integer.");
-            }
+        if (!int.TryParse(smtpPortRaw, out var smtpPort))
+        {
+            throw new InvalidOperationException("EmailSetting:SmtpPort must be a valid integer.");
+        }
 
-            if (string.IsNullOrWhiteSpace(emailPassword))
-            {
-                return;
-            }
+        if (string.IsNullOrWhiteSpace(emailPassword))
+        {
+            return;
+        }
 
-            var htmlBody = $@"
+        var htmlBody = $@"
                     <div style='margin:0;padding:24px 12px;background:#f8f2df;font-family:Arial,sans-serif;color:#101010;'>
                       <div style='max-width:620px;margin:0 auto;background:#fffdf6;border:4px solid #101010;border-radius:14px;box-shadow:10px 10px 0 #101010;overflow:hidden;'>
                         <div style='padding:20px 20px 8px 20px;text-align:center;'>
@@ -58,27 +56,22 @@ public class EmailService(IConfiguration config) : IEmailService
                       </div>
                     </div>";
 
-            using var message = new MailMessage(fromEmail, toEmail)
-            {
-                Subject = "Your OTP Verification Code",
-                Body = htmlBody,
-                IsBodyHtml = true
-            };
-
-            using var smtp = new SmtpClient(smtpHost, smtpPort)
-            {
-                EnableSsl = true,
-                UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(fromEmail, emailPassword),
-                DeliveryMethod = SmtpDeliveryMethod.Network
-            };
-
-            await smtp.SendMailAsync(message);
-        }
-        catch
+        using var message = new MailMessage(fromEmail, toEmail)
         {
-            throw;
-        }
+            Subject = "Your OTP Verification Code",
+            Body = htmlBody,
+            IsBodyHtml = true
+        };
+
+        using var smtp = new SmtpClient(smtpHost, smtpPort)
+        {
+            EnableSsl = true,
+            UseDefaultCredentials = false,
+            Credentials = new NetworkCredential(fromEmail, emailPassword),
+            DeliveryMethod = SmtpDeliveryMethod.Network
+        };
+
+        await smtp.SendMailAsync(message);
     }
 
     private string GetRequiredSetting(string key)

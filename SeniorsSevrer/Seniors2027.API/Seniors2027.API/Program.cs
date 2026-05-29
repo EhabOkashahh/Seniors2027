@@ -75,6 +75,7 @@ builder.Services.AddScoped<IDailyHighlightService, DailyHighlightService>();
 builder.Services.AddScoped<IImageUploadProcessor, ImageUploadProcessor>();
 builder.Services.AddScoped<IChallengeMediaUploadProcessor, ChallengeMediaUploadProcessor>();
 builder.Services.AddScoped<IChallengeService, ChallengeService>();
+builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IEmailService, EmailService >();
 builder.Services.AddSingleton<IDailyHighlightsRealtimeNotifier, DailyHighlightsRealtimeNotifier>();
@@ -177,7 +178,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Database migration failed during startup.");
+        logger.LogError(ex, "Database migration failed during startup. The application will continue, but some features may not work correctly.");
     }
 }
 
@@ -236,6 +237,7 @@ challengeMediaContentTypeProvider.Mappings[".jpg"] = "image/jpeg";
 challengeMediaContentTypeProvider.Mappings[".jpeg"] = "image/jpeg";
 challengeMediaContentTypeProvider.Mappings[".png"] = "image/png";
 challengeMediaContentTypeProvider.Mappings[".gif"] = "image/gif";
+challengeMediaContentTypeProvider.Mappings[".svg"] = "image/svg+xml";
 challengeMediaContentTypeProvider.Mappings[".webp"] = "image/webp";
 challengeMediaContentTypeProvider.Mappings[".mp4"] = "video/mp4";
 challengeMediaContentTypeProvider.Mappings[".pdf"] = "application/pdf";

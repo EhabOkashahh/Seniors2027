@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
 using Seniors2027.DAL.Interfaces;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -41,18 +41,18 @@ public class AuthService(
         var email = loginDto.Email.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(email))
         {
-            throw new Exception("Email is required");
+            throw new ArgumentException("Email is required");
         }
         if (!AllowedLoginEmailRegex.IsMatch(email))
         {
-            throw new Exception(AllowedLoginEmailFormatMessage);
+            throw new ArgumentException(AllowedLoginEmailFormatMessage);
         }
 
-        var user = GetUserAuthSnapshot(email);
+        var user = await GetUserAuthSnapshotAsync(email);
 
         if (user is { IsLocked: true })
         {
-            throw new Exception("This account is locked. Contact an admin.");
+            throw new InvalidOperationException("This account is locked. Contact an admin.");
         }
 
         var otp = GenerateOtp();
@@ -71,25 +71,25 @@ public class AuthService(
         var otp = verifyOtpDto.Otp.Trim();
         if (string.IsNullOrWhiteSpace(email))
         {
-            throw new Exception("Email is required");
+            throw new ArgumentException("Email is required");
         }
         if (!AllowedLoginEmailRegex.IsMatch(email))
         {
-            throw new Exception(AllowedLoginEmailFormatMessage);
+            throw new ArgumentException(AllowedLoginEmailFormatMessage);
         }
 
         if (string.IsNullOrWhiteSpace(otp))
         {
-            throw new Exception("OTP is required");
+            throw new ArgumentException("OTP is required");
         }
 
-        var otpRecord = FindActiveOtp(email, otp);
+        var otpRecord = await FindActiveOtpAsync(email, otp);
         if (otpRecord == null)
         {
-            throw new Exception("Invalid or expired OTP");
+            throw new InvalidOperationException("Invalid or expired OTP");
         }
 
-        var user = GetUserAuthSnapshot(email);
+        var user = await GetUserAuthSnapshotAsync(email);
 
         if (user == null)
         {
@@ -110,17 +110,18 @@ public class AuthService(
 
         if (user is { IsLocked: true })
         {
-            throw new Exception("This account is locked. Contact an admin.");
+            throw new InvalidOperationException("This account is locked. Contact an admin.");
         }
 
         var currentRole = user.Role;
         if (_adminEmails.Contains(email) && currentRole != UserRole.Admin)
         {
-            var persistedUser = _unitOfWork.Repository<User>().Find(u => u.Id == user.Id).FirstOrDefault();
+            var persistedUser = await _unitOfWork.Repository<User>()
+                .Find(u => u.Id == user.Id)
+                .FirstOrDefaultAsync();
             if (persistedUser != null)
             {
                 persistedUser.Role = UserRole.Admin;
-                _unitOfWork.Repository<User>().Update(persistedUser);
                 await _unitOfWork.CompleteAsync();
                 currentRole = UserRole.Admin;
             }
@@ -154,44 +155,23 @@ public class AuthService(
         return authResponse;
     }
 
-    private UserAuthSnapshot? GetUserAuthSnapshot(string email)
+    private async Task<UserAuthSnapshot?> GetUserAuthSnapshotAsync(string email)
     {
-        try
-        {
-            return _unitOfWork.Repository<User>()
-                .Find(u => u.Email.ToLower() == email)
-                .Select(u => new UserAuthSnapshot
-                {
-                    Id = u.Id,
-                    Username = u.Username,
-                    Email = u.Email,
-                    Gender = u.Gender,
-                    Role = u.Role,
-                    PhotoUrl = u.PhotoUrl,
-                    Description = u.Description,
-                    SocialLinksJson = u.SocialLinksJson,
-                    IsLocked = u.IsLocked
-                })
-                .FirstOrDefault();
-        }
-        catch (SqlException ex) when (ex.Message.Contains("Invalid column name 'IsLocked'", StringComparison.OrdinalIgnoreCase))
-        {
-            return _unitOfWork.Repository<User>()
-                .Find(u => u.Email.ToLower() == email)
-                .Select(u => new UserAuthSnapshot
-                {
-                    Id = u.Id,
-                    Username = u.Username,
-                    Email = u.Email,
-                    Gender = u.Gender,
-                    Role = u.Role,
-                    PhotoUrl = u.PhotoUrl,
-                    Description = u.Description,
-                    SocialLinksJson = u.SocialLinksJson,
-                    IsLocked = false
-                })
-                .FirstOrDefault();
-        }
+        return await _unitOfWork.Repository<User>()
+            .Find(u => u.Email == email)
+            .Select(u => new UserAuthSnapshot
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Email = u.Email,
+                Gender = u.Gender,
+                Role = u.Role,
+                PhotoUrl = u.PhotoUrl,
+                Description = u.Description,
+                SocialLinksJson = u.SocialLinksJson,
+                IsLocked = u.IsLocked
+            })
+            .FirstOrDefaultAsync();
     }
 
     private sealed class UserAuthSnapshot
@@ -208,25 +188,25 @@ public class AuthService(
     }
 
 
-    private UserOtp? FindActiveOtp(string email, string otp)
+    private async Task<UserOtp?> FindActiveOtpAsync(string email, string otp)
     {
-        return _unitOfWork.Repository<UserOtp>()
+        return await _unitOfWork.Repository<UserOtp>()
             .Find(x =>
-                x.Email.ToLower() == email
+                x.Email == email
                 && x.OtpCode == otp
                 && x.IsUsed == false
                 && x.ExpiryTime > DateTime.UtcNow
             )
             .OrderByDescending(x => x.CreatedAt)
-            .FirstOrDefault();
+            .FirstOrDefaultAsync();
     }
 
     private async Task StoreOtpAsync(string email, int? userId, string otp)
     {
         var userOtpRepository = _unitOfWork.Repository<UserOtp>();
-        var existingOtps = userOtpRepository
-            .Find(x => x.Email.ToLower() == email)
-            .ToList();
+        var existingOtps = await userOtpRepository
+            .Find(x => x.Email == email)
+            .ToListAsync();
 
         foreach (var existingOtp in existingOtps)
         {
@@ -248,9 +228,9 @@ public class AuthService(
     private async Task DeleteOtpsByEmailAsync(string email)
     {
         var userOtpRepository = _unitOfWork.Repository<UserOtp>();
-        var otpRows = userOtpRepository
-            .Find(x => x.Email.ToLower() == email)
-            .ToList();
+        var otpRows = await userOtpRepository
+            .Find(x => x.Email == email)
+            .ToListAsync();
 
         foreach (var otpRow in otpRows)
         {
@@ -260,20 +240,18 @@ public class AuthService(
         await _unitOfWork.CompleteAsync();
     }
 
-    public Task<bool> IsUsernameTakenAsync(string username, int? excludeUserId = null)
+    public async Task<bool> IsUsernameTakenAsync(string username, int? excludeUserId = null)
     {
         var trimmedUsername = username.Trim();
         if (string.IsNullOrWhiteSpace(trimmedUsername))
         {
-            return Task.FromResult(false);
+            return false;
         }
 
         var normalized = trimmedUsername.ToLowerInvariant();
-        var taken = _unitOfWork.Repository<User>()
+        return await _unitOfWork.Repository<User>()
             .Find(u => u.Username.ToLower() == normalized && (!excludeUserId.HasValue || u.Id != excludeUserId.Value))
-            .Any();
-
-        return Task.FromResult(taken);
+            .AnyAsync();
     }
 
     public async Task<bool> UpdateUsernameAsync(int userId, string username)
@@ -281,69 +259,64 @@ public class AuthService(
         var trimmedUsername = username.Trim();
         if (string.IsNullOrWhiteSpace(trimmedUsername))
         {
-            throw new Exception("Username is required");
+            throw new ArgumentException("Username is required");
         }
 
-        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        var user = await _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefaultAsync();
         if (user == null) return false;
 
         var taken = await IsUsernameTakenAsync(trimmedUsername, userId);
         if (taken)
         {
-            throw new Exception("Username is already taken");
+            throw new InvalidOperationException("Username is already taken");
         }
 
         user.Username = trimmedUsername;
-        _unitOfWork.Repository<User>().Update(user);
         await _unitOfWork.CompleteAsync();
         return true;
     }
 
     public async Task<bool> UpdateGenderAsync(int userId, Gender gender)
     {
-        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        var user = await _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefaultAsync();
         if (user == null) return false;
 
         user.Gender = gender;
-        _unitOfWork.Repository<User>().Update(user);
         await _unitOfWork.CompleteAsync();
         return true;
     }
 
     public async Task<bool> UpdateDescriptionAsync(int userId, string? description)
     {
-        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        var user = await _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefaultAsync();
         if (user == null) return false;
 
         user.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-        _unitOfWork.Repository<User>().Update(user);
         await _unitOfWork.CompleteAsync();
         return true;
     }
 
     public async Task<bool> UpdateSocialLinksAsync(int userId, IEnumerable<string>? links)
     {
-        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        var user = await _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefaultAsync();
         if (user == null) return false;
 
         var normalizedLinks = NormalizeSocialLinks(links);
         user.SocialLinksJson = normalizedLinks.Count == 0 ? null : JsonSerializer.Serialize(normalizedLinks);
 
-        _unitOfWork.Repository<User>().Update(user);
         await _unitOfWork.CompleteAsync();
         return true;
     }
 
     public async Task<bool> UpdateFavoriteSongEmbedUrlAsync(int userId, string? favoriteSongEmbedUrl)
     {
-        var user = _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefault();
+        var user = await _unitOfWork.Repository<User>().Find(u => u.Id == userId).FirstOrDefaultAsync();
         if (user == null) return false;
 
         user.FavoriteSongEmbedUrl = string.IsNullOrWhiteSpace(favoriteSongEmbedUrl)
             ? null
             : favoriteSongEmbedUrl.Trim();
 
-        _unitOfWork.Repository<User>().Update(user);
         await _unitOfWork.CompleteAsync();
         return true;
     }

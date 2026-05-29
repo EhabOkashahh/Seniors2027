@@ -10,11 +10,13 @@ public class ChallengeService : IChallengeService
 {
     private readonly AppDbContext _context;
     private readonly INotificationService _notificationService;
+    private readonly IFileService _fileService;
 
-    public ChallengeService(AppDbContext context, INotificationService notificationService)
+    public ChallengeService(AppDbContext context, INotificationService notificationService, IFileService fileService)
     {
         _context = context;
         _notificationService = notificationService;
+        _fileService = fileService;
     }
 
     public async Task<ChallengeResponseDto> CreateChallengeAsync(
@@ -97,13 +99,12 @@ public class ChallengeService : IChallengeService
                 .Select(u => u.Id)
                 .ToListAsync(cancellationToken);
 
-            foreach (var uid in allUserIds)
+            if (allUserIds.Count > 0)
             {
-                await _notificationService.CreateNotificationAsync(
-                    uid,
-                    "new_challenge",
-                    $"New challenge: {challenge.Title}",
-                    $"/challenge?challengeId={challenge.Id}");
+                var notifications = allUserIds
+                    .Select(uid => (uid, "new_challenge", $"New challenge: {challenge.Title}", (string?)$"/challenge?challengeId={challenge.Id}"))
+                    .ToList();
+                await _notificationService.CreateNotificationsBulkAsync(notifications);
             }
         }
 
@@ -217,9 +218,8 @@ public class ChallengeService : IChallengeService
                     if (!string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
                     {
                         var oldFileName = Path.GetFileName(existingSubmission.MediaUrl);
-                        var oldMediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldFileName);
-                        if (File.Exists(oldMediaPath))
-                            File.Delete(oldMediaPath);
+                        var oldMediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), oldFileName);
+                        _fileService.DeleteFileIfExists(oldMediaPath);
                     }
                     _context.ChallengeSubmissions.Remove(existingSubmission);
                 }
@@ -274,7 +274,7 @@ public class ChallengeService : IChallengeService
         return submissions.Select(s =>
         {
             var isTeam = s.Team != null;
-            var isOwn = s.UserId == currentUserId || (isTeam && s.Team.Members.Any(m => m.UserId == currentUserId));
+            var isOwn = s.UserId == currentUserId || (isTeam && s.Team!.Members.Any(m => m.UserId == currentUserId));
             return new ChallengeSubmissionResponseDto
             {
                 Id = s.Id,
@@ -289,10 +289,10 @@ public class ChallengeService : IChallengeService
                 IsOwn = isOwn,
                 IsVotedByCurrentUser = s.Votes != null && s.Votes.Any(v => v.VoterUserId == currentUserId),
                 CreatedAtUtc = s.CreatedAtUtc,
-                TeamName = isTeam ? s.Team.Name : null,
+                TeamName = isTeam ? s.Team!.Name : null,
                 IsTeamOwner = isTeam && s.UserId == currentUserId,
                 TeamMembers = isTeam
-                    ? s.Team.Members.Select(m => new TeamMemberInfoDto
+                    ? s.Team!.Members.Select(m => new TeamMemberInfoDto
                     {
                         UserId = m.UserId,
                         Username = m.User?.Username ?? "Unknown",
@@ -371,9 +371,8 @@ public class ChallengeService : IChallengeService
                 if (!string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
                 {
                     var oldFileName = Path.GetFileName(existingSubmission.MediaUrl);
-                    var oldMediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldFileName);
-                    if (File.Exists(oldMediaPath))
-                        File.Delete(oldMediaPath);
+                    var oldMediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), oldFileName);
+                    _fileService.DeleteFileIfExists(oldMediaPath);
                 }
 
                 // If submission was part of a team, delete the team too
@@ -537,9 +536,8 @@ public class ChallengeService : IChallengeService
         if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
         {
             var fileName = Path.GetFileName(submission.MediaUrl);
-            var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
-            if (File.Exists(mediaPath))
-                File.Delete(mediaPath);
+            var mediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), fileName);
+            _fileService.DeleteFileIfExists(mediaPath);
         }
 
         // Delete any votes for this submission
@@ -715,9 +713,8 @@ public class ChallengeService : IChallengeService
                 if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
                 {
                     var fileName = Path.GetFileName(submission.MediaUrl);
-                    var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
-                    if (File.Exists(mediaPath))
-                        File.Delete(mediaPath);
+                    var mediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), fileName);
+                    _fileService.DeleteFileIfExists(mediaPath);
                 }
             }
 
@@ -789,9 +786,8 @@ public class ChallengeService : IChallengeService
             if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
             {
                 var fileName = Path.GetFileName(submission.MediaUrl);
-                var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
-                if (File.Exists(mediaPath))
-                    File.Delete(mediaPath);
+                var mediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), fileName);
+                _fileService.DeleteFileIfExists(mediaPath);
             }
         }
 
@@ -819,9 +815,8 @@ public class ChallengeService : IChallengeService
         if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
         {
             var logoFileName = Path.GetFileName(challenge.LogoUrl);
-            var logoPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", logoFileName);
-            if (File.Exists(logoPath))
-                File.Delete(logoPath);
+            var logoPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), logoFileName);
+            _fileService.DeleteFileIfExists(logoPath);
         }
 
         // We delete in order just to be safe with the Restrict constraints
@@ -862,6 +857,7 @@ public class ChallengeService : IChallengeService
 
         var challenges = await _context.Challenges
             .OrderByDescending(c => c.CreatedAtUtc)
+            .Take(200)
             .ToListAsync(cancellationToken);
 
         return challenges.Select(c => MapToChallengeResponseDto(c, adminUserId)).ToList();
@@ -881,9 +877,8 @@ public class ChallengeService : IChallengeService
             if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
             {
                 var fileName = Path.GetFileName(submission.MediaUrl);
-                var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
-                if (File.Exists(mediaPath))
-                    File.Delete(mediaPath);
+                var mediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), fileName);
+                _fileService.DeleteFileIfExists(mediaPath);
             }
         }
 
@@ -979,9 +974,8 @@ public class ChallengeService : IChallengeService
             if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
             {
                 var oldLogoFileName = Path.GetFileName(challenge.LogoUrl);
-                var oldLogoPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldLogoFileName);
-                if (File.Exists(oldLogoPath))
-                    File.Delete(oldLogoPath);
+                var oldLogoPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), oldLogoFileName);
+                _fileService.DeleteFileIfExists(oldLogoPath);
             }
             challenge.LogoUrl = logoUrl;
         }
@@ -991,9 +985,8 @@ public class ChallengeService : IChallengeService
             if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
             {
                 var oldLogoFileName = Path.GetFileName(challenge.LogoUrl);
-                var oldLogoPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", oldLogoFileName);
-                if (File.Exists(oldLogoPath))
-                    File.Delete(oldLogoPath);
+                var oldLogoPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), oldLogoFileName);
+                _fileService.DeleteFileIfExists(oldLogoPath);
             }
             challenge.LogoUrl = null;
         }
@@ -1008,13 +1001,12 @@ public class ChallengeService : IChallengeService
                 .Select(u => u.Id)
                 .ToListAsync(cancellationToken);
 
-            foreach (var uid in allUserIds)
+            if (allUserIds.Count > 0)
             {
-                await _notificationService.CreateNotificationAsync(
-                    uid,
-                    "new_challenge",
-                    $"New challenge: {challenge.Title}",
-                    $"/challenge?challengeId={challenge.Id}");
+                var notifications = allUserIds
+                    .Select(uid => (uid, "new_challenge", $"New challenge: {challenge.Title}", (string?)$"/challenge?challengeId={challenge.Id}"))
+                    .ToList();
+                await _notificationService.CreateNotificationsBulkAsync(notifications);
             }
         }
 
@@ -1060,8 +1052,8 @@ public class ChallengeService : IChallengeService
         return topSubmissions.Select((s, index) =>
         {
             var basePts = splitAmong(index);
-            var isTeam = s.Team != null && s.Team.Members.Count > 1;
-            var memberCount = isTeam ? s.Team.Members.Count : 1;
+            var isTeam = s.Team != null && s.Team!.Members.Count > 1;
+            var memberCount = isTeam ? s.Team!.Members.Count : 1;
             var ptsPerMember = isTeam ? basePts / memberCount : basePts;
 
             var dto = new ChallengeLeaderboardItemDto
@@ -1075,18 +1067,18 @@ public class ChallengeService : IChallengeService
                 MediaType = s.MediaType,
                 Caption = s.Caption,
                 Votes = s.VoteCount,
-                IsOwn = s.UserId == currentUserId || (s.Team != null && s.Team.Members.Any(m => m.UserId == currentUserId)),
+                IsOwn = s.UserId == currentUserId || (s.Team != null && s.Team!.Members.Any(m => m.UserId == currentUserId)),
                 PointsEarned = isTeam ? ptsPerMember : basePts
             };
 
             if (isTeam)
             {
-                dto.TeamName = s.Team.Name;
+                dto.TeamName = s.Team!.Name;
                 dto.IsTeamOwner = s.UserId == currentUserId;
                 dto.UserId = 0; // Not meaningful for teams
-                dto.UserName = s.Team.Name;
+                dto.UserName = s.Team!.Name;
                 dto.UserPhotoUrl = null;
-                dto.TeamMembers = s.Team.Members.Select(m => new TeamMemberInfoDto
+                dto.TeamMembers = s.Team!.Members.Select(m => new TeamMemberInfoDto
                 {
                     UserId = m.UserId,
                     Username = m.User?.Username ?? "Unknown",
@@ -1120,9 +1112,8 @@ public class ChallengeService : IChallengeService
                     if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
                     {
                         var fileName = Path.GetFileName(submission.MediaUrl);
-                        var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
-                        if (File.Exists(mediaPath))
-                            File.Delete(mediaPath);
+                        var mediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), fileName);
+                        _fileService.DeleteFileIfExists(mediaPath);
                     }
                 }
 
@@ -1208,9 +1199,8 @@ public class ChallengeService : IChallengeService
                 if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
                 {
                     var fileName = Path.GetFileName(submission.MediaUrl);
-                    var mediaPath = Path.Combine(Directory.GetCurrentDirectory(), "ChallengeMedia", fileName);
-                    if (File.Exists(mediaPath))
-                        File.Delete(mediaPath);
+                    var mediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), fileName);
+                    _fileService.DeleteFileIfExists(mediaPath);
                 }
             }
         }
@@ -1291,3 +1281,4 @@ public class ChallengeService : IChallengeService
         };
     }
 }
+

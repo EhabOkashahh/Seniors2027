@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
@@ -14,10 +15,10 @@ public class JoinRequestService(IUnitOfWork unitOfWork) : IJoinRequestService
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var now = DateTime.UtcNow;
 
-        var existingPendingRequest = _unitOfWork.Repository<JoinRequest>()
-            .Find(x => x.Email.ToLower() == normalizedEmail && x.Status == JoinRequestStatus.Pending)
+        var existingPendingRequest = await _unitOfWork.Repository<JoinRequest>()
+            .Find(x => x.Email == normalizedEmail && x.Status == JoinRequestStatus.Pending)
             .OrderByDescending(x => x.RequestedAt)
-            .FirstOrDefault();
+            .FirstOrDefaultAsync();
 
         JoinRequest request;
         if (existingPendingRequest == null)
@@ -34,54 +35,48 @@ public class JoinRequestService(IUnitOfWork unitOfWork) : IJoinRequestService
         {
             request = existingPendingRequest;
             request.RequestedAt = now;
-            _unitOfWork.Repository<JoinRequest>().Update(request);
         }
 
         await _unitOfWork.CompleteAsync();
         return MapToDto(request);
     }
 
-    public Task<IReadOnlyList<JoinRequestDto>> GetJoinRequestsAsync(JoinRequestStatus? status = null)
+    public async Task<IReadOnlyList<JoinRequestDto>> GetJoinRequestsAsync(JoinRequestStatus? status = null)
     {
-        var query = _unitOfWork.Repository<JoinRequest>()
+        var items = await _unitOfWork.Repository<JoinRequest>()
             .Find(x => !status.HasValue || x.Status == status.Value)
             .OrderByDescending(x => x.RequestedAt)
-            .ToList();
+            .Take(200)
+            .ToListAsync();
 
-        var items = new List<JoinRequestDto>(query.Count);
-        foreach (var item in query)
-        {
-            items.Add(MapToDto(item));
-        }
-
-        return Task.FromResult<IReadOnlyList<JoinRequestDto>>(items);
+        return items.Select(MapToDto).ToList();
     }
 
     public async Task<JoinRequestDto> ReviewJoinRequestAsync(int requestId, JoinRequestDecision decision, int reviewerUserId)
     {
-        var reviewer = _unitOfWork.Repository<User>().Find(x => x.Id == reviewerUserId).FirstOrDefault();
+        var reviewer = await _unitOfWork.Repository<User>().Find(x => x.Id == reviewerUserId).FirstOrDefaultAsync();
         if (reviewer == null)
         {
-            throw new Exception("Reviewer account was not found.");
+            throw new InvalidOperationException("Reviewer account was not found.");
         }
 
         if (reviewer.Role != UserRole.Admin)
         {
-            throw new Exception("Only admins can review join requests.");
+            throw new InvalidOperationException("Only admins can review join requests.");
         }
 
-        var request = _unitOfWork.Repository<JoinRequest>()
+        var request = await _unitOfWork.Repository<JoinRequest>()
             .Find(x => x.Id == requestId)
-            .FirstOrDefault();
+            .FirstOrDefaultAsync();
 
         if (request == null)
         {
-            throw new Exception("Join request was not found.");
+            throw new KeyNotFoundException("Join request was not found.");
         }
 
         if (request.Status != JoinRequestStatus.Pending)
         {
-            throw new Exception("This join request has already been reviewed.");
+            throw new InvalidOperationException("This join request has already been reviewed.");
         }
 
         request.ReviewedAt = DateTime.UtcNow;
@@ -91,15 +86,15 @@ public class JoinRequestService(IUnitOfWork unitOfWork) : IJoinRequestService
         {
             request.Status = JoinRequestStatus.Accepted;
 
-            var existingUser = _unitOfWork.Repository<User>()
-                .Find(x => x.Email.ToLower() == request.Email.ToLower())
-                .FirstOrDefault();
+            var existingUser = await _unitOfWork.Repository<User>()
+                .Find(x => x.Email == request.Email)
+                .FirstOrDefaultAsync();
 
             if (existingUser == null)
             {
                 existingUser = new User
                 {
-                    Email = request.Email.ToLower(),
+                    Email = request.Email,
                     Username = string.Empty,
                     Gender = Gender.Unknown,
                     PhotoUrl = null,
@@ -120,7 +115,6 @@ public class JoinRequestService(IUnitOfWork unitOfWork) : IJoinRequestService
             request.Status = JoinRequestStatus.Declined;
         }
 
-        _unitOfWork.Repository<JoinRequest>().Update(request);
         await _unitOfWork.CompleteAsync();
 
         return MapToDto(request);

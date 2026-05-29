@@ -233,6 +233,54 @@ public class AdminController(
                 _context.Notes.RemoveRange(userNotes);
             }
 
+            var userNoteReactions = await _context.NoteReactions
+                .Where(r => r.UserId == userId)
+                .ToListAsync();
+            if (userNoteReactions.Count > 0)
+            {
+                _context.NoteReactions.RemoveRange(userNoteReactions);
+            }
+
+            var userChallengeVotes = await _context.ChallengeVotes
+                .Where(v => v.VoterUserId == userId)
+                .ToListAsync();
+            if (userChallengeVotes.Count > 0)
+            {
+                _context.ChallengeVotes.RemoveRange(userChallengeVotes);
+            }
+
+            var userChallengeMessages = await _context.ChallengeMessages
+                .Where(m => m.UserId == userId)
+                .ToListAsync();
+            if (userChallengeMessages.Count > 0)
+            {
+                _context.ChallengeMessages.RemoveRange(userChallengeMessages);
+            }
+
+            var userChallengeTeamMemberships = await _context.ChallengeTeamMembers
+                .Where(m => m.UserId == userId)
+                .ToListAsync();
+            if (userChallengeTeamMemberships.Count > 0)
+            {
+                _context.ChallengeTeamMembers.RemoveRange(userChallengeTeamMemberships);
+            }
+
+            var userChallengeParticipations = await _context.ChallengeParticipants
+                .Where(p => p.UserId == userId)
+                .ToListAsync();
+            if (userChallengeParticipations.Count > 0)
+            {
+                _context.ChallengeParticipants.RemoveRange(userChallengeParticipations);
+            }
+
+            var userChallengeSubmissions = await _context.ChallengeSubmissions
+                .Where(s => s.UserId == userId)
+                .ToListAsync();
+            if (userChallengeSubmissions.Count > 0)
+            {
+                _context.ChallengeSubmissions.RemoveRange(userChallengeSubmissions);
+            }
+
             var userAnnouncements = await _context.Announcements
                 .Where(a => a.CreatedByUserId == userId)
                 .ToListAsync();
@@ -389,13 +437,12 @@ public class AdminController(
             .Select(u => u.Id)
             .ToListAsync();
 
-        foreach (var uid in allUserIds)
+        if (allUserIds.Count > 0)
         {
-            await _notificationService.CreateNotificationAsync(
-                uid,
-                "announcement",
-                $"New announcement: {title}",
-                "/portal");
+            var notifications = allUserIds
+                .Select(uid => (uid, "announcement", $"New announcement: {title}", (string?)"/portal"))
+                .ToList();
+            await _notificationService.CreateNotificationsBulkAsync(notifications);
         }
 
         var created = AnnouncementPollMapper.ToAnnouncementDto(createdAnnouncement, Array.Empty<AnnouncementPollVote>());
@@ -675,13 +722,12 @@ public class AdminController(
             .Select(u => u.Id)
             .ToListAsync();
 
-        foreach (var uid in allUserIds)
+        if (allUserIds.Count > 0)
         {
-            await _notificationService.CreateNotificationAsync(
-                uid,
-                "event",
-                $"New event: {title}",
-                "/portal");
+            var notifications = allUserIds
+                .Select(uid => (uid, "event", $"New event: {title}", (string?)"/portal"))
+                .ToList();
+            await _notificationService.CreateNotificationsBulkAsync(notifications);
         }
 
         return Ok(created);

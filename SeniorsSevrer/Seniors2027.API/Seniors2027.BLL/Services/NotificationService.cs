@@ -108,6 +108,30 @@ public class NotificationService : INotificationService
         await _realtimeNotifier.NotifyNotificationReceivedAsync(userId);
     }
 
+    public async Task CreateNotificationsBulkAsync(IReadOnlyList<(int userId, string type, string message, string? link)> notifications)
+    {
+        if (notifications.Count == 0) return;
+
+        var now = DateTime.UtcNow;
+        var entities = notifications.Select(n => new Notification
+        {
+            UserId = n.userId,
+            Type = n.type,
+            Message = n.message,
+            Link = n.link,
+            IsRead = false,
+            CreatedAt = now
+        }).ToList();
+
+        _context.Notifications.AddRange(entities);
+        await _context.SaveChangesAsync();
+
+        foreach (var notification in notifications)
+        {
+            await _realtimeNotifier.NotifyNotificationReceivedAsync(notification.userId);
+        }
+    }
+
     public async Task DeleteAllAsync(int userId)
     {
         var notifications = await _context.Notifications

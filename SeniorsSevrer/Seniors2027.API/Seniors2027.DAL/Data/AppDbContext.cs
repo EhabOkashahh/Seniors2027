@@ -368,5 +368,10 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(e => new { e.TeamId, e.UserId }).IsUnique();
         });
+
+        modelBuilder.Entity<ChallengeMessage>(entity =>
+        {
+            entity.HasIndex(e => new { e.ChallengeId, e.CreatedAtUtc });
+        });
     }
 }
