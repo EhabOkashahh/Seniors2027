@@ -509,6 +509,25 @@ button:active { transform: translate(1px, 1px); box-shadow: 5px 5px 0px var(--sh
   max-height: 100vh;
 }
 
+.portal-sidebar::-webkit-scrollbar {
+  width: 14px;
+}
+
+.portal-sidebar::-webkit-scrollbar-track {
+  background: white;
+  border-left: 3px solid var(--border-color);
+}
+
+.portal-sidebar::-webkit-scrollbar-thumb {
+  background: var(--accent-yellow);
+  border: 3px solid var(--border-color);
+  min-height: 50px;
+}
+
+.portal-sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-orange);
+}
+
 .sidebar-logo {
   font-size: 1.5rem;
   font-weight: 900;
