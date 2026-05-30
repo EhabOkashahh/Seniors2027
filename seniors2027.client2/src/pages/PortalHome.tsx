@@ -170,7 +170,6 @@ export default function PortalHome() {
   const [monthlyDumpMessage, setMonthlyDumpMessage] = useState<string | null>(null)
   const [monthlyDumpEntries, setMonthlyDumpEntries] = useState<MonthlyDumpEntry[]>([])
   const [monthlyDumpBookPageIndex, setMonthlyDumpBookPageIndex] = useState(0)
-  const [monthlyDumpFlipDirection, setMonthlyDumpFlipDirection] = useState<'next' | 'prev'>('next')
   const [isMonthlyBookIntroRunning, setIsMonthlyBookIntroRunning] = useState(false)
   const [showLogoFireworks, setShowLogoFireworks] = useState(false)
   const [monthlyDumpTopThree, setMonthlyDumpTopThree] = useState<MonthlyTopThree | null>(null)
@@ -842,14 +841,12 @@ export default function PortalHome() {
   const goNextMonthlyDumpSpread = () => {
     if (monthlyDumpTotalSpreads <= 1) return
     playMonthlyPageFlipSound(monthlyDumpAudioContextRef)
-    setMonthlyDumpFlipDirection('next')
     setMonthlyDumpBookPageIndex((prev) => (prev + 1) % monthlyDumpTotalSpreads)
   }
 
   const goPrevMonthlyDumpSpread = () => {
     if (monthlyDumpTotalSpreads <= 1) return
     playMonthlyPageFlipSound(monthlyDumpAudioContextRef)
-    setMonthlyDumpFlipDirection('prev')
     setMonthlyDumpBookPageIndex((prev) => (prev - 1 + monthlyDumpTotalSpreads) % monthlyDumpTotalSpreads)
   }
 
