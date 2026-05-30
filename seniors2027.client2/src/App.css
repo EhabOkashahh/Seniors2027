@@ -505,6 +505,8 @@ button:active { transform: translate(1px, 1px); box-shadow: 5px 5px 0px var(--sh
   background: white;
   z-index: 20;
   transition: transform 0.22s ease;
+  overflow-y: auto;
+  max-height: 100vh;
 }
 
 .sidebar-logo {
@@ -893,7 +895,7 @@ button:active { transform: translate(1px, 1px); box-shadow: 5px 5px 0px var(--sh
   padding: 10px 14px;
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: none;
   cursor: pointer;
   text-align: left;
   font-size: inherit;
@@ -902,6 +904,8 @@ button:active { transform: translate(1px, 1px); box-shadow: 5px 5px 0px var(--sh
 
 .notification-item:hover {
   background: #f5f5f5;
+  transform: scale(1.02);
+  box-shadow: none;
 }
 
 .notification-item.unread {

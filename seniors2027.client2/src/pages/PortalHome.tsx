@@ -31,7 +31,7 @@ import firstRankBadge from '../assets/1.svg'
 import secondRankBadge from '../assets/2.svg'
 import thirdRankBadge from '../assets/3.svg'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
-import { parseAnnouncementBody } from '../lib/announcementPoll'
+import { parseAnnouncementBody, type ParsedAnnouncementBody } from '../lib/announcementPoll'
 import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 import {
   deleteDailyHighlightRequest,
@@ -165,6 +165,13 @@ export default function PortalHome() {
     if (!currentUserId) return 0
     return highlights.filter((h) => h.mentionedUsers.some((m) => m.id === currentUserId)).length
   }, [highlights, currentUserId])
+  const parsedAnnouncements = useMemo(() => {
+    const map = new Map<number, ParsedAnnouncementBody>()
+    for (const a of announcements) {
+      map.set(a.id, parseAnnouncementBody(a.body))
+    }
+    return map
+  }, [announcements])
   const [monthlyDumpOpen, setMonthlyDumpOpen] = useState(false)
   const [monthlyDumpLoading, setMonthlyDumpLoading] = useState(false)
   const [monthlyDumpMessage, setMonthlyDumpMessage] = useState<string | null>(null)
@@ -792,15 +799,13 @@ export default function PortalHome() {
       return
     }
 
-    setHighlights((prev) => {
-      const next = prev.filter((item) => item.id !== current.id)
-      if (next.length === 0) {
-        setActiveIndex(0)
-      } else {
-        setActiveIndex((prevIndex) => Math.min(prevIndex, next.length - 1))
-      }
-      return next
-    })
+    const nextHighlights = highlights.filter((item) => item.id !== current.id)
+    setHighlights(nextHighlights)
+    if (nextHighlights.length === 0) {
+      setActiveIndex(0)
+    } else {
+      setActiveIndex((prevIndex) => Math.min(prevIndex, nextHighlights.length - 1))
+    }
     setHighlightsMessage('Photo deleted from daily highlights and your gallery.')
   }
 
@@ -1552,9 +1557,8 @@ export default function PortalHome() {
                     )}
                     <div className="portal-feed-scroll">
                       <div style={{ display: 'grid', gap: '10px' }}>
-                        {announcements.map((announcement, index) => (
-                          (() => {
-                            const parsedAnnouncement = parseAnnouncementBody(announcement.body)
+                        {announcements.map((announcement, index) => {
+                            const parsedAnnouncement = parsedAnnouncements.get(announcement.id) ?? { body: announcement.body, poll: null }
                             const activePoll = announcement.poll ?? (
                               parsedAnnouncement.poll
                                 ? {
@@ -1785,8 +1789,8 @@ export default function PortalHome() {
                                 </button>
                               </motion.div>
                             )
-                          })()
-                        ))}
+                          })
+                        }
                       </div>
                     </div>
                   </div>
