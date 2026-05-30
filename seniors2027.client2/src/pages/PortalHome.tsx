@@ -219,7 +219,16 @@ export default function PortalHome() {
     return [coverSpread, ...newSpreads]
   }, [monthlyDumpEntries, monthlyDumpTopThree])
   const monthlyDumpCurrentSpread = monthlyDumpSpreads[monthlyDumpBookPageIndex] ?? { left: [], right: [] }
-  const monthlyDumpTotalSpreads = monthlyDumpSpreads.length
+  const monthlyDumpFlatPages: { entries: MonthlyDumpPage; side: 'left' | 'right'; spreadIndex: number }[] = useMemo(() => {
+    const pages: { entries: MonthlyDumpPage; side: 'left' | 'right'; spreadIndex: number }[] = []
+    for (let i = 0; i < monthlyDumpSpreads.length; i++) {
+      const spread = monthlyDumpSpreads[i]
+      pages.push({ entries: spread.left, side: 'left', spreadIndex: i })
+      pages.push({ entries: spread.right, side: 'right', spreadIndex: i })
+    }
+    return pages
+  }, [monthlyDumpSpreads])
+  const monthlyDumpTotalPages = isMobile ? monthlyDumpFlatPages.length : monthlyDumpSpreads.length
   const monthlyDumpPhotos = useMemo(
     () => monthlyDumpEntries.filter((e): e is MonthlyDumpEntry & { kind: 'highlight' } => e.kind === 'highlight'),
     [monthlyDumpEntries]
@@ -844,15 +853,15 @@ export default function PortalHome() {
   }
 
   const goNextMonthlyDumpSpread = () => {
-    if (monthlyDumpTotalSpreads <= 1) return
+    if (monthlyDumpTotalPages <= 1) return
     playMonthlyPageFlipSound(monthlyDumpAudioContextRef)
-    setMonthlyDumpBookPageIndex((prev) => (prev + 1) % monthlyDumpTotalSpreads)
+    setMonthlyDumpBookPageIndex((prev) => (prev + 1) % monthlyDumpTotalPages)
   }
 
   const goPrevMonthlyDumpSpread = () => {
-    if (monthlyDumpTotalSpreads <= 1) return
+    if (monthlyDumpTotalPages <= 1) return
     playMonthlyPageFlipSound(monthlyDumpAudioContextRef)
-    setMonthlyDumpBookPageIndex((prev) => (prev - 1 + monthlyDumpTotalSpreads) % monthlyDumpTotalSpreads)
+    setMonthlyDumpBookPageIndex((prev) => (prev - 1 + monthlyDumpTotalPages) % monthlyDumpTotalPages)
   }
 
   const renderMonthlyDumpBookPage = (pageEntries: MonthlyDumpPage, pageSide: 'left' | 'right') => {
@@ -2660,34 +2669,45 @@ export default function PortalHome() {
                   minHeight: 0
                 }}
               >
-                <div style={{ height: '100%', minHeight: 0 }}>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.left, 'left')}</div>
-                <div style={{ height: '100%', minHeight: 0 }}>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.right, 'right')}</div>
+                {isMobile ? (
+                  <div style={{ height: '100%', minHeight: 0 }}>
+                    {renderMonthlyDumpBookPage(
+                      monthlyDumpFlatPages[monthlyDumpBookPageIndex]?.entries ?? [],
+                      monthlyDumpFlatPages[monthlyDumpBookPageIndex]?.side ?? 'left'
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ height: '100%', minHeight: 0 }}>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.left, 'left')}</div>
+                    <div style={{ height: '100%', minHeight: 0 }}>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.right, 'right')}</div>
+                  </>
+                )}
               </motion.div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="neo-btn"
-                onClick={goPrevMonthlyDumpSpread}
-                disabled={monthlyDumpTotalSpreads <= 1}
-                style={{ minWidth: 'auto', padding: '8px 10px' }}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <div style={{ fontWeight: 900, fontSize: '0.82rem' }}>
-                Spread {monthlyDumpBookPageIndex + 1} / {monthlyDumpTotalSpreads}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={goPrevMonthlyDumpSpread}
+                  disabled={monthlyDumpTotalPages <= 1}
+                  style={{ minWidth: 'auto', padding: '8px 10px' }}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div style={{ fontWeight: 900, fontSize: '0.82rem' }}>
+                  {isMobile ? 'Page' : 'Spread'} {monthlyDumpBookPageIndex + 1} / {monthlyDumpTotalPages}
+                </div>
+                <button
+                  type="button"
+                  className="neo-btn"
+                  onClick={goNextMonthlyDumpSpread}
+                  disabled={monthlyDumpTotalPages <= 1}
+                  style={{ minWidth: 'auto', padding: '8px 10px' }}
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
-              <button
-                type="button"
-                className="neo-btn"
-                onClick={goNextMonthlyDumpSpread}
-                disabled={monthlyDumpTotalSpreads <= 1}
-                style={{ minWidth: 'auto', padding: '8px 10px' }}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
 
           </motion.div>
         </div>
