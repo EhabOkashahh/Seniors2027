@@ -120,6 +120,16 @@ public class NoteService : INoteService
         };
     }
 
+    public async Task<IReadOnlyList<NoteDto>> GetNotesInRangeAsync(DateTime from, DateTime to, int? requesterUserId = null)
+    {
+        var notes = await QueryNotesWithRelations()
+            .Where(n => n.CreatedAt >= from && n.CreatedAt < to)
+            .OrderByDescending(n => n.CreatedAt)
+            .ToListAsync();
+
+        return notes.Select(n => MapToDto(n, requesterUserId)).ToList();
+    }
+
     public async Task<NoteDto?> ToggleReactionAsync(int noteId, int userId, NoteReactionType type)
     {
         var note = await QueryNotesWithRelations(asNoTracking: false)
@@ -215,6 +225,7 @@ public class NoteService : INoteService
     {
         var query = _context.Notes
             .Include(n => n.Sender)
+            .Include(n => n.Recipient)
             .Include(n => n.Reactions)
                 .ThenInclude(r => r.User)
             .AsQueryable();
@@ -234,6 +245,12 @@ public class NoteService : INoteService
                 Id = note.Sender.Id,
                 Username = note.Sender.Username,
                 PhotoUrl = note.Sender.PhotoUrl
+            },
+            Recipient = new NoteRecipientDto
+            {
+                Id = note.Recipient.Id,
+                Username = note.Recipient.Username,
+                PhotoUrl = note.Recipient.PhotoUrl
             },
             Reactions = note.Reactions
                 .OrderByDescending(r => r.CreatedAt)

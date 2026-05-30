@@ -20,12 +20,20 @@ public class NoteSenderDto
     public string? PhotoUrl { get; set; }
 }
 
+public class NoteRecipientDto
+{
+    public int Id { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
+}
+
 public class NoteDto
 {
     public int Id { get; set; }
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public NoteSenderDto Sender { get; set; } = new();
+    public NoteRecipientDto Recipient { get; set; } = new();
     public List<NoteReactionDto> Reactions { get; set; } = [];
 }
 

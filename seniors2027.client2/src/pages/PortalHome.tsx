@@ -27,17 +27,20 @@ import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import Logo from '../assets/Logo.png'
 import NoteAsset from '../assets/Asset1.svg'
+import firstRankBadge from '../assets/1.svg'
+import secondRankBadge from '../assets/2.svg'
+import thirdRankBadge from '../assets/3.svg'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { parseAnnouncementBody } from '../lib/announcementPoll'
 import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 import {
   deleteDailyHighlightRequest,
   getMonthlyTopThreeRequest,
+  getNotesInRangeRequest,
   getPortalAnnouncementsRequest,
   getPortalEventsRequest,
   getUsersRequest,
   getMeRequest,
-  getReceivedNotesPageRequest,
   getActiveDailyHighlightsRequest,
   getHighlightsArchiveRequest,
   voteAnnouncementPollRequest,
@@ -104,7 +107,6 @@ type MonthlyDumpEntry =
   | { id: string; kind: 'note'; createdAt: string; note: NoteItem }
   | { id: string; kind: 'highlight'; createdAt: string; highlight: DailyHighlight }
 
-type MonthlyDumpNoteEntry = Extract<MonthlyDumpEntry, { kind: 'note' }>
 type MonthlyDumpPage = MonthlyDumpEntry[]
 
 type MonthlyDumpSpread = {
@@ -172,6 +174,8 @@ export default function PortalHome() {
   const [isMonthlyBookIntroRunning, setIsMonthlyBookIntroRunning] = useState(false)
   const [showLogoFireworks, setShowLogoFireworks] = useState(false)
   const [monthlyDumpTopThree, setMonthlyDumpTopThree] = useState<MonthlyTopThree | null>(null)
+  const [monthlyDumpPhotoViewerOpen, setMonthlyDumpPhotoViewerOpen] = useState(false)
+  const [monthlyDumpPhotoIndex, setMonthlyDumpPhotoIndex] = useState(0)
   useGlobalToastMessage(portalContentMessage, setPortalContentMessage)
   useGlobalToastMessage(highlightsMessage, setHighlightsMessage)
   useGlobalToastMessage(monthlyDumpMessage, setMonthlyDumpMessage)
@@ -189,11 +193,31 @@ export default function PortalHome() {
   const monthlyDumpSpreads = useMemo(() => {
     const baseSpreads = buildMonthlyDumpSpreads(monthlyDumpEntries)
     if (!monthlyDumpTopThree) return baseSpreads
-    const coverSpread: MonthlyDumpSpread = { left: [], right: [] }
-    return [coverSpread, ...baseSpreads]
+
+    const allPages: MonthlyDumpPage[] = []
+    for (const spread of baseSpreads) {
+      if (spread.left.length) allPages.push(spread.left)
+      if (spread.right.length) allPages.push(spread.right)
+    }
+
+    const coverSpread: MonthlyDumpSpread = { left: [], right: allPages[0] ?? [] }
+    const remainingPages = allPages.slice(1)
+    const newSpreads: MonthlyDumpSpread[] = []
+    for (let i = 0; i < remainingPages.length; i += 2) {
+      newSpreads.push({
+        left: remainingPages[i] ?? [],
+        right: remainingPages[i + 1] ?? []
+      })
+    }
+
+    return [coverSpread, ...newSpreads]
   }, [monthlyDumpEntries, monthlyDumpTopThree])
   const monthlyDumpCurrentSpread = monthlyDumpSpreads[monthlyDumpBookPageIndex] ?? { left: [], right: [] }
   const monthlyDumpTotalSpreads = monthlyDumpSpreads.length
+  const monthlyDumpPhotos = useMemo(
+    () => monthlyDumpEntries.filter((e): e is MonthlyDumpEntry & { kind: 'highlight' } => e.kind === 'highlight'),
+    [monthlyDumpEntries]
+  )
 
   const handleOpenUserWebsite = (
     event: MouseEvent,
@@ -351,25 +375,21 @@ export default function PortalHome() {
     setMonthlyDumpLoading(true)
     setMonthlyDumpMessage(null)
 
-    const allNotes: NoteItem[] = []
-    let pageNumber = 1
-    const pageSize = 20
+    const now = new Date()
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const currentMonthEndExclusive = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const isInCurrentMonth = (value: string): boolean => {
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return false
+      return date >= currentMonthStart && date < currentMonthEndExclusive
+    }
 
-    while (pageNumber <= 150) {
-      const pageResult = await getReceivedNotesPageRequest(currentUserId, pageNumber, pageSize)
-      if (!pageResult.ok || !pageResult.data) {
-        setMonthlyDumpEntries([])
-        setMonthlyDumpMessage(pageResult.error ?? 'Could not load monthly notes.')
-        setMonthlyDumpLoading(false)
-        return
-      }
-
-      allNotes.push(...pageResult.data.items)
-      if (pageNumber >= pageResult.data.totalPages || pageResult.data.items.length === 0) {
-        break
-      }
-
-      pageNumber += 1
+    const notesResult = await getNotesInRangeRequest(currentMonthStart.toISOString(), currentMonthEndExclusive.toISOString())
+    if (!notesResult.ok || !notesResult.data) {
+      setMonthlyDumpEntries([])
+      setMonthlyDumpMessage(notesResult.error ?? 'Could not load monthly notes.')
+      setMonthlyDumpLoading(false)
+      return
     }
 
     const highlightsResult = await getHighlightsArchiveRequest(1000)
@@ -380,17 +400,8 @@ export default function PortalHome() {
       return
     }
 
-    const now = new Date()
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const currentMonthEndExclusive = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-    const isInCurrentMonth = (value: string): boolean => {
-      const date = new Date(value)
-      if (Number.isNaN(date.getTime())) return false
-      return date >= currentMonthStart && date < currentMonthEndExclusive
-    }
-
-    const noteEntries: MonthlyDumpEntry[] = allNotes
-      .filter((item) => isInCurrentMonth(item.createdAt))
+    const noteEntries: MonthlyDumpEntry[] = notesResult.data
+      .filter((item) => item.sender.id === currentUserId || item.recipient.id === currentUserId)
       .map((item) => ({
         id: `note-${item.id}`,
         kind: 'note',
@@ -408,7 +419,7 @@ export default function PortalHome() {
       }))
 
     const merged = [...noteEntries, ...highlightEntries].sort(
-      (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
     )
 
     setMonthlyDumpEntries(merged)
@@ -416,14 +427,37 @@ export default function PortalHome() {
       setMonthlyDumpMessage(`No notes or highlights were added in ${monthlyDumpMonthLabel}.`)
     }
 
-    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const lastMonthYear = lastMonthDate.getFullYear()
-    const lastMonthIndex = lastMonthDate.getMonth() + 1
-    const topThreeResult = await getMonthlyTopThreeRequest(lastMonthYear, lastMonthIndex)
+    const topThreeResult = await getMonthlyTopThreeRequest()
     if (topThreeResult.ok && topThreeResult.data) {
       setMonthlyDumpTopThree(topThreeResult.data)
     } else {
-      setMonthlyDumpTopThree(null)
+      const usersResult = await getUsersRequest(1, 200)
+      if (usersResult.ok && usersResult.data) {
+        const sorted = [...usersResult.data.items].sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+        const top3 = sorted.slice(0, 3)
+        const nowMonth = now.getMonth() + 1
+        const nowYear = now.getFullYear()
+        setMonthlyDumpTopThree({
+          id: 0,
+          year: nowYear,
+          month: nowMonth,
+          rank1UserId: top3[0]?.id ?? 0,
+          rank1Username: top3[0]?.username ?? '',
+          rank1PhotoUrl: top3[0]?.photoUrl ?? null,
+          rank1Points: top3[0]?.points ?? 0,
+          rank2UserId: top3[1]?.id ?? 0,
+          rank2Username: top3[1]?.username ?? '',
+          rank2PhotoUrl: top3[1]?.photoUrl ?? null,
+          rank2Points: top3[1]?.points ?? 0,
+          rank3UserId: top3[2]?.id ?? 0,
+          rank3Username: top3[2]?.username ?? '',
+          rank3PhotoUrl: top3[2]?.photoUrl ?? null,
+          rank3Points: top3[2]?.points ?? 0,
+          createdAtUtc: new Date().toISOString()
+        })
+      } else {
+        setMonthlyDumpTopThree(null)
+      }
     }
 
     setMonthlyDumpLoading(false)
@@ -831,21 +865,27 @@ export default function PortalHome() {
             background:
               'repeating-linear-gradient(180deg, rgba(255,255,255,0.92) 0px, rgba(255,255,255,0.92) 29px, rgba(0,0,0,0.08) 30px)',
             boxShadow: 'inset 0 0 0 2px rgba(0, 0, 0, 0.08)',
-            padding: '14px'
+            padding: '14px',
+            overflow: 'hidden'
           }}
         />
       )
     }
 
     if (isCoverPage) {
-      const ranks = [
+      const rawRanks = [
         { rank: 1, userId: monthlyDumpTopThree.rank1UserId, username: monthlyDumpTopThree.rank1Username, photoUrl: monthlyDumpTopThree.rank1PhotoUrl, points: monthlyDumpTopThree.rank1Points },
         { rank: 2, userId: monthlyDumpTopThree.rank2UserId, username: monthlyDumpTopThree.rank2Username, photoUrl: monthlyDumpTopThree.rank2PhotoUrl, points: monthlyDumpTopThree.rank2Points },
         { rank: 3, userId: monthlyDumpTopThree.rank3UserId, username: monthlyDumpTopThree.rank3Username, photoUrl: monthlyDumpTopThree.rank3PhotoUrl, points: monthlyDumpTopThree.rank3Points }
       ].filter((r) => r.userId > 0)
+      const rank2 = rawRanks.find((r) => r.rank === 2)
+      const rank1 = rawRanks.find((r) => r.rank === 1)
+      const rank3 = rawRanks.find((r) => r.rank === 3)
+      const ranks = [rank2, rank1, rank3].filter((r): r is NonNullable<typeof r> => r != null)
 
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
       const prevMonthName = monthNames[monthlyDumpTopThree.month - 1] ?? ''
+      const rankBadges: Record<number, string> = { 1: firstRankBadge, 2: secondRankBadge, 3: thirdRankBadge }
 
       return (
         <div
@@ -860,27 +900,35 @@ export default function PortalHome() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '10px'
+            gap: '16px',
+            overflow: 'hidden'
           }}
         >
-          <div style={{ fontWeight: 900, fontSize: '0.78rem', textTransform: 'uppercase', textAlign: 'center', opacity: 0.6 }}>
-            Top 3 — {prevMonthName} {monthlyDumpTopThree.year}
+          <div style={{ fontWeight: 900, fontSize: '0.92rem', textTransform: 'uppercase', textAlign: 'center', opacity: 0.6 }}>
+            The Most 3 Active Persons
+          </div>
+          <div style={{ fontWeight: 700, fontSize: '0.78rem', textAlign: 'center', opacity: 0.5, marginTop: '-8px' }}>
+            {prevMonthName} {monthlyDumpTopThree.year}
           </div>
           <div
             style={{
               position: 'relative',
               display: 'flex',
-              alignItems: 'flex-end',
+              alignItems: 'center',
               justifyContent: 'center',
-              gap: '14px',
+              gap: '16px',
               width: '100%',
               flex: 1,
               minHeight: 0
             }}
           >
             {ranks.map((r) => {
-              const isFirst = r.rank === 1
-              const baseSize = isFirst ? 66 : 56
+              const sizeMap: Record<number, number> = { 1: 104, 2: 88, 3: 78 }
+              const baseSize = sizeMap[r.rank] ?? 52
+              const badge = rankBadges[r.rank]
+              const badgeSize = r.rank === 1 ? '32px' : r.rank === 2 ? '28px' : '24px'
+              const badgeFontSize = r.rank === 1 ? '1.2rem' : r.rank === 2 ? '1.05rem' : '0.95rem'
+              const nameFontSize = r.rank === 1 ? '0.76rem' : r.rank === 2 ? '0.7rem' : '0.62rem'
 
               return (
                 <div
@@ -890,11 +938,18 @@ export default function PortalHome() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '5px',
-                    marginBottom: isFirst ? '8px' : '0px',
+                    marginBottom: r.rank === 1 ? '12px' : '0px',
                     minWidth: 0,
-                    width: `${baseSize + 20}px`
+                    width: `${baseSize + 24}px`
                   }}
                 >
+                  {badge && (
+                    <img
+                      src={badge}
+                      alt={`Rank ${r.rank}`}
+                      style={{ width: badgeSize, height: badgeSize, objectFit: 'contain' }}
+                    />
+                  )}
                   <div
                     style={{
                       width: `${baseSize}px`,
@@ -915,7 +970,7 @@ export default function PortalHome() {
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     ) : (
-                      <span style={{ fontWeight: 900, fontSize: isFirst ? '1.2rem' : '1rem' }}>
+                      <span style={{ fontWeight: 900, fontSize: badgeFontSize }}>
                         {r.username.charAt(0).toUpperCase()}
                       </span>
                     )}
@@ -923,7 +978,7 @@ export default function PortalHome() {
                   <div
                     style={{
                       fontWeight: 900,
-                      fontSize: isFirst ? '0.78rem' : '0.7rem',
+                      fontSize: nameFontSize,
                       textAlign: 'center',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -933,11 +988,6 @@ export default function PortalHome() {
                   >
                     {r.username}
                   </div>
-                  <img
-                    src={NoteAsset}
-                    alt={`Rank ${r.rank}`}
-                    style={{ width: isFirst ? '28px' : '24px', height: isFirst ? '28px' : '24px', objectFit: 'contain' }}
-                  />
                 </div>
               )
             })}
@@ -946,166 +996,243 @@ export default function PortalHome() {
       )
     }
 
-    return (
-      <div
-        style={{
-          height: '100%',
-          border: '2px solid #111',
-          background:
-            'repeating-linear-gradient(180deg, rgba(255,255,255,0.96) 0px, rgba(255,255,255,0.96) 29px, rgba(0,0,0,0.08) 30px)',
-          boxShadow: 'inset 0 0 0 2px rgba(0, 0, 0, 0.08)',
-          padding: '12px',
-          display: 'grid',
-          alignContent: 'start',
-          gap: '10px'
-        }}
-      >
-        {pageEntries.map((entry, index) => (
+    const PIN_COLORS = ['#ffe17b', '#bfe8ff', '#d8c6ff', '#ffc9b5', '#bff4cc']
+
+    const columnHeights = [0, 0]
+    const columns: MonthlyDumpEntry[][] = [[], []]
+    for (const entry of pageEntries) {
+      const approxHeight = entry.kind === 'highlight' ? 200 : 100
+      const col = columnHeights[0] <= columnHeights[1] ? 0 : 1
+      columns[col].push(entry)
+      columnHeights[col] += approxHeight
+    }
+
+    const renderCard = (entry: MonthlyDumpEntry) => {
+      const seed = `${entry.id}-${pageSide}`
+      const pinRand = monthlyDumpSeededRandom(`pin-${seed}`)
+      const colorRand = monthlyDumpSeededRandom(`col-${seed}`)
+      const pinOffsetX = Number((((pinRand * 2) - 1) * 2).toFixed(2))
+      const pinColor = PIN_COLORS[Math.floor(colorRand * PIN_COLORS.length)]
+
+      if (entry.kind === 'highlight') {
+        return (
           <div
-            key={`${entry.id}-${index}`}
+            key={entry.id}
             style={{
               border: '2px solid black',
-              boxShadow: '3px 3px 0 black',
-              background: entry.kind === 'note' ? '#fff7cf' : '#fff',
-              padding: '8px',
+              boxShadow: '4px 4px 0 black',
+              background: '#fffdf8',
+              padding: isMobile ? '5px' : '6px',
               display: 'grid',
-              gap: '7px'
+              gap: isMobile ? '5px' : '6px',
+              minWidth: 0,
+              contain: 'layout style'
             }}
           >
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '8px',
-                flexWrap: 'wrap'
+                width: '20px',
+                height: '10px',
+                border: '2px solid black',
+                background: pinColor,
+                margin: '0 auto',
+                transform: `translateX(${pinOffsetX}px)`
+              }}
+            />
+            <img
+              src={entry.highlight.photoUrl}
+              alt={entry.highlight.user.username}
+              decoding="async"
+              loading="lazy"
+              onClick={() => {
+                const photoIndex = monthlyDumpPhotos.findIndex((p) => p.id === entry.id)
+                if (photoIndex >= 0) {
+                  setMonthlyDumpPhotoIndex(photoIndex)
+                  setMonthlyDumpPhotoViewerOpen(true)
+                }
+              }}
+              style={{
+                width: '100%',
+                height: isMobile ? '120px' : '130px',
+                objectFit: 'cover',
+                border: '2px solid black',
+                background: '#eaf1ff',
+                cursor: 'pointer'
+              }}
+            />
+            <button
+              type="button"
+              onClick={(event) =>
+                handleOpenUserWebsite(event, { username: entry.highlight.user.username })
+              }
+              aria-label={`Open ${entry.highlight.user.username} website`}
+              style={{
+                all: 'unset',
+                fontWeight: 900,
+                fontSize: isMobile ? '0.58rem' : '0.62rem',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                cursor: 'pointer'
               }}
             >
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  border: '2px solid black',
-                  background: entry.kind === 'note' ? '#ffe267' : '#ffd5a8',
-                  padding: '3px 7px',
-                  fontWeight: 900,
-                  fontSize: '0.68rem',
-                  textTransform: 'uppercase'
-                }}
-              >
-                {entry.kind === 'note' ? <Bell size={12} /> : <BookImage size={12} />}
-                {entry.kind === 'note' ? 'Note' : 'Highlight'}
-              </div>
-              <div style={{ fontWeight: 800, fontSize: '0.68rem', opacity: 0.74 }}>
-                {formatDateTime(entry.createdAt)}
-              </div>
+              {entry.highlight.user.username}
+            </button>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                fontWeight: 700,
+                fontSize: isMobile ? '0.52rem' : '0.56rem',
+                opacity: 0.78
+              }}
+            >
+              <Clock3 size={9} />
+              {formatDateTime(entry.createdAt)}
             </div>
+          </div>
+        )
+      }
 
-            {entry.kind === 'note' ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={(event) =>
-                      handleOpenUserWebsite(event, {
-                        id: entry.note.sender.id,
-                        username: entry.note.sender.username
-                      })
-                    }
-                    aria-label={`Open ${entry.note.sender.username} website`}
-                    style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
-                  >
-                    <GenderCapAvatar
-                      src={entry.note.sender.photoUrl || '/favicon.svg'}
-                      alt={entry.note.sender.username}
-                      gender={null}
-                      fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
-                      containerStyle={{ width: '30px', height: '30px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
-                      imageStyle={{ borderRadius: '50%' }}
-                      capScale={0.72}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) =>
-                      handleOpenUserWebsite(event, {
-                        id: entry.note.sender.id,
-                        username: entry.note.sender.username
-                      })
-                    }
-                    aria-label={`Open ${entry.note.sender.username} website`}
-                    style={{ all: 'unset', fontWeight: 900, fontSize: '0.82rem', cursor: 'pointer' }}
-                  >
-                    {entry.note.sender.username}
-                  </button>
-                </div>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: '0.82rem',
-                    lineHeight: 1.34,
-                    whiteSpace: 'pre-wrap',
-                    overflowWrap: 'anywhere',
-                    wordBreak: 'break-word',
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitBoxOrient: 'vertical',
-                    WebkitLineClamp: pageEntries.length > 1 ? 6 : 10
-                  }}
-                >
-                  {entry.note.content}
-                </div>
-              </>
-            ) : (
-              <>
-                <img
-                  src={entry.highlight.photoUrl}
-                  alt={entry.highlight.user.username}
-                  onClick={(event) =>
-                    handleOpenUserWebsite(event, {
-                      username: entry.highlight.user.username
-                    })
-                  }
-                  style={{
-                    width: '100%',
-                    height: '260px',
-                    objectFit: 'cover',
-                    border: '2px solid black',
-                    boxShadow: '4px 4px 0 black',
-                    background: '#e6f0ff',
-                    transform: pageSide === 'left' ? 'rotate(-0.8deg)' : 'rotate(0.8deg)',
-                    cursor: 'pointer'
-                  }}
-                />
+      return (
+        <div
+          key={entry.id}
+          style={{
+            border: '2px solid black',
+            boxShadow: '4px 4px 0 black',
+            background: '#fff7cf',
+            padding: isMobile ? '5px' : '6px',
+            display: 'grid',
+            gap: isMobile ? '5px' : '6px',
+            minWidth: 0,
+            contain: 'layout style'
+          }}
+        >
+          <div
+            style={{
+              width: '20px',
+              height: '10px',
+              border: '2px solid black',
+              background: pinColor,
+              margin: '0 auto',
+              transform: `translateX(${pinOffsetX}px)`
+                }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={(event) =>
                     handleOpenUserWebsite(event, {
-                      username: entry.highlight.user.username
+                      id: entry.note.sender.id,
+                      username: entry.note.sender.username
                     })
                   }
-                  aria-label={`Open ${entry.highlight.user.username} website`}
-                  style={{
-                    all: 'unset',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontWeight: 800,
-                    fontSize: '0.78rem',
-                    cursor: 'pointer'
-                  }}
+                  aria-label={`Open ${entry.note.sender.username} website`}
+                  style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
                 >
-                  <UserRound size={13} />
-                  {entry.highlight.user.username}
+                  <GenderCapAvatar
+                    src={entry.note.sender.photoUrl || '/favicon.svg'}
+                    alt={entry.note.sender.username}
+                    gender={null}
+                    fallbackText={entry.note.sender.username.charAt(0).toUpperCase()}
+                    containerStyle={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
+                    imageStyle={{ borderRadius: '50%' }}
+                    capScale={0.72}
+                  />
                 </button>
-              </>
-            )}
+                <button
+                  type="button"
+                  onClick={(event) =>
+                    handleOpenUserWebsite(event, {
+                      id: entry.note.sender.id,
+                      username: entry.note.sender.username
+                    })
+                  }
+                  aria-label={`Open ${entry.note.sender.username} website`}
+                  style={{ all: 'unset', fontWeight: 900, fontSize: '0.64rem', cursor: 'pointer' }}
+                >
+                  {entry.note.sender.username}
+                </button>
+                <ChevronsRight size={11} style={{ flexShrink: 0 }} />
+                <button
+                  type="button"
+                  onClick={(event) =>
+                    handleOpenUserWebsite(event, {
+                      id: entry.note.recipient.id,
+                      username: entry.note.recipient.username
+                    })
+                  }
+                  aria-label={`Open ${entry.note.recipient.username} website`}
+                  style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+                >
+                  <GenderCapAvatar
+                    src={entry.note.recipient.photoUrl || '/favicon.svg'}
+                    alt={entry.note.recipient.username}
+                    gender={null}
+                    fallbackText={entry.note.recipient.username.charAt(0).toUpperCase()}
+                    containerStyle={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid black', background: '#fff' }}
+                    imageStyle={{ borderRadius: '50%' }}
+                    capScale={0.72}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) =>
+                    handleOpenUserWebsite(event, {
+                      id: entry.note.recipient.id,
+                      username: entry.note.recipient.username
+                    })
+                  }
+                  aria-label={`Open ${entry.note.recipient.username} website`}
+                  style={{ all: 'unset', fontWeight: 900, fontSize: '0.64rem', cursor: 'pointer' }}
+                >
+                  {entry.note.recipient.username}
+                </button>
+              </div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                  lineHeight: 1.3,
+                  whiteSpace: 'pre-wrap',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
+                  overflow: 'hidden',
+                  display: '-webkit-box',
+                  WebkitBoxOrient: 'vertical',
+                  WebkitLineClamp: pageEntries.length > 2 ? 4 : 6
+                }}
+              >
+                {entry.note.content}
+              </div>
+            </div>
+          )
+        }
+
+      return (
+        <div
+          style={{
+            height: '100%',
+            border: '2px solid #111',
+            background:
+              'repeating-linear-gradient(180deg, rgba(255,255,255,0.96) 0px, rgba(255,255,255,0.96) 29px, rgba(0,0,0,0.08) 30px)',
+            boxShadow: 'inset 0 0 0 2px rgba(0, 0, 0, 0.08)',
+            padding: '10px',
+            display: 'flex',
+            gap: '10px',
+            overflow: 'hidden'
+          }}
+        >
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {columns[0].map((entry) => renderCard(entry))}
           </div>
-        ))}
-      </div>
-    )
-  }
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {columns[1].map((entry) => renderCard(entry))}
+          </div>
+        </div>
+      )
+    }
 
   return (
     <PortalLayout>
@@ -1305,14 +1432,13 @@ export default function PortalHome() {
                   <>
                     <div
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '10px'
+                        display: 'grid',
+                        justifyItems: 'center',
+                        gap: '10px',
+                        textAlign: 'center'
                       }}
                     >
-                      <div style={{ display: 'grid', gap: '4px' }}>
+                      <div style={{ display: 'grid', gap: '2px' }}>
                         <div style={{ fontWeight: 900, fontSize: '0.84rem', textTransform: 'uppercase' }}>
                           Monthly Memory Book
                         </div>
@@ -1320,62 +1446,22 @@ export default function PortalHome() {
                           {monthlyDumpMonthLabel}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          className="neo-btn"
-                          onClick={() => void handleOpenMonthlyDumpBook()}
-                          disabled={isMonthlyBookIntroRunning || monthlyDumpLoading || monthlyDumpOpen}
-                          style={{
-                            minWidth: 'auto',
-                            padding: '8px 12px',
-                            background: monthlyDumpOpen ? '#ffeaad' : isMonthlyBookIntroRunning ? '#ffd29f' : '#d6ffdf'
-                          }}
-                        >
-                          {isMonthlyBookIntroRunning ? 'Fireworks...' : monthlyDumpOpen ? 'Book Open' : 'Open Book'}
-                        </button>
-                        <button
-                          type="button"
-                          className="neo-btn"
-                          onClick={() => void fetchMonthlyDump()}
-                          disabled={monthlyDumpLoading || currentUserId === null}
-                          style={{ minWidth: 'auto', padding: '8px 12px' }}
-                        >
-                          {monthlyDumpLoading ? 'Loading...' : 'Refresh Data'}
-                        </button>
+                      <div style={{ fontWeight: 800, fontSize: '0.82rem', fontStyle: 'italic', opacity: 0.75, maxWidth: '280px', lineHeight: 1.35 }}>
+                        Here's to the memories we made and the ones still waiting to happen
                       </div>
-                    </div>
-                    <div
-                      style={{
-                        border: '2px solid black',
-                        boxShadow: '4px 4px 0 black',
-                        background: '#fff5d9',
-                        padding: '10px',
-                        display: 'grid',
-                        gap: '8px'
-                      }}
-                    >
-                      <div style={{ fontWeight: 900, fontSize: '0.78rem', textTransform: 'uppercase' }}>
-                        Open From Center Stage
-                      </div>
-                      <div style={{ fontWeight: 700, fontSize: '0.8rem', lineHeight: 1.25, opacity: 0.82 }}>
-                        Tap open to trigger logo shake + fireworks, then the book rises in the center with page flip controls.
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <div style={{ fontWeight: 800, fontSize: '0.75rem' }}>
-                          Entries loaded: {monthlyDumpEntries.length}
-                        </div>
-                        {monthlyDumpOpen && (
-                          <button
-                            type="button"
-                            className="neo-btn"
-                            onClick={handleCloseMonthlyDumpBook}
-                            style={{ minWidth: 'auto', padding: '7px 10px', background: '#ffd9c8' }}
-                          >
-                            Close Book
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        className="neo-btn"
+                        onClick={() => void handleOpenMonthlyDumpBook()}
+                        disabled={isMonthlyBookIntroRunning || monthlyDumpLoading || monthlyDumpOpen}
+                        style={{
+                          minWidth: 'auto',
+                          padding: '8px 16px',
+                          background: monthlyDumpOpen ? '#ffeaad' : isMonthlyBookIntroRunning ? '#ffd29f' : '#d6ffdf'
+                        }}
+                      >
+                        {isMonthlyBookIntroRunning ? 'Fireworks...' : monthlyDumpOpen ? 'Book Open' : 'Open Book'}
+                      </button>
                     </div>
                   </>
                 )}
@@ -2561,22 +2647,16 @@ export default function PortalHome() {
                 </div>
               )}
               <motion.div
-                key={`monthly-spread-${monthlyDumpBookPageIndex}-${monthlyDumpFlipDirection}`}
-                initial={{
-                  rotateY: monthlyDumpFlipDirection === 'next' ? 84 : -84,
-                  opacity: 0.35,
-                  scale: 0.97
-                }}
-                animate={{ rotateY: 0, opacity: 1, scale: 1 }}
-                transition={{ duration: 0.46, ease: [0.24, 0.84, 0.2, 1] }}
+                key={`monthly-spread-${monthlyDumpBookPageIndex}`}
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
                 style={{
                   display: 'grid',
                   gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
                   gap: '8px',
                   height: '100%',
-                  minHeight: 0,
-                  perspective: '1500px',
-                  transformStyle: 'preserve-3d'
+                  minHeight: 0
                 }}
               >
                 <div style={{ height: '100%', minHeight: 0 }}>{renderMonthlyDumpBookPage(monthlyDumpCurrentSpread.left, 'left')}</div>
@@ -3315,6 +3395,109 @@ export default function PortalHome() {
           </motion.div>
         </div>
       )}
+
+      {monthlyDumpPhotoViewerOpen && monthlyDumpPhotos.length > 0 && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1300,
+            background: 'rgba(0, 0, 0, 0.88)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            overflow: 'hidden'
+          }}
+          onClick={() => setMonthlyDumpPhotoViewerOpen(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              width: isMobile ? 'min(96vw, 560px)' : 'min(560px, 94vw)',
+              background: '#111',
+              border: '4px solid black',
+              boxShadow: '10px 10px 0 black',
+              padding: '10px',
+              cursor: 'default',
+              maxHeight: 'calc(100vh - 40px)',
+              overflow: 'hidden',
+              display: 'grid',
+              gridTemplateRows: 'auto minmax(0, 1fr) auto',
+              gap: '8px'
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 900, letterSpacing: '0.04em', color: '#fff' }}>MONTHLY DUMP PHOTOS</div>
+              <div style={{ fontWeight: 800, fontSize: '0.82rem', opacity: 0.75, color: '#aaa' }}>Click outside to close</div>
+            </div>
+
+            <div style={{ minHeight: 0, overflow: 'hidden' }}>
+              <motion.div
+                key={monthlyDumpPhotos[monthlyDumpPhotoIndex]?.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.18 }}
+                style={{
+                  position: 'relative',
+                  border: '3px solid black',
+                  background: '#222',
+                  aspectRatio: '4 / 3',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <img
+                  src={monthlyDumpPhotos[monthlyDumpPhotoIndex]?.highlight.photoUrl}
+                  alt={monthlyDumpPhotos[monthlyDumpPhotoIndex]?.highlight.user.username ?? ''}
+                  decoding="async"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    objectPosition: 'center center'
+                  }}
+                />
+              </motion.div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={() =>
+                  setMonthlyDumpPhotoIndex((prev) => (prev - 1 + monthlyDumpPhotos.length) % monthlyDumpPhotos.length)
+                }
+                disabled={monthlyDumpPhotos.length <= 1}
+                style={{ minWidth: 'auto', padding: '8px 10px' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div style={{ fontWeight: 900, fontSize: '0.85rem', color: '#fff' }}>
+                {monthlyDumpPhotoIndex + 1} / {monthlyDumpPhotos.length}
+              </div>
+              <button
+                type="button"
+                className="neo-btn"
+                onClick={() =>
+                  setMonthlyDumpPhotoIndex((prev) => (prev + 1) % monthlyDumpPhotos.length)
+                }
+                disabled={monthlyDumpPhotos.length <= 1}
+                style={{ minWidth: 'auto', padding: '8px 10px' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </PortalLayout>
   )
 }
@@ -3377,28 +3560,51 @@ function getCurrentMonthLastDayIso(referenceDate?: Date): string {
   return lastDay.toISOString()
 }
 
+function monthlyDumpSeededRandom(seed: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return ((hash >>> 0) % 10000) / 10000
+}
+
 function buildMonthlyDumpSpreads(entries: MonthlyDumpEntry[]): MonthlyDumpSpread[] {
   if (entries.length === 0) return [{ left: [], right: [] }]
 
+  const byKind = { highlight: entries.filter((e) => e.kind === 'highlight'), note: entries.filter((e) => e.kind === 'note') }
+
+  const ITEMS_PER_PAGE = 5
+  const PHOTOS_PER_PAGE = 4
+  const NOTES_PER_PAGE = 1
   const pages: MonthlyDumpPage[] = []
-  let entryIndex = 0
+  let hi = 0
+  let ni = 0
 
-  while (entryIndex < entries.length) {
-    const currentEntry = entries[entryIndex]
+  while (hi < byKind.highlight.length || ni < byKind.note.length) {
+    const page: MonthlyDumpPage = []
+    const hiBefore = hi
 
-    if (currentEntry.kind === 'highlight') {
-      pages.push([currentEntry])
-      entryIndex += 1
-      continue
+    for (let slot = 0; slot < ITEMS_PER_PAGE; slot++) {
+      const needPhotos = hi < byKind.highlight.length && page.filter((e) => e.kind === 'highlight').length < PHOTOS_PER_PAGE
+      const needNotes = ni < byKind.note.length && page.filter((e) => e.kind === 'note').length < NOTES_PER_PAGE
+
+      if (needPhotos && needNotes) {
+        const seed = `page-${pages.length}-slot-${slot}`
+        if (monthlyDumpSeededRandom(seed) < 0.6) {
+          page.push(byKind.highlight[hi]); hi++
+        } else {
+          page.push(byKind.note[ni]); ni++
+        }
+      } else if (needPhotos) {
+        page.push(byKind.highlight[hi]); hi++
+      } else if (needNotes) {
+        page.push(byKind.note[ni]); ni++
+      }
     }
 
-    const noteChunk: MonthlyDumpNoteEntry[] = []
-    while (entryIndex < entries.length && entries[entryIndex].kind === 'note') {
-      noteChunk.push(entries[entryIndex] as MonthlyDumpNoteEntry)
-      entryIndex += 1
-    }
-
-    pages.push(...packNoteEntriesIntoPages(noteChunk))
+    if (page.length > 0) pages.push(page)
+    if (hi === hiBefore) break
   }
 
   const spreads: MonthlyDumpSpread[] = []
@@ -3410,47 +3616,6 @@ function buildMonthlyDumpSpreads(entries: MonthlyDumpEntry[]): MonthlyDumpSpread
   }
 
   return spreads
-}
-
-function packNoteEntriesIntoPages(notes: MonthlyDumpNoteEntry[]): MonthlyDumpPage[] {
-  if (notes.length === 0) return []
-
-  const pages: MonthlyDumpPage[] = []
-  let currentPage: MonthlyDumpNoteEntry[] = []
-  let currentWeight = 0
-
-  for (const noteEntry of notes) {
-    const nextWeight = estimateMonthlyNoteWeight(noteEntry)
-    const canFitInCurrentPage =
-      currentPage.length > 0 &&
-      currentPage.length < 3 &&
-      currentWeight + nextWeight <= 1
-
-    if (canFitInCurrentPage) {
-      currentPage.push(noteEntry)
-      currentWeight += nextWeight
-      continue
-    }
-
-    if (currentPage.length > 0) {
-      pages.push(currentPage)
-    }
-
-    currentPage = [noteEntry]
-    currentWeight = nextWeight
-  }
-
-  if (currentPage.length > 0) {
-    pages.push(currentPage)
-  }
-
-  return pages
-}
-
-function estimateMonthlyNoteWeight(noteEntry: MonthlyDumpNoteEntry): number {
-  const textLength = noteEntry.note.content.trim().length
-  const normalized = Math.min(1, textLength / 600)
-  return 0.34 + normalized * 0.58
 }
 
 function wait(durationMs: number): Promise<void> {

@@ -168,6 +168,12 @@ export type NoteSender = {
   photoUrl?: string | null
 }
 
+export type NoteRecipient = {
+  id: number
+  username: string
+  photoUrl?: string | null
+}
+
 export type NoteReactionType = 'Love' | 'Ahaha'
 
 export type NoteReactionUser = {
@@ -188,6 +194,7 @@ export type NoteItem = {
   content: string
   createdAt: string
   sender: NoteSender
+  recipient: NoteRecipient
   reactions: NoteReaction[]
 }
 
@@ -535,6 +542,28 @@ export async function deleteNoteRequest(noteId: number): Promise<ApiResult<null>
     }
 
     return { ok: true, data: null }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
+export async function getNotesInRangeRequest(from: string, to: string): Promise<ApiResult<NoteItem[]>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const params = new URLSearchParams({ from, to })
+    const response = await fetch(`${API_BASE_URL}/api/notes/range?${params}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as NoteItem[]
+    return { ok: true, data }
   } catch {
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
   }

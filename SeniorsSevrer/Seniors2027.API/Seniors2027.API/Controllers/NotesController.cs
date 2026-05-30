@@ -62,6 +62,16 @@ public class NotesController : ControllerBase
         return Ok(notes);
     }
 
+    [HttpGet("range")]
+    public async Task<ActionResult<IReadOnlyList<NoteDto>>> GetNotesInRange(
+        [FromQuery] DateTime from,
+        [FromQuery] DateTime to)
+    {
+        if (!User.TryGetUserId(out var requesterUserId)) return Unauthorized();
+        var notes = await _noteService.GetNotesInRangeAsync(from, to, requesterUserId);
+        return Ok(notes);
+    }
+
     [HttpPost("{id:int}/reactions")]
     public async Task<ActionResult<NoteDto>> ToggleReaction(int id, [FromBody] ToggleNoteReactionDto dto)
     {
