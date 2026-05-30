@@ -911,97 +911,178 @@ export default function PortalHome() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '16px',
+            gap: isMobile ? '8px' : '16px',
             overflow: 'hidden'
           }}
         >
           <div style={{ fontWeight: 900, fontSize: '0.92rem', textTransform: 'uppercase', textAlign: 'center', opacity: 0.6 }}>
             The Most 3 Active Persons
           </div>
-          <div style={{ fontWeight: 700, fontSize: '0.78rem', textAlign: 'center', opacity: 0.5, marginTop: '-8px' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.78rem', textAlign: 'center', opacity: 0.5, marginTop: isMobile ? '0' : '-8px' }}>
             {prevMonthName} {monthlyDumpTopThree.year}
           </div>
-          <div
-            style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '16px',
-              width: '100%',
-              flex: 1,
-              minHeight: 0
-            }}
-          >
-            {ranks.map((r) => {
-              const sizeMap: Record<number, number> = { 1: 104, 2: 88, 3: 78 }
-              const baseSize = sizeMap[r.rank] ?? 52
-              const badge = rankBadges[r.rank]
-              const badgeSize = r.rank === 1 ? '32px' : r.rank === 2 ? '28px' : '24px'
-              const badgeFontSize = r.rank === 1 ? '1.2rem' : r.rank === 2 ? '1.05rem' : '0.95rem'
-              const nameFontSize = r.rank === 1 ? '0.76rem' : r.rank === 2 ? '0.7rem' : '0.62rem'
+          {isMobile ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                width: '100%',
+                flex: 1,
+                justifyContent: 'center',
+                minHeight: 0
+              }}
+            >
+              {ranks.map((r) => {
+                const sizeMap: Record<number, number> = { 1: 72, 2: 60, 3: 52 }
+                const avatarSize = sizeMap[r.rank] ?? 52
+                const badge = rankBadges[r.rank]
+                const badgeSize = r.rank === 1 ? '26px' : r.rank === 2 ? '22px' : '18px'
 
-              return (
-                <div
-                  key={r.rank}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '5px',
-                    marginBottom: r.rank === 1 ? '12px' : '0px',
-                    minWidth: 0,
-                    width: `${baseSize + 24}px`
-                  }}
-                >
-                  {badge && (
-                    <img
-                      src={badge}
-                      alt={`Rank ${r.rank}`}
-                      style={{ width: badgeSize, height: badgeSize, objectFit: 'contain' }}
-                    />
-                  )}
+                return (
                   <div
+                    key={r.rank}
                     style={{
-                      width: `${baseSize}px`,
-                      height: `${baseSize}px`,
-                      borderRadius: '50%',
-                      border: '3px solid black',
-                      overflow: 'hidden',
-                      background: '#ededed',
-                      display: 'grid',
-                      placeItems: 'center',
-                      flexShrink: 0
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      justifyContent: 'center'
                     }}
                   >
-                    {r.photoUrl ? (
+                    {badge && (
                       <img
-                        src={r.photoUrl}
-                        alt={r.username}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        src={badge}
+                        alt={`Rank ${r.rank}`}
+                        style={{ width: badgeSize, height: badgeSize, objectFit: 'contain', flexShrink: 0 }}
                       />
-                    ) : (
-                      <span style={{ fontWeight: 900, fontSize: badgeFontSize }}>
-                        {r.username.charAt(0).toUpperCase()}
-                      </span>
                     )}
+                    <div
+                      style={{
+                        width: `${avatarSize}px`,
+                        height: `${avatarSize}px`,
+                        borderRadius: '50%',
+                        border: '3px solid black',
+                        overflow: 'hidden',
+                        background: '#ededed',
+                        display: 'grid',
+                        placeItems: 'center',
+                        flexShrink: 0
+                      }}
+                    >
+                      {r.photoUrl ? (
+                        <img
+                          src={r.photoUrl}
+                          alt={r.username}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span style={{ fontWeight: 900, fontSize: '0.9rem' }}>
+                          {r.username.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontWeight: 900,
+                        fontSize: r.rank === 1 ? '0.8rem' : r.rank === 2 ? '0.72rem' : '0.65rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '120px'
+                      }}
+                    >
+                      {r.username}
+                    </div>
                   </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '16px',
+                width: '100%',
+                flex: 1,
+                minHeight: 0
+              }}
+            >
+              {ranks.map((r) => {
+                const sizeMap: Record<number, number> = { 1: 104, 2: 88, 3: 78 }
+                const baseSize = sizeMap[r.rank] ?? 52
+                const badge = rankBadges[r.rank]
+                const badgeSize = r.rank === 1 ? '32px' : r.rank === 2 ? '28px' : '24px'
+                const badgeFontSize = r.rank === 1 ? '1.2rem' : r.rank === 2 ? '1.05rem' : '0.95rem'
+                const nameFontSize = r.rank === 1 ? '0.76rem' : r.rank === 2 ? '0.7rem' : '0.62rem'
+
+                return (
                   <div
+                    key={r.rank}
                     style={{
-                      fontWeight: 900,
-                      fontSize: nameFontSize,
-                      textAlign: 'center',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: `${baseSize + 10}px`
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '5px',
+                      marginBottom: r.rank === 1 ? '12px' : '0px',
+                      minWidth: 0,
+                      width: `${baseSize + 24}px`
                     }}
                   >
-                    {r.username}
+                    {badge && (
+                      <img
+                        src={badge}
+                        alt={`Rank ${r.rank}`}
+                        style={{ width: badgeSize, height: badgeSize, objectFit: 'contain' }}
+                      />
+                    )}
+                    <div
+                      style={{
+                        width: `${baseSize}px`,
+                        height: `${baseSize}px`,
+                        borderRadius: '50%',
+                        border: '3px solid black',
+                        overflow: 'hidden',
+                        background: '#ededed',
+                        display: 'grid',
+                        placeItems: 'center',
+                        flexShrink: 0
+                      }}
+                    >
+                      {r.photoUrl ? (
+                        <img
+                          src={r.photoUrl}
+                          alt={r.username}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span style={{ fontWeight: 900, fontSize: badgeFontSize }}>
+                          {r.username.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontWeight: 900,
+                        fontSize: nameFontSize,
+                        textAlign: 'center',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: `${baseSize + 10}px`
+                      }}
+                    >
+                      {r.username}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+          )}
+          <div style={{ fontWeight: 800, fontSize: '0.72rem', textAlign: 'center', opacity: 0.52, fontStyle: 'italic', marginTop: '4px' }}>
+            Here's to the memories we made and the ones still waiting to happen
           </div>
         </div>
       )
