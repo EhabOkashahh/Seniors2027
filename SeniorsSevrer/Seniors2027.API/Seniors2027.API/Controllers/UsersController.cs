@@ -160,6 +160,29 @@ public class UsersController : ControllerBase
             || string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
     }
 
+    [HttpGet("monthly-top-three")]
+    public async Task<ActionResult> GetMonthlyTopThree([FromQuery] int? year, [FromQuery] int? month)
+    {
+        if (!User.TryGetUserId(out var _)) return Unauthorized();
+
+        var query = _context.MonthlyTopThree.AsNoTracking();
+
+        if (year.HasValue && month.HasValue)
+        {
+            var result = await query.FirstOrDefaultAsync(x => x.Year == year.Value && x.Month == month.Value);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        var latest = await query
+            .OrderByDescending(x => x.Year)
+            .ThenByDescending(x => x.Month)
+            .FirstOrDefaultAsync();
+
+        if (latest == null) return NotFound();
+        return Ok(latest);
+    }
+
     private static string BuildDirectoryUsername(string? username, string? email, int userId)
     {
         if (!string.IsNullOrWhiteSpace(username)) return username.Trim();

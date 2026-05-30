@@ -1689,6 +1689,58 @@ export async function voteAnnouncementPollRequest(
   }
 }
 
+export type MonthlyTopThree = {
+  id: number
+  year: number
+  month: number
+  rank1UserId: number
+  rank1Username: string
+  rank1PhotoUrl: string | null
+  rank1Points: number
+  rank2UserId: number
+  rank2Username: string
+  rank2PhotoUrl: string | null
+  rank2Points: number
+  rank3UserId: number
+  rank3Username: string
+  rank3PhotoUrl: string | null
+  rank3Points: number
+  createdAtUtc: string
+}
+
+export async function getMonthlyTopThreeRequest(
+  year?: number,
+  month?: number
+): Promise<ApiResult<MonthlyTopThree>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const params = new URLSearchParams()
+    if (year !== undefined) params.set('year', String(year))
+    if (month !== undefined) params.set('month', String(month))
+
+    const queryString = params.toString()
+    const url = `${API_BASE_URL}/api/users/monthly-top-three${queryString ? `?${queryString}` : ''}`
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as MonthlyTopThree
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}
+
 export async function getPortalEventsRequest(
   maxCount: number = 6,
   includePast: boolean = false

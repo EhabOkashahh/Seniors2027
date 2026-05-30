@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<ChallengeTeam> ChallengeTeams { get; set; }
     public DbSet<ChallengeTeamMember> ChallengeTeamMembers { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<MonthlyTopThree> MonthlyTopThree { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -372,6 +373,18 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ChallengeMessage>(entity =>
         {
             entity.HasIndex(e => new { e.ChallengeId, e.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<MonthlyTopThree>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Rank1Username).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Rank2Username).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Rank3Username).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Rank1PhotoUrl).HasMaxLength(2048);
+            entity.Property(e => e.Rank2PhotoUrl).HasMaxLength(2048);
+            entity.Property(e => e.Rank3PhotoUrl).HasMaxLength(2048);
+            entity.HasIndex(e => new { e.Year, e.Month }).IsUnique();
         });
     }
 }

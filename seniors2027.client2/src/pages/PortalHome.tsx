@@ -32,6 +32,7 @@ import { parseAnnouncementBody } from '../lib/announcementPoll'
 import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 import {
   deleteDailyHighlightRequest,
+  getMonthlyTopThreeRequest,
   getPortalAnnouncementsRequest,
   getPortalEventsRequest,
   getUsersRequest,
@@ -47,6 +48,7 @@ import {
   type DailyHighlightReaction,
   type DailyHighlightReactionType,
   type DirectoryUser,
+  type MonthlyTopThree,
   type NoteItem,
   type PortalEventItem,
   uploadDailyHighlightRequest
@@ -169,6 +171,7 @@ export default function PortalHome() {
   const [monthlyDumpFlipDirection, setMonthlyDumpFlipDirection] = useState<'next' | 'prev'>('next')
   const [isMonthlyBookIntroRunning, setIsMonthlyBookIntroRunning] = useState(false)
   const [showLogoFireworks, setShowLogoFireworks] = useState(false)
+  const [monthlyDumpTopThree, setMonthlyDumpTopThree] = useState<MonthlyTopThree | null>(null)
   useGlobalToastMessage(portalContentMessage, setPortalContentMessage)
   useGlobalToastMessage(highlightsMessage, setHighlightsMessage)
   useGlobalToastMessage(monthlyDumpMessage, setMonthlyDumpMessage)
@@ -183,7 +186,12 @@ export default function PortalHome() {
   const isMonthlyDumpUnlocked = isLastDayOfMonth(today)
   const monthlyDumpUnlockDateLabel = formatDateLong(getCurrentMonthLastDayIso(today))
   const monthlyDumpMonthLabel = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-  const monthlyDumpSpreads = useMemo(() => buildMonthlyDumpSpreads(monthlyDumpEntries), [monthlyDumpEntries])
+  const monthlyDumpSpreads = useMemo(() => {
+    const baseSpreads = buildMonthlyDumpSpreads(monthlyDumpEntries)
+    if (!monthlyDumpTopThree) return baseSpreads
+    const coverSpread: MonthlyDumpSpread = { left: [], right: [] }
+    return [coverSpread, ...baseSpreads]
+  }, [monthlyDumpEntries, monthlyDumpTopThree])
   const monthlyDumpCurrentSpread = monthlyDumpSpreads[monthlyDumpBookPageIndex] ?? { left: [], right: [] }
   const monthlyDumpTotalSpreads = monthlyDumpSpreads.length
 
@@ -406,6 +414,16 @@ export default function PortalHome() {
     setMonthlyDumpEntries(merged)
     if (merged.length === 0) {
       setMonthlyDumpMessage(`No notes or highlights were added in ${monthlyDumpMonthLabel}.`)
+    }
+
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastMonthYear = lastMonthDate.getFullYear()
+    const lastMonthIndex = lastMonthDate.getMonth() + 1
+    const topThreeResult = await getMonthlyTopThreeRequest(lastMonthYear, lastMonthIndex)
+    if (topThreeResult.ok && topThreeResult.data) {
+      setMonthlyDumpTopThree(topThreeResult.data)
+    } else {
+      setMonthlyDumpTopThree(null)
     }
 
     setMonthlyDumpLoading(false)
@@ -802,7 +820,9 @@ export default function PortalHome() {
   }
 
   const renderMonthlyDumpBookPage = (pageEntries: MonthlyDumpPage, pageSide: 'left' | 'right') => {
-    if (pageEntries.length === 0) {
+    const isCoverPage = monthlyDumpBookPageIndex === 0 && pageSide === 'left' && monthlyDumpTopThree !== null
+
+    if (pageEntries.length === 0 && !isCoverPage) {
       return (
         <div
           style={{
@@ -814,6 +834,115 @@ export default function PortalHome() {
             padding: '14px'
           }}
         />
+      )
+    }
+
+    if (isCoverPage) {
+      const ranks = [
+        { rank: 1, userId: monthlyDumpTopThree.rank1UserId, username: monthlyDumpTopThree.rank1Username, photoUrl: monthlyDumpTopThree.rank1PhotoUrl, points: monthlyDumpTopThree.rank1Points },
+        { rank: 2, userId: monthlyDumpTopThree.rank2UserId, username: monthlyDumpTopThree.rank2Username, photoUrl: monthlyDumpTopThree.rank2PhotoUrl, points: monthlyDumpTopThree.rank2Points },
+        { rank: 3, userId: monthlyDumpTopThree.rank3UserId, username: monthlyDumpTopThree.rank3Username, photoUrl: monthlyDumpTopThree.rank3PhotoUrl, points: monthlyDumpTopThree.rank3Points }
+      ].filter((r) => r.userId > 0)
+
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      const prevMonthName = monthNames[monthlyDumpTopThree.month - 1] ?? ''
+
+      return (
+        <div
+          style={{
+            height: '100%',
+            border: '2px solid #111',
+            background:
+              'repeating-linear-gradient(180deg, rgba(255,255,255,0.96) 0px, rgba(255,255,255,0.96) 29px, rgba(0,0,0,0.08) 30px)',
+            boxShadow: 'inset 0 0 0 2px rgba(0, 0, 0, 0.08)',
+            padding: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px'
+          }}
+        >
+          <div style={{ fontWeight: 900, fontSize: '0.78rem', textTransform: 'uppercase', textAlign: 'center', opacity: 0.6 }}>
+            Top 3 — {prevMonthName} {monthlyDumpTopThree.year}
+          </div>
+          <div
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              gap: '14px',
+              width: '100%',
+              flex: 1,
+              minHeight: 0
+            }}
+          >
+            {ranks.map((r) => {
+              const isFirst = r.rank === 1
+              const baseSize = isFirst ? 66 : 56
+
+              return (
+                <div
+                  key={r.rank}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '5px',
+                    marginBottom: isFirst ? '8px' : '0px',
+                    minWidth: 0,
+                    width: `${baseSize + 20}px`
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${baseSize}px`,
+                      height: `${baseSize}px`,
+                      borderRadius: '50%',
+                      border: '3px solid black',
+                      overflow: 'hidden',
+                      background: '#ededed',
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    {r.photoUrl ? (
+                      <img
+                        src={r.photoUrl}
+                        alt={r.username}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <span style={{ fontWeight: 900, fontSize: isFirst ? '1.2rem' : '1rem' }}>
+                        {r.username.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      fontWeight: 900,
+                      fontSize: isFirst ? '0.78rem' : '0.7rem',
+                      textAlign: 'center',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: `${baseSize + 10}px`
+                    }}
+                  >
+                    {r.username}
+                  </div>
+                  <img
+                    src={NoteAsset}
+                    alt={`Rank ${r.rank}`}
+                    style={{ width: isFirst ? '28px' : '24px', height: isFirst ? '28px' : '24px', objectFit: 'contain' }}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )
     }
 

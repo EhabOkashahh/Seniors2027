@@ -81,6 +81,7 @@ builder.Services.AddScoped<IEmailService, EmailService >();
 builder.Services.AddSingleton<IDailyHighlightsRealtimeNotifier, DailyHighlightsRealtimeNotifier>();
 builder.Services.AddSingleton<IAnnouncementPollRealtimeNotifier, AnnouncementPollRealtimeNotifier>();
 builder.Services.AddSingleton<IAppUpdatesRealtimeNotifier, AppUpdatesRealtimeNotifier>();
+builder.Services.AddHostedService<MonthlyPointsResetService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
 
