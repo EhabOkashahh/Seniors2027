@@ -124,7 +124,8 @@ export default function AdminJoinRequests() {
   const [challengeStartAt, setChallengeStartAt] = useState('')
   const [challengeEndAt, setChallengeEndAt] = useState('')
   const [challengeSoundLink, setChallengeSoundLink] = useState('')
-  const [challengeUploadType, setChallengeUploadType] = useState<'Video' | 'Image' | 'Audio'>('Video')
+  const [challengeType, setChallengeType] = useState<'Media' | 'PhotoRate'>('Media')
+  const [challengeUploadType, setChallengeUploadType] = useState<'Video' | 'Image' | 'Audio' | 'PhotoRate'>('Video')
   const [challengeLogoPreview, setChallengeLogoPreview] = useState<string | null>(null)
   const [challengeLogoFile, setChallengeLogoFile] = useState<File | null>(null)
   const [challengeRemoveLogo, setChallengeRemoveLogo] = useState(false)
@@ -172,6 +173,7 @@ export default function AdminJoinRequests() {
     setChallengeStartAt('')
     setChallengeEndAt('')
     setChallengeSoundLink('')
+    setChallengeType('Media')
     setChallengeUploadType('Video')
     setChallengeLogoPreview(null)
     setChallengeLogoFile(null)
@@ -198,6 +200,7 @@ export default function AdminJoinRequests() {
     setChallengeStartAt(challenge.startAtUtc ? toDateTimeLocalValue(challenge.startAtUtc) : '')
     setChallengeEndAt(challenge.endAtUtc ? toDateTimeLocalValue(challenge.endAtUtc) : '')
     setChallengeSoundLink(challenge.soundUrl ?? '')
+    setChallengeType(challenge.uploadType === 'PhotoRate' ? 'PhotoRate' : 'Media')
     setChallengeUploadType(challenge.uploadType)
     setChallengeLogoPreview(challenge.logoUrl ?? null)
     setChallengeLogoFile(null)
@@ -1787,6 +1790,30 @@ export default function AdminJoinRequests() {
                     />
                   </div>
                   <div>
+                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Challenge Type *</label>
+                    <select 
+                      value={challengeType} 
+                      onChange={(e) => {
+                        const type = e.target.value as 'Media' | 'PhotoRate'
+                        setChallengeType(type)
+                        setChallengeUploadType(type === 'PhotoRate' ? 'PhotoRate' : 'Video')
+                        if (type === 'PhotoRate') {
+                          setChallengeSoundLink('')
+                          setChallengeMinSubmissions(0)
+                        } else {
+                          setChallengeMinSubmissions(4)
+                        }
+                      }}
+                      style={{ background: 'white' }}
+                    >
+                      <option value="Media">Media</option>
+                      <option value="PhotoRate">Rate Seniors Photo</option>
+                    </select>
+                  </div>
+                </div>
+
+                {challengeType === 'Media' && (
+                  <div>
                     <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Media Upload Type *</label>
                     <select 
                       value={challengeUploadType} 
@@ -1798,7 +1825,7 @@ export default function AdminJoinRequests() {
                       <option value="Audio">Audio (Sound)</option>
                     </select>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Description *</label>
@@ -1832,15 +1859,17 @@ export default function AdminJoinRequests() {
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Background Sound URL (Optional)</label>
-                  <input 
-                    type="url" 
-                    value={challengeSoundLink} 
-                    onChange={(e) => setChallengeSoundLink(e.target.value)} 
-                    placeholder="TikTok sound or external link"
-                  />
-                </div>
+                {challengeType === 'Media' && (
+                  <div>
+                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Background Sound URL (Optional)</label>
+                    <input 
+                      type="url" 
+                      value={challengeSoundLink} 
+                      onChange={(e) => setChallengeSoundLink(e.target.value)} 
+                      placeholder="TikTok sound or external link"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Prize Points (1st, 2nd, 3rd) *</label>
@@ -1851,15 +1880,17 @@ export default function AdminJoinRequests() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: challengeType === 'Media' ? '1fr 1fr' : '1fr', gap: '10px' }}>
                   <div>
                     <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Min Participants *</label>
                     <input type="number" min="1" value={challengeMinParticipants} onChange={(e) => setChallengeMinParticipants(Number(e.target.value))} required />
                   </div>
-                  <div>
-                    <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Min Submissions *</label>
-                    <input type="number" min="1" value={challengeMinSubmissions} onChange={(e) => setChallengeMinSubmissions(Number(e.target.value))} required />
-                  </div>
+                  {challengeType === 'Media' && (
+                    <div>
+                      <label style={{ fontWeight: 900, fontSize: '0.75rem', textTransform: 'uppercase' }}>Min Submissions *</label>
+                      <input type="number" min="1" value={challengeMinSubmissions} onChange={(e) => setChallengeMinSubmissions(Number(e.target.value))} required />
+                    </div>
+                  )}
                 </div>
 
                 <div className="admin-modal__asset-block">

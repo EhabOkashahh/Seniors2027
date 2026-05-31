@@ -10,6 +10,8 @@ interface SubmissionGridProps {
   onVote: (id: number) => void
   isVoting?: boolean
   hasJoined?: boolean
+  isVotingPhase?: boolean
+  isPhotoRate?: boolean
 }
 
 export default function SubmissionGrid({
@@ -18,7 +20,9 @@ export default function SubmissionGrid({
   votedSubmissionId,
   onVote,
   isVoting = false,
-  hasJoined = false
+  hasJoined = false,
+  isVotingPhase = false,
+  isPhotoRate = false
 }: SubmissionGridProps) {
   return (
     <div style={{ marginTop: '40px' }}>
@@ -58,6 +62,8 @@ export default function SubmissionGrid({
                 onVote={onVote}
                 isVoting={isVoting}
                 hasJoined={hasJoined}
+                isVotingPhase={isVotingPhase}
+                isPhotoRate={isPhotoRate}
               />
             ))}
           </AnimatePresence>

@@ -9,6 +9,7 @@ interface ChallengeActionsProps {
   canShowSound?: boolean
   isUploadPhase?: boolean
   hasSubmitted?: boolean
+  uploadType?: string
 }
 
 export default function ChallengeActions({
@@ -18,14 +19,17 @@ export default function ChallengeActions({
   onGoToSound,
   canShowSound = true,
   isUploadPhase = false,
-  hasSubmitted = false
+  hasSubmitted = false,
+  uploadType
 }: ChallengeActionsProps) {
+  const isPhotoRate = uploadType === 'PhotoRate'
+
   return (
     <>
 
       {/* Main Interaction Buttons */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '20px' }}>
-        {selectedRole === 'challenger' && isUploadPhase && !hasSubmitted && (
+        {!isPhotoRate && selectedRole === 'challenger' && isUploadPhase && !hasSubmitted && (
           <button 
             onClick={onUploadClick}
             disabled={challengeStatus !== 'Active'}
@@ -44,7 +48,7 @@ export default function ChallengeActions({
             <Upload size={24} /> UPLOAD ENTRY
           </button>
         )}
-        {canShowSound && (
+        {canShowSound && !isPhotoRate && (
           <button 
             onClick={onGoToSound}
             className="neo-btn"

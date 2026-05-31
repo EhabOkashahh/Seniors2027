@@ -24,7 +24,7 @@ export interface Challenge {
   description: string;
   logoUrl?: string | null;
   soundUrl?: string | null;
-  uploadType: 'Video' | 'Image' | 'Audio';
+  uploadType: 'Video' | 'Image' | 'Audio' | 'PhotoRate';
   status: ChallengeStatus;
   deadlineUtc: string;
   startAtUtc?: string;
@@ -94,7 +94,7 @@ export interface CreateChallengePayload {
   title: string;
   description: string;
   soundUrl?: string;
-  uploadType: 'Video' | 'Image' | 'Audio';
+  uploadType: 'Video' | 'Image' | 'Audio' | 'PhotoRate';
   deadlineUtc: string;
   startAtUtc: string;
   endAtUtc: string;
@@ -122,7 +122,7 @@ export interface ChallengeWithWinners {
   title: string;
   description: string;
   logoUrl?: string | null;
-  uploadType: 'Video' | 'Image' | 'Audio';
+  uploadType: 'Video' | 'Image' | 'Audio' | 'PhotoRate';
   prizePoints: {
     first: number;
     second: number;

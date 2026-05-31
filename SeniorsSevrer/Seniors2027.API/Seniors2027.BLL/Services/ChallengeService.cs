@@ -31,8 +31,8 @@ public class ChallengeService : IChallengeService
         if (string.IsNullOrWhiteSpace(dto.Description))
             throw new InvalidOperationException("Description is required.");
 
-        if (dto.UploadType != "Video" && dto.UploadType != "Image" && dto.UploadType != "Audio")
-            throw new InvalidOperationException("UploadType must be 'Video', 'Image' or 'Audio'.");
+        if (dto.UploadType != "Video" && dto.UploadType != "Image" && dto.UploadType != "Audio" && dto.UploadType != "PhotoRate")
+            throw new InvalidOperationException("UploadType must be 'Video', 'Image', 'Audio' or 'PhotoRate'.");
 
         if (dto.Status != "Hidden" && dto.Status != "BeforeStart" && dto.Status != "Active" && dto.Status != "Ended")
             throw new InvalidOperationException("Invalid status.");
@@ -65,7 +65,7 @@ public class ChallengeService : IChallengeService
         if (dto.MinParticipants < 1)
             throw new InvalidOperationException("Minimum participants must be at least 1.");
 
-        if (dto.MinSubmissions < 1)
+        if (dto.MinSubmissions < 1 && dto.UploadType != "PhotoRate")
             throw new InvalidOperationException("Minimum submissions must be at least 1.");
 
         var challenge = new Challenge
@@ -203,6 +203,7 @@ public class ChallengeService : IChallengeService
         }
 
         var participant = challenge.Participants.FirstOrDefault(p => p.UserId == currentUserId);
+        var wasChallenger = participant?.Role == "Challenger";
 
         if (participant != null)
         {
@@ -215,7 +216,8 @@ public class ChallengeService : IChallengeService
                 var existingSubmission = challenge.Submissions.FirstOrDefault(s => s.UserId == currentUserId);
                 if (existingSubmission != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
+                    // For PhotoRate, media is the user's profile photo — don't delete it
+                    if (challenge.UploadType != "PhotoRate" && !string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
                     {
                         var oldFileName = Path.GetFileName(existingSubmission.MediaUrl);
                         var oldMediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), oldFileName);
@@ -240,6 +242,26 @@ public class ChallengeService : IChallengeService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        // Auto-create submission for PhotoRate challenges when joining as Challenger
+        if (challenge.UploadType == "PhotoRate" && dto.Role == "Challenger")
+        {
+            var existingSubmission = challenge.Submissions.FirstOrDefault(s => s.UserId == currentUserId);
+            if (existingSubmission == null)
+            {
+                var user = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == currentUserId, cancellationToken);
+                var submission = new ChallengeSubmission
+                {
+                    ChallengeId = challengeId,
+                    UserId = currentUserId,
+                    MediaUrl = user.PhotoUrl ?? "",
+                    MediaType = "Image",
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+                _context.ChallengeSubmissions.Add(submission);
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         return MapToChallengeResponseDto(challenge, currentUserId);
     }
 
@@ -259,7 +281,7 @@ public class ChallengeService : IChallengeService
             throw new InvalidOperationException("Challenge is hidden.");
 
         List<ChallengeSubmission> submissions;
-        if (challenge.Status == "Active" && DateTime.UtcNow < challenge.StartAtUtc)
+        if (challenge.Status == "Active" && DateTime.UtcNow < challenge.StartAtUtc && challenge.UploadType != "PhotoRate")
         {
             // During upload phase, show only the current user's submissions or their team's
             var userTeamIds = await _context.ChallengeTeamMembers
@@ -343,6 +365,9 @@ public class ChallengeService : IChallengeService
 
         if (challenge.Status != "Active")
             throw new InvalidOperationException($"Cannot upload to a challenge that is {challenge.Status}.");
+
+        if (challenge.UploadType == "PhotoRate")
+            throw new InvalidOperationException("This challenge type does not accept manual uploads.");
 
         if (DateTime.UtcNow >= challenge.StartAtUtc)
             throw new InvalidOperationException("Upload period has ended. Voting has already started.");
@@ -932,8 +957,8 @@ public class ChallengeService : IChallengeService
         if (string.IsNullOrWhiteSpace(dto.Description))
             throw new InvalidOperationException("Description is required.");
 
-        if (dto.UploadType != "Video" && dto.UploadType != "Image" && dto.UploadType != "Audio")
-            throw new InvalidOperationException("UploadType must be 'Video', 'Image' or 'Audio'.");
+        if (dto.UploadType != "Video" && dto.UploadType != "Image" && dto.UploadType != "Audio" && dto.UploadType != "PhotoRate")
+            throw new InvalidOperationException("UploadType must be 'Video', 'Image', 'Audio' or 'PhotoRate'.");
 
         if (dto.Status != "Hidden" && dto.Status != "BeforeStart" && dto.Status != "Active" && dto.Status != "Ended")
             throw new InvalidOperationException("Invalid status.");
@@ -950,7 +975,7 @@ public class ChallengeService : IChallengeService
         if (dto.MinParticipants < 1)
             throw new InvalidOperationException("Minimum participants must be at least 1.");
 
-        if (dto.MinSubmissions < 1)
+        if (dto.MinSubmissions < 1 && dto.UploadType != "PhotoRate")
             throw new InvalidOperationException("Minimum submissions must be at least 1.");
 
         // When reactivating from Ended, wipe all old data so it starts fresh

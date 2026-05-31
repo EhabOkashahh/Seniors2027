@@ -23,6 +23,8 @@ interface SubmissionCardProps {
   onVote: (id: number) => void
   isVoting?: boolean
   hasJoined?: boolean
+  isVotingPhase?: boolean
+  isPhotoRate?: boolean
 }
 
 export default function SubmissionCard({
@@ -31,7 +33,9 @@ export default function SubmissionCard({
   votedSubmissionId,
   onVote,
   isVoting = false,
-  hasJoined = false
+  hasJoined = false,
+  isVotingPhase = false,
+  isPhotoRate = false
 }: SubmissionCardProps) {
   const isVoted = votedSubmissionId === submission.id
 
@@ -64,10 +68,26 @@ export default function SubmissionCard({
         <div style={{ width: '8px', height: '8px', background: 'black', borderRadius: '50%', border: '2px solid white' }} />
       </div>
 
-      {/* Main Media Preview - 9:16 Ratio */}
-      <div style={{ flex: 1, background: '#111', overflow: 'hidden', position: 'relative', aspectRatio: '9/16', width: '100%' }}>
+      {/* Main Media Preview */}
+      <div style={{ 
+        flex: 1, 
+        background: '#111', 
+        overflow: 'hidden', 
+        position: 'relative', 
+        aspectRatio: isPhotoRate ? undefined : '9/16',
+        minHeight: isPhotoRate ? '300px' : undefined,
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
         {submission.mediaType === 'Image' ? (
-          <img src={submission.mediaUrl} alt="Submission" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={submission.mediaUrl} alt="Submission" style={{ 
+            width: '100%', 
+            height: isPhotoRate ? 'auto' : '100%', 
+            maxHeight: isPhotoRate ? '600px' : undefined,
+            objectFit: isPhotoRate ? 'contain' : 'cover'
+          }} />
         ) : (
           <video src={submission.mediaUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         )}
@@ -108,28 +128,30 @@ export default function SubmissionCard({
           {!submission.isOwn && (
             <button 
               onClick={() => onVote(submission.id)}
-              disabled={!!votedSubmissionId || challengeStatus !== 'Active' || isVoting || !hasJoined}
+              disabled={!!votedSubmissionId || challengeStatus !== 'Active' || isVoting || !hasJoined || !isVotingPhase}
               className="neo-btn"
-              style={{ 
-                padding: '8px 15px', 
-                fontSize: '0.7rem', 
-                background: !hasJoined || challengeStatus !== 'Active' ? '#eee' : isVoted ? 'var(--accent-green)' : votedSubmissionId || isVoting ? '#f0f0f0' : 'var(--accent-cyan)',
-                cursor: votedSubmissionId || challengeStatus !== 'Active' || isVoting || !hasJoined ? 'not-allowed' : 'pointer',
-                boxShadow: votedSubmissionId || challengeStatus !== 'Active' || isVoting || !hasJoined ? 'none' : '3px 3px 0 black',
-                color: votedSubmissionId && !isVoted || challengeStatus !== 'Active' || isVoting || !hasJoined ? '#999' : 'black',
-                fontWeight: 900
-              }}
-            >
-              {challengeStatus === 'Ended' 
-                ? "ENDED" 
-                : !hasJoined 
-                  ? "JOIN FIRST"
-                  : challengeStatus === 'BeforeStart'
-                    ? "NOT STARTED"
-                    : isVoted 
-                      ? "VOTED" 
-                      : (votedSubmissionId ? "CLOSED" : (isVoting ? "..." : "VOTE"))
-              }
+                  style={{ 
+                    padding: '8px 15px', 
+                    fontSize: '0.7rem', 
+                    background: !hasJoined || challengeStatus !== 'Active' || !isVotingPhase ? '#eee' : isVoted ? 'var(--accent-green)' : votedSubmissionId || isVoting ? '#f0f0f0' : 'var(--accent-cyan)',
+                    cursor: votedSubmissionId || challengeStatus !== 'Active' || isVoting || !hasJoined || !isVotingPhase ? 'not-allowed' : 'pointer',
+                    boxShadow: votedSubmissionId || challengeStatus !== 'Active' || isVoting || !hasJoined || !isVotingPhase ? 'none' : '3px 3px 0 black',
+                    color: votedSubmissionId && !isVoted || challengeStatus !== 'Active' || isVoting || !hasJoined || !isVotingPhase ? '#999' : 'black',
+                    fontWeight: 900
+                  }}
+                >
+                  {challengeStatus === 'Ended' 
+                    ? "ENDED" 
+                    : !hasJoined 
+                      ? "JOIN FIRST"
+                      : challengeStatus === 'BeforeStart'
+                        ? "NOT STARTED"
+                        : !isVotingPhase
+                          ? "VOTING SOON"
+                          : isVoted 
+                            ? "VOTED" 
+                            : (votedSubmissionId ? "CLOSED" : (isVoting ? "..." : "VOTE"))
+                  }
             </button>
           )}
         </div>

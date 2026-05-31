@@ -281,9 +281,10 @@ export default function ChallengeMode() {
     setIsVoting(false)
   }
 
+  const isPhotoRate = challenge?.uploadType === 'PhotoRate'
   const startAtMs = challenge?.startAtUtc ? new Date(challenge.startAtUtc).getTime() : 0
   const nowMs = Date.now()
-  const isUploadPhase = challengeStatus === 'Active' && startAtMs > nowMs
+  const isUploadPhase = challengeStatus === 'Active' && startAtMs > nowMs && !isPhotoRate
   const isVotingPhase = challengeStatus === 'Active' && startAtMs <= nowMs
 
   const currentUserIdNum = getCurrentUserId()
@@ -434,6 +435,7 @@ export default function ChallengeMode() {
           canShowSound={isVotingPhase || challengeStatus === 'Ended' || (isUploadPhase && selectedRole === 'challenger')}
           isUploadPhase={isUploadPhase}
           hasSubmitted={hasSubmitted}
+          uploadType={challenge?.uploadType}
         />
 
         <motion.div 
@@ -579,7 +581,7 @@ export default function ChallengeMode() {
             </div>
           )}
 
-          {isUploadPhase && (hasSubmitted || isInTeamWithSubmission) && selectedRole === 'challenger' && (
+          {!isPhotoRate && isUploadPhase && (hasSubmitted || isInTeamWithSubmission) && selectedRole === 'challenger' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', marginTop: '-10px' }}>
               <div style={{ fontWeight: 900, fontSize: '0.9rem', textTransform: 'uppercase', opacity: 0.6 }}>Your Entry</div>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -671,6 +673,8 @@ export default function ChallengeMode() {
               onVote={handleVote}
               isVoting={isVoting}
               hasJoined={!!selectedRole}
+              isVotingPhase={isVotingPhase}
+              isPhotoRate={isPhotoRate}
             />
           )}
 
