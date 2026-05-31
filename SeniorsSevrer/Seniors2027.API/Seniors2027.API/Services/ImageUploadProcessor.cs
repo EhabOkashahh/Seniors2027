@@ -1,19 +1,19 @@
+using System.Globalization;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using System.Globalization;
 
 namespace Seniors2027.API.Services;
 
 public sealed class ImageUploadProcessor : IImageUploadProcessor
 {
     private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-    private const byte DailyHighlightCaptionAlpha = 112; // ~56% transparent black
+    private const byte DailyHighlightCaptionAlpha = 112;
     private static readonly ImageProcessingProfile StandardProfile = new(
         MaxUploadSizeBytes: 5 * 1024 * 1024,
         MaxImageDimension: 512,
@@ -27,11 +27,18 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         MaxImageDimension: 1600,
         OutputWebpQuality: 88);
 
-    private readonly IWebHostEnvironment _environment;
-
-    public ImageUploadProcessor(IWebHostEnvironment environment)
+    private static readonly Dictionary<ImageUploadPurpose, string> FolderMap = new()
     {
-        _environment = environment;
+        [ImageUploadPurpose.Standard] = "profiles",
+        [ImageUploadPurpose.DailyHighlight] = "highlights",
+        [ImageUploadPurpose.MemoryBoard] = "memory-board"
+    };
+
+    private readonly ICloudinaryService _cloudinaryService;
+
+    public ImageUploadProcessor(ICloudinaryService cloudinaryService)
+    {
+        _cloudinaryService = cloudinaryService;
     }
 
     public async Task<StoredPhotoInfo> SaveProcessedPhotoAsync(
@@ -60,11 +67,8 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
             throw new InvalidOperationException($"Photo size must be <= {sizeLimitMb} MB.");
         }
 
-        var photosDirectory = Path.Combine(_environment.ContentRootPath, "SeniorsPhotos");
-        Directory.CreateDirectory(photosDirectory);
-
         var fileName = $"{Guid.NewGuid():N}.webp";
-        var filePath = Path.Combine(photosDirectory, fileName);
+        var folder = FolderMap.GetValueOrDefault(purpose, "profiles");
         DateTime? exifTakenAtUtc = null;
 
         try
@@ -107,16 +111,17 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
             };
 
             using var flattenedImage = FlattenToOpaqueRgb(image);
-            await flattenedImage.SaveAsWebpAsync(filePath, encoder, cancellationToken);
+            await using var memoryStream = new MemoryStream();
+            await flattenedImage.SaveAsWebpAsync(memoryStream, encoder, cancellationToken);
+            memoryStream.Position = 0;
+
+            var result = await _cloudinaryService.UploadImageAsync(memoryStream, fileName, folder);
+            return new StoredPhotoInfo(fileName, "", result.SecureUrl, exifTakenAtUtc);
         }
         catch (ImageFormatException)
         {
             throw new InvalidOperationException("Uploaded file is not a valid image.");
         }
-
-        var baseUrl = $"{request.Scheme}://{request.Host}";
-        var photoUrl = $"{baseUrl}/SeniorsPhotos/{fileName}";
-        return new StoredPhotoInfo(fileName, filePath, photoUrl, exifTakenAtUtc);
     }
 
     private static void ApplyDailyHighlightCaptionOverlay(Image<Rgba32> image, ImageCaptionOverlayRequest captionOverlay)

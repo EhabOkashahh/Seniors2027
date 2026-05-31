@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Seniors2027.API.Extensions;
-using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs.Challenges;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.API.Models;
@@ -17,11 +15,9 @@ namespace Seniors2027.API.Controllers;
 [Authorize]
 public class ChallengesController(
     IChallengeService challengeService,
-    IChallengeMediaUploadProcessor challengeMediaUploadProcessor,
     AppDbContext context) : ControllerBase
 {
     private readonly IChallengeService _challengeService = challengeService;
-    private readonly IChallengeMediaUploadProcessor _challengeMediaUploadProcessor = challengeMediaUploadProcessor;
     private readonly AppDbContext _context = context;
 
     [HttpGet("current")]
@@ -104,18 +100,14 @@ public class ChallengesController(
     [HttpPost("{challengeId:int}/submissions")]
     public async Task<ActionResult<ChallengeSubmissionResponseDto>> UploadSubmission(
         int challengeId,
-        [FromForm] UploadSubmissionFormDto form)
+        [FromBody] UploadSubmissionFormDto form)
     {
         if (!User.TryGetUserId(out var currentUserId)) return Unauthorized();
 
         try
         {
-            // We need to know the challenge's expected upload type for the processor
             var challenge = await _context.Challenges.FindAsync(challengeId);
             if (challenge == null) return NotFound("Challenge not found.");
-
-            var relativeUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(form.Media, challenge.UploadType);
-            var mediaUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
 
             var teamMemberIds = string.IsNullOrWhiteSpace(form.TeamMemberIdsCsv)
                 ? []
@@ -134,7 +126,7 @@ public class ChallengesController(
             var response = await _challengeService.UploadChallengeSubmissionAsync(
                 challengeId,
                 currentUserId,
-                mediaUrl,
+                form.MediaUrl,
                 challenge.UploadType,
                 dto);
 

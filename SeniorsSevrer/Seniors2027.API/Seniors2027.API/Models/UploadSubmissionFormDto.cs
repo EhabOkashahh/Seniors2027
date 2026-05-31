@@ -5,7 +5,7 @@ namespace Seniors2027.API.Models;
 public class UploadSubmissionFormDto
 {
     [Required]
-    public IFormFile Media { get; set; } = null!;
+    public string MediaUrl { get; set; } = string.Empty;
 
     [MaxLength(120)]
     public string? Caption { get; set; }

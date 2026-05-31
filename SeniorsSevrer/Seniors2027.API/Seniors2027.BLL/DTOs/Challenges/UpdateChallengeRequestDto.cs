@@ -40,6 +40,9 @@ public class UpdateChallengeRequestDto
 
     public bool RemoveLogo { get; set; }
 
+    [MaxLength(2048)]
+    public string? LogoUrl { get; set; }
+
     [Required]
     public int MinParticipants { get; set; } = 6;
 

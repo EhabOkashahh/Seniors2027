@@ -11,6 +11,28 @@ import type {
   ChallengeWithWinners
 } from '../features/challenges/types'
 
+const CLOUDINARY_CLOUD_NAME = 'detvdtubf'
+const CLOUDINARY_UPLOAD_PRESET = 'challenge-media'
+
+async function uploadToCloudinary(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+    { method: 'POST', body: formData }
+  )
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Cloudinary upload failed: ${text}`)
+  }
+
+  const data = await response.json()
+  return data.secure_url as string
+}
+
 // Helper to handle safe errors similarly to authApi.ts
 async function safeError(response: Response): Promise<string> {
   try {
@@ -161,26 +183,33 @@ export async function adminCreateChallengeRequest(payload: CreateChallengePayloa
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
-    const formData = new FormData()
-    formData.append('Title', payload.title)
-    formData.append('Description', payload.description)
-    if (payload.soundUrl) formData.append('SoundUrl', payload.soundUrl)
-    formData.append('UploadType', payload.uploadType)
-    formData.append('DeadlineUtc', payload.deadlineUtc)
-    formData.append('StartAtUtc', payload.startAtUtc)
-    formData.append('EndAtUtc', payload.endAtUtc)
-    formData.append('Status', payload.status)
-    formData.append('FirstPlacePts', String(payload.firstPlacePts))
-    formData.append('SecondPlacePts', String(payload.secondPlacePts))
-    formData.append('ThirdPlacePts', String(payload.thirdPlacePts))
-    formData.append('MinParticipants', String(payload.minParticipants))
-    formData.append('MinSubmissions', String(payload.minSubmissions))
-    if (payload.logo) formData.append('logo', payload.logo)
+    let logoUrl: string | null = null
+    if (payload.logo) {
+      logoUrl = await uploadToCloudinary(payload.logo)
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/admin/challenges`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: payload.title,
+        description: payload.description,
+        soundUrl: payload.soundUrl || null,
+        uploadType: payload.uploadType,
+        deadlineUtc: payload.deadlineUtc,
+        startAtUtc: payload.startAtUtc,
+        endAtUtc: payload.endAtUtc,
+        status: payload.status,
+        firstPlacePts: payload.firstPlacePts,
+        secondPlacePts: payload.secondPlacePts,
+        thirdPlacePts: payload.thirdPlacePts,
+        minParticipants: payload.minParticipants,
+        minSubmissions: payload.minSubmissions,
+        logoUrl
+      })
     })
 
     if (!response.ok) {
@@ -203,27 +232,33 @@ export async function adminUpdateChallengeRequest(
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
-    const formData = new FormData()
-    formData.append('Title', payload.title)
-    formData.append('Description', payload.description)
-    if (payload.soundUrl) formData.append('SoundUrl', payload.soundUrl)
-    formData.append('UploadType', payload.uploadType)
-    formData.append('DeadlineUtc', payload.deadlineUtc)
-    formData.append('StartAtUtc', payload.startAtUtc)
-    formData.append('EndAtUtc', payload.endAtUtc)
-    formData.append('Status', payload.status)
-    formData.append('FirstPlacePts', String(payload.firstPlacePts))
-    formData.append('SecondPlacePts', String(payload.secondPlacePts))
-    formData.append('ThirdPlacePts', String(payload.thirdPlacePts))
-    formData.append('MinParticipants', String(payload.minParticipants))
-    formData.append('MinSubmissions', String(payload.minSubmissions))
-    if (payload.logo) formData.append('logo', payload.logo)
-    if (payload.removeLogo) formData.append('RemoveLogo', 'true')
+    let logoUrl: string | null = null
+    if (payload.logo) {
+      logoUrl = await uploadToCloudinary(payload.logo)
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/admin/challenges/${challengeId}`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: payload.title,
+        description: payload.description,
+        soundUrl: payload.soundUrl || null,
+        uploadType: payload.uploadType,
+        startAtUtc: payload.startAtUtc,
+        endAtUtc: payload.endAtUtc,
+        status: payload.status,
+        firstPlacePts: payload.firstPlacePts,
+        secondPlacePts: payload.secondPlacePts,
+        thirdPlacePts: payload.thirdPlacePts,
+        minParticipants: payload.minParticipants,
+        minSubmissions: payload.minSubmissions,
+        logoUrl,
+        removeLogo: payload.removeLogo || false
+      })
     })
 
     if (!response.ok) {
@@ -326,18 +361,20 @@ export async function uploadChallengeSubmissionRequest(
     const token = getAuthToken()
     if (!token) return { ok: false, error: 'Missing auth token' }
 
-    const formData = new FormData()
-    formData.append('Media', file)
-    if (caption) formData.append('Caption', caption)
-    if (teamName) formData.append('TeamName', teamName)
-    if (teamMemberIds && teamMemberIds.length > 0) {
-      formData.append('TeamMemberIdsCsv', teamMemberIds.join(','))
-    }
+    const mediaUrl = await uploadToCloudinary(file)
 
     const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/submissions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        mediaUrl,
+        caption: caption || null,
+        teamName: teamName || null,
+        teamMemberIdsCsv: teamMemberIds && teamMemberIds.length > 0 ? teamMemberIds.join(',') : null
+      })
     })
 
     if (!response.ok) {

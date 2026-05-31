@@ -46,4 +46,7 @@ public class CreateChallengeRequestDto
 
     [Required]
     public int MinSubmissions { get; set; } = 4;
+
+    [MaxLength(2048)]
+    public string? LogoUrl { get; set; }
 }

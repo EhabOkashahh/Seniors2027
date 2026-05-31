@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Seniors2027.API.Extensions;
-using Seniors2027.API.Services;
 using Seniors2027.BLL.DTOs.Challenges;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Entities;
@@ -13,11 +11,9 @@ namespace Seniors2027.API.Controllers;
 [Route("api/admin/challenges")]
 [Authorize(Roles = nameof(UserRole.Admin))]
 public class AdminChallengesController(
-    IChallengeService challengeService,
-    IChallengeMediaUploadProcessor challengeMediaUploadProcessor) : ControllerBase
+    IChallengeService challengeService) : ControllerBase
 {
     private readonly IChallengeService _challengeService = challengeService;
-    private readonly IChallengeMediaUploadProcessor _challengeMediaUploadProcessor = challengeMediaUploadProcessor;
 
     [HttpGet]
     public async Task<ActionResult<List<ChallengeResponseDto>>> GetAllChallenges()
@@ -30,21 +26,13 @@ public class AdminChallengesController(
 
     [HttpPost]
     public async Task<ActionResult<ChallengeResponseDto>> CreateChallenge(
-        [FromForm] CreateChallengeRequestDto dto,
-        [FromForm] IFormFile? logo)
+        [FromBody] CreateChallengeRequestDto dto)
     {
         if (!User.TryGetUserId(out var adminUserId)) return Unauthorized();
 
         try
         {
-            string? logoUrl = null;
-            if (logo != null && logo.Length > 0)
-            {
-                var relativeUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(logo, "Logo");
-                logoUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
-            }
-
-            var challenge = await _challengeService.CreateChallengeAsync(dto, adminUserId, logoUrl);
+            var challenge = await _challengeService.CreateChallengeAsync(dto, adminUserId, dto.LogoUrl);
             return Ok(challenge);
         }
         catch (InvalidOperationException ex)
@@ -60,21 +48,13 @@ public class AdminChallengesController(
     [HttpPut("{challengeId:int}")]
     public async Task<ActionResult<ChallengeResponseDto>> UpdateChallenge(
         int challengeId,
-        [FromForm] UpdateChallengeRequestDto dto,
-        [FromForm] IFormFile? logo)
+        [FromBody] UpdateChallengeRequestDto dto)
     {
         if (!User.TryGetUserId(out var adminUserId)) return Unauthorized();
 
         try
         {
-            string? logoUrl = null;
-            if (logo != null && logo.Length > 0)
-            {
-                var relativeUrl = await _challengeMediaUploadProcessor.SaveChallengeMediaAsync(logo, "Logo");
-                logoUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
-            }
-
-            var challenge = await _challengeService.UpdateChallengeAsync(challengeId, dto, adminUserId, logoUrl);
+            var challenge = await _challengeService.UpdateChallengeAsync(challengeId, dto, adminUserId, dto.LogoUrl);
             return Ok(challenge);
         }
         catch (InvalidOperationException ex)

@@ -413,9 +413,7 @@ public class ChallengeService : IChallengeService
                 // Delete old media file
                 if (!string.IsNullOrWhiteSpace(existingSubmission.MediaUrl))
                 {
-                    var oldFileName = Path.GetFileName(existingSubmission.MediaUrl);
-                    var oldMediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), oldFileName);
-                    _fileService.DeleteFileIfExists(oldMediaPath);
+                    await _fileService.TryDeleteMediaByUrlAsync(existingSubmission.MediaUrl);
                 }
 
                 // If submission was part of a team, delete the team too
@@ -755,9 +753,7 @@ public class ChallengeService : IChallengeService
             {
                 if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
                 {
-                    var fileName = Path.GetFileName(submission.MediaUrl);
-                    var mediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), fileName);
-                    _fileService.DeleteFileIfExists(mediaPath);
+                    await _fileService.TryDeleteMediaByUrlAsync(submission.MediaUrl);
                 }
             }
 
@@ -857,9 +853,7 @@ public class ChallengeService : IChallengeService
         // Delete logo file from disk
         if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
         {
-            var logoFileName = Path.GetFileName(challenge.LogoUrl);
-            var logoPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), logoFileName);
-            _fileService.DeleteFileIfExists(logoPath);
+            await _fileService.TryDeleteMediaByUrlAsync(challenge.LogoUrl);
         }
 
         // We delete in order just to be safe with the Restrict constraints
@@ -1016,9 +1010,7 @@ public class ChallengeService : IChallengeService
             // Delete old logo file when replacing with new one
             if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
             {
-                var oldLogoFileName = Path.GetFileName(challenge.LogoUrl);
-                var oldLogoPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), oldLogoFileName);
-                _fileService.DeleteFileIfExists(oldLogoPath);
+                await _fileService.TryDeleteMediaByUrlAsync(challenge.LogoUrl);
             }
             challenge.LogoUrl = logoUrl;
         }
@@ -1027,9 +1019,7 @@ public class ChallengeService : IChallengeService
             // Delete old logo file from disk
             if (!string.IsNullOrWhiteSpace(challenge.LogoUrl))
             {
-                var oldLogoFileName = Path.GetFileName(challenge.LogoUrl);
-                var oldLogoPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), oldLogoFileName);
-                _fileService.DeleteFileIfExists(oldLogoPath);
+                await _fileService.TryDeleteMediaByUrlAsync(challenge.LogoUrl);
             }
             challenge.LogoUrl = null;
         }
@@ -1241,9 +1231,7 @@ public class ChallengeService : IChallengeService
             {
                 if (!string.IsNullOrWhiteSpace(submission.MediaUrl))
                 {
-                    var fileName = Path.GetFileName(submission.MediaUrl);
-                    var mediaPath = Path.Combine(_fileService.GetChallengeMediaDirectory(), fileName);
-                    _fileService.DeleteFileIfExists(mediaPath);
+                    await _fileService.TryDeleteMediaByUrlAsync(submission.MediaUrl);
                 }
             }
         }
