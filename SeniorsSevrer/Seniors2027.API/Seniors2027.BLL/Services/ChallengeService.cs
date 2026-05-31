@@ -258,18 +258,36 @@ public class ChallengeService : IChallengeService
         if (challenge.Status == "Hidden")
             throw new InvalidOperationException("Challenge is hidden.");
 
-        // Before start time, hide all submissions from everyone
+        List<ChallengeSubmission> submissions;
         if (challenge.Status == "Active" && DateTime.UtcNow < challenge.StartAtUtc)
-            return new List<ChallengeSubmissionResponseDto>();
+        {
+            // During upload phase, show only the current user's submissions or their team's
+            var userTeamIds = await _context.ChallengeTeamMembers
+                .Where(m => m.UserId == currentUserId && m.Team.ChallengeId == challengeId)
+                .Select(m => m.TeamId)
+                .ToListAsync(cancellationToken);
 
-        var submissions = await _context.ChallengeSubmissions
-            .AsNoTracking()
-            .Include(s => s.Team).ThenInclude(t => t.Members)
-            .Include(s => s.Votes)
-            .Include(s => s.User)
-            .Where(s => s.ChallengeId == challengeId)
-            .OrderByDescending(s => s.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
+            submissions = await _context.ChallengeSubmissions
+                .AsNoTracking()
+                .Include(s => s.Team).ThenInclude(t => t.Members)
+                .Include(s => s.Votes)
+                .Include(s => s.User)
+                .Where(s => s.ChallengeId == challengeId &&
+                    (s.UserId == currentUserId || (s.TeamId.HasValue && userTeamIds.Contains(s.TeamId.Value))))
+                .OrderByDescending(s => s.CreatedAtUtc)
+                .ToListAsync(cancellationToken);
+        }
+        else
+        {
+            submissions = await _context.ChallengeSubmissions
+                .AsNoTracking()
+                .Include(s => s.Team).ThenInclude(t => t.Members)
+                .Include(s => s.Votes)
+                .Include(s => s.User)
+                .Where(s => s.ChallengeId == challengeId)
+                .OrderByDescending(s => s.CreatedAtUtc)
+                .ToListAsync(cancellationToken);
+        }
 
         return submissions.Select(s =>
         {
@@ -1213,6 +1231,15 @@ public class ChallengeService : IChallengeService
     {
         var participant = challenge.Participants?.FirstOrDefault(p => p.UserId == currentUserId);
         var submission = challenge.Submissions?.FirstOrDefault(s => s.UserId == currentUserId);
+
+        // If user doesn't have a direct submission, check if they're in a team that submitted
+        if (submission == null && challenge.Teams != null)
+        {
+            var teamWithSubmission = challenge.Teams
+                .FirstOrDefault(t => t.Submission != null && t.Members.Any(m => m.UserId == currentUserId));
+            submission = teamWithSubmission?.Submission;
+        }
+
         var vote = challenge.Votes?.FirstOrDefault(v => v.VoterUserId == currentUserId);
 
         // Build a lookup of userId -> team info for team members

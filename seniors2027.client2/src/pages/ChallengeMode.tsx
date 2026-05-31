@@ -433,6 +433,7 @@ export default function ChallengeMode() {
           onGoToSound={handleGoToSound}
           canShowSound={isVotingPhase || challengeStatus === 'Ended' || (isUploadPhase && selectedRole === 'challenger')}
           isUploadPhase={isUploadPhase}
+          hasSubmitted={hasSubmitted}
         />
 
         <motion.div 

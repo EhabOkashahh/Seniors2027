@@ -8,6 +8,7 @@ interface ChallengeActionsProps {
   onGoToSound: () => void
   canShowSound?: boolean
   isUploadPhase?: boolean
+  hasSubmitted?: boolean
 }
 
 export default function ChallengeActions({
@@ -16,14 +17,15 @@ export default function ChallengeActions({
   onUploadClick,
   onGoToSound,
   canShowSound = true,
-  isUploadPhase = false
+  isUploadPhase = false,
+  hasSubmitted = false
 }: ChallengeActionsProps) {
   return (
     <>
 
       {/* Main Interaction Buttons */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '20px' }}>
-        {selectedRole === 'challenger' && isUploadPhase && (
+        {selectedRole === 'challenger' && isUploadPhase && !hasSubmitted && (
           <button 
             onClick={onUploadClick}
             disabled={challengeStatus !== 'Active'}
