@@ -33,6 +33,7 @@ public class MonthlyPointsResetService : BackgroundService
                     await Task.Delay(delay, stoppingToken);
                 }
 
+                now = DateTime.UtcNow;
                 if (now.Day == 1)
                 {
                     await ExecuteMonthlyResetAsync(stoppingToken);
@@ -62,60 +63,61 @@ public class MonthlyPointsResetService : BackgroundService
         var alreadyExists = await context.MonthlyTopThree
             .AnyAsync(x => x.Year == year && x.Month == month, stoppingToken);
 
-        if (alreadyExists)
+        if (!alreadyExists)
         {
-            _logger.LogInformation("Snapshot for {Year}-{Month} already exists. Skipping reset.", year, month);
-            return;
+            var topUsers = await context.Users
+                .OrderByDescending(u => u.Points)
+                .ThenBy(u => u.Username)
+                .Take(3)
+                .ToListAsync(stoppingToken);
+
+            if (topUsers.Count > 0)
+            {
+                var snapshot = new MonthlyTopThree
+                {
+                    Year = year,
+                    Month = month,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+
+                if (topUsers.Count >= 1)
+                {
+                    snapshot.Rank1UserId = topUsers[0].Id;
+                    snapshot.Rank1Username = topUsers[0].Username;
+                    snapshot.Rank1PhotoUrl = topUsers[0].PhotoUrl;
+                    snapshot.Rank1Points = topUsers[0].Points;
+                }
+
+                if (topUsers.Count >= 2)
+                {
+                    snapshot.Rank2UserId = topUsers[1].Id;
+                    snapshot.Rank2Username = topUsers[1].Username;
+                    snapshot.Rank2PhotoUrl = topUsers[1].PhotoUrl;
+                    snapshot.Rank2Points = topUsers[1].Points;
+                }
+
+                if (topUsers.Count >= 3)
+                {
+                    snapshot.Rank3UserId = topUsers[2].Id;
+                    snapshot.Rank3Username = topUsers[2].Username;
+                    snapshot.Rank3PhotoUrl = topUsers[2].PhotoUrl;
+                    snapshot.Rank3Points = topUsers[2].Points;
+                }
+
+                context.MonthlyTopThree.Add(snapshot);
+                await context.SaveChangesAsync(stoppingToken);
+
+                _logger.LogInformation(
+                    "Saved monthly top-three snapshot for {Year}-{Month}: #1 {U1} ({P1}pts), #2 {U2} ({P2}pts), #3 {U3} ({P3}pts).",
+                    year, month,
+                    snapshot.Rank1Username, snapshot.Rank1Points,
+                    snapshot.Rank2Username, snapshot.Rank2Points,
+                    snapshot.Rank3Username, snapshot.Rank3Points);
+            }
         }
-
-        var topUsers = await context.Users
-            .OrderByDescending(u => u.Points)
-            .ThenBy(u => u.Username)
-            .Take(3)
-            .ToListAsync(stoppingToken);
-
-        if (topUsers.Count > 0)
+        else
         {
-            var snapshot = new MonthlyTopThree
-            {
-                Year = year,
-                Month = month,
-                CreatedAtUtc = DateTime.UtcNow
-            };
-
-            if (topUsers.Count >= 1)
-            {
-                snapshot.Rank1UserId = topUsers[0].Id;
-                snapshot.Rank1Username = topUsers[0].Username;
-                snapshot.Rank1PhotoUrl = topUsers[0].PhotoUrl;
-                snapshot.Rank1Points = topUsers[0].Points;
-            }
-
-            if (topUsers.Count >= 2)
-            {
-                snapshot.Rank2UserId = topUsers[1].Id;
-                snapshot.Rank2Username = topUsers[1].Username;
-                snapshot.Rank2PhotoUrl = topUsers[1].PhotoUrl;
-                snapshot.Rank2Points = topUsers[1].Points;
-            }
-
-            if (topUsers.Count >= 3)
-            {
-                snapshot.Rank3UserId = topUsers[2].Id;
-                snapshot.Rank3Username = topUsers[2].Username;
-                snapshot.Rank3PhotoUrl = topUsers[2].PhotoUrl;
-                snapshot.Rank3Points = topUsers[2].Points;
-            }
-
-            context.MonthlyTopThree.Add(snapshot);
-            await context.SaveChangesAsync(stoppingToken);
-
-            _logger.LogInformation(
-                "Saved monthly top-three snapshot for {Year}-{Month}: #1 {U1} ({P1}pts), #2 {U2} ({P2}pts), #3 {U3} ({P3}pts).",
-                year, month,
-                snapshot.Rank1Username, snapshot.Rank1Points,
-                snapshot.Rank2Username, snapshot.Rank2Points,
-                snapshot.Rank3Username, snapshot.Rank3Points);
+            _logger.LogInformation("Snapshot for {Year}-{Month} already exists. Skipping save.", year, month);
         }
 
         var userIds = await context.Users.Select(u => u.Id).ToListAsync(stoppingToken);
