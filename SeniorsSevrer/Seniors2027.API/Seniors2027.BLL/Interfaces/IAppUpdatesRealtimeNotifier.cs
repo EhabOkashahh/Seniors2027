@@ -8,5 +8,6 @@ public interface IAppUpdatesRealtimeNotifier
     Task NotifyMemoryBoardUpdatedAsync(CancellationToken cancellationToken = default);
     Task NotifyJoinRequestsUpdatedAsync(CancellationToken cancellationToken = default);
     Task NotifyUserPointsUpdatedAsync(int userId, int newPoints, CancellationToken cancellationToken = default);
+    Task NotifyAllUsersPointsResetAsync(CancellationToken cancellationToken = default);
     Task NotifyNotificationReceivedAsync(int userId, CancellationToken cancellationToken = default);
 }

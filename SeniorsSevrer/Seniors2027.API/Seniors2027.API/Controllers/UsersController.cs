@@ -160,6 +160,34 @@ public class UsersController : ControllerBase
             || string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
     }
 
+    [HttpGet("{id:int}/badges")]
+    public async Task<ActionResult<List<UserBadgeDto>>> GetUserBadges(int id)
+    {
+        if (!await _context.Users.AnyAsync(u => u.Id == id))
+            return NotFound();
+
+        var badges = await _context.UserBadges
+            .AsNoTracking()
+            .Where(ub => ub.UserId == id)
+            .Include(ub => ub.Badge)
+            .OrderByDescending(ub => ub.AwardedAtUtc)
+            .Select(ub => new UserBadgeDto
+            {
+                Id = ub.Id,
+                AwardedAtUtc = ub.AwardedAtUtc,
+                Badge = new BadgeDto
+                {
+                    Id = ub.Badge.Id,
+                    Name = ub.Badge.Name,
+                    SvgUrl = ub.Badge.SvgUrl,
+                    Description = ub.Badge.Description
+                }
+            })
+            .ToListAsync();
+
+        return Ok(badges);
+    }
+
     [HttpGet("monthly-top-three")]
     public async Task<ActionResult> GetMonthlyTopThree([FromQuery] int? year, [FromQuery] int? month)
     {

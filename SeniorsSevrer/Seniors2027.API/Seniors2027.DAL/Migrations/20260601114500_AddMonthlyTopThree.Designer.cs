@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Seniors2027.DAL.Data;
 
@@ -11,9 +12,11 @@ using Seniors2027.DAL.Data;
 namespace Seniors2027.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601114500_AddMonthlyTopThree")]
+    partial class AddMonthlyTopThree
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -96,36 +99,6 @@ namespace Seniors2027.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("AnnouncementPollVotes");
-                });
-
-            modelBuilder.Entity("Seniors2027.DAL.Entities.Badge", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("SvgUrl")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Badges");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.Challenge", b =>
@@ -901,33 +874,6 @@ namespace Seniors2027.DAL.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Seniors2027.DAL.Entities.UserBadge", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AwardedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("BadgeId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BadgeId");
-
-                    b.HasIndex("UserId", "BadgeId")
-                        .IsUnique();
-
-                    b.ToTable("UserBadges");
-                });
-
             modelBuilder.Entity("Seniors2027.DAL.Entities.UserOtp", b =>
                 {
                     b.Property<int>("Id")
@@ -1307,25 +1253,6 @@ namespace Seniors2027.DAL.Migrations
                     b.Navigation("CreatedByUser");
                 });
 
-            modelBuilder.Entity("Seniors2027.DAL.Entities.UserBadge", b =>
-                {
-                    b.HasOne("Seniors2027.DAL.Entities.Badge", "Badge")
-                        .WithMany("UserBadges")
-                        .HasForeignKey("BadgeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Seniors2027.DAL.Entities.User", "User")
-                        .WithMany("Badges")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Badge");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Seniors2027.DAL.Entities.UserOtp", b =>
                 {
                     b.HasOne("Seniors2027.DAL.Entities.User", "User")
@@ -1339,11 +1266,6 @@ namespace Seniors2027.DAL.Migrations
             modelBuilder.Entity("Seniors2027.DAL.Entities.Announcement", b =>
                 {
                     b.Navigation("PollVotes");
-                });
-
-            modelBuilder.Entity("Seniors2027.DAL.Entities.Badge", b =>
-                {
-                    b.Navigation("UserBadges");
                 });
 
             modelBuilder.Entity("Seniors2027.DAL.Entities.Challenge", b =>
@@ -1391,8 +1313,6 @@ namespace Seniors2027.DAL.Migrations
                     b.Navigation("AnnouncementPollVotes");
 
                     b.Navigation("Announcements");
-
-                    b.Navigation("Badges");
 
                     b.Navigation("ChallengeParticipations");
 

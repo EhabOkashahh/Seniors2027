@@ -31,6 +31,8 @@ public class AppDbContext : DbContext
     public DbSet<ChallengeTeamMember> ChallengeTeamMembers { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<MonthlyTopThree> MonthlyTopThree { get; set; }
+    public DbSet<Badge> Badges { get; set; }
+    public DbSet<UserBadge> UserBadges { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -385,6 +387,31 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Rank2PhotoUrl).HasMaxLength(2048);
             entity.Property(e => e.Rank3PhotoUrl).HasMaxLength(2048);
             entity.HasIndex(e => new { e.Year, e.Month }).IsUnique();
+        });
+
+        modelBuilder.Entity<Badge>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SvgUrl).IsRequired().HasMaxLength(2048);
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<UserBadge>(entity =>
+        {
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Badges)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Badge)
+                .WithMany(b => b.UserBadges)
+                .HasForeignKey(e => e.BadgeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.UserId, e.BadgeId }).IsUnique();
         });
     }
 }

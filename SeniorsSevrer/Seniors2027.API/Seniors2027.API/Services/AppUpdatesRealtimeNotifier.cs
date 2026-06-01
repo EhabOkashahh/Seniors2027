@@ -20,7 +20,7 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
     public async Task NotifyDailyHighlightsUpdatedAsync(CancellationToken cancellationToken = default)
     {
         await TryBroadcastAsync(
-            () => _hubContext.Clients.All.SendAsync(AppUpdatesHub.DailyHighlightsUpdatedEvent, cancellationToken),
+            ct => _hubContext.Clients.All.SendAsync(AppUpdatesHub.DailyHighlightsUpdatedEvent, ct),
             "Failed to broadcast daily highlights update.",
             cancellationToken);
     }
@@ -28,7 +28,7 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
     public async Task NotifyAnnouncementPollUpdatedAsync(int announcementId, CancellationToken cancellationToken = default)
     {
         await TryBroadcastAsync(
-            () => _hubContext.Clients.All.SendAsync(AppUpdatesHub.AnnouncementPollUpdatedEvent, announcementId, cancellationToken),
+            ct => _hubContext.Clients.All.SendAsync(AppUpdatesHub.AnnouncementPollUpdatedEvent, announcementId, ct),
             "Failed to broadcast announcement poll update for announcement {AnnouncementId}.",
             cancellationToken,
             announcementId);
@@ -37,7 +37,7 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
     public async Task NotifyPortalContentUpdatedAsync(CancellationToken cancellationToken = default)
     {
         await TryBroadcastAsync(
-            () => _hubContext.Clients.All.SendAsync(AppUpdatesHub.PortalContentUpdatedEvent, cancellationToken),
+            ct => _hubContext.Clients.All.SendAsync(AppUpdatesHub.PortalContentUpdatedEvent, ct),
             "Failed to broadcast portal content update.",
             cancellationToken);
     }
@@ -45,7 +45,7 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
     public async Task NotifyMemoryBoardUpdatedAsync(CancellationToken cancellationToken = default)
     {
         await TryBroadcastAsync(
-            () => _hubContext.Clients.All.SendAsync(AppUpdatesHub.MemoryBoardUpdatedEvent, cancellationToken),
+            ct => _hubContext.Clients.All.SendAsync(AppUpdatesHub.MemoryBoardUpdatedEvent, ct),
             "Failed to broadcast memory board update.",
             cancellationToken);
     }
@@ -53,7 +53,7 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
     public async Task NotifyJoinRequestsUpdatedAsync(CancellationToken cancellationToken = default)
     {
         await TryBroadcastAsync(
-            () => _hubContext.Clients.All.SendAsync(AppUpdatesHub.JoinRequestsUpdatedEvent, cancellationToken),
+            ct => _hubContext.Clients.All.SendAsync(AppUpdatesHub.JoinRequestsUpdatedEvent, ct),
             "Failed to broadcast join requests update.",
             cancellationToken);
     }
@@ -61,10 +61,18 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
     public async Task NotifyUserPointsUpdatedAsync(int userId, int newPoints, CancellationToken cancellationToken = default)
     {
         await TryBroadcastAsync(
-            () => _hubContext.Clients.All.SendAsync(AppUpdatesHub.UserPointsUpdatedEvent, userId, newPoints, cancellationToken),
+            ct => _hubContext.Clients.All.SendAsync(AppUpdatesHub.UserPointsUpdatedEvent, userId, newPoints, ct),
             "Failed to broadcast user points update for user {UserId}.",
             cancellationToken,
             userId);
+    }
+
+    public async Task NotifyAllUsersPointsResetAsync(CancellationToken cancellationToken = default)
+    {
+        await TryBroadcastAsync(
+            ct => _hubContext.Clients.All.SendAsync(AppUpdatesHub.AllUsersPointsResetEvent, ct),
+            "Failed to broadcast all-users points reset.",
+            cancellationToken);
     }
 
     public async Task NotifyNotificationReceivedAsync(int userId, CancellationToken cancellationToken = default)
@@ -81,14 +89,14 @@ public class AppUpdatesRealtimeNotifier : IAppUpdatesRealtimeNotifier
     }
 
     private async Task TryBroadcastAsync(
-        Func<Task> action,
+        Func<CancellationToken, Task> action,
         string message,
         CancellationToken cancellationToken,
         int? announcementId = null)
     {
         try
         {
-            await action();
+            await action(cancellationToken);
         }
         catch (Exception ex)
         {

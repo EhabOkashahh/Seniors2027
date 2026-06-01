@@ -33,21 +33,22 @@ public static class AnnouncementPollMapper
         if (parsedPoll == null) return null;
 
         var optionDtos = new List<AnnouncementPollOptionDto>(parsedPoll.Options.Count);
+
+        var votesByOption = votes
+            .GroupBy(v => v.Option, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderBy(v => v.User.Username, StringComparer.OrdinalIgnoreCase).ThenBy(v => v.UpdatedAt).ToList());
+
         foreach (var option in parsedPoll.Options)
         {
-            var optionVotes = votes
-                .Where(v => string.Equals(v.Option, option, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(v => v.User.Username, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(v => v.UpdatedAt)
-                .ToList();
+            var optionVotes = votesByOption.TryGetValue(option, out var v) ? v : [];
 
             var voters = optionVotes
-                .Select(v => new AnnouncementPollVoterDto
+                .Select(voter => new AnnouncementPollVoterDto
                 {
-                    Username = v.User.Username,
-                    PhotoUrl = NormalizePhotoUrl(v.User.PhotoUrl),
-                    VotedAt = v.UpdatedAt,
-                    IsCurrentUser = currentUserId.HasValue && v.UserId == currentUserId.Value
+                    Username = voter.User.Username,
+                    PhotoUrl = NormalizePhotoUrl(voter.User.PhotoUrl),
+                    VotedAt = voter.UpdatedAt,
+                    IsCurrentUser = currentUserId.HasValue && voter.UserId == currentUserId.Value
                 })
                 .ToList();
 

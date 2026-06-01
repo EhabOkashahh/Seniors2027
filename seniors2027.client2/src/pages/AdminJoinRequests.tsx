@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import {
+  Award,
   CheckCircle2,
   ImagePlus,
   Images,
@@ -41,13 +42,22 @@ import {
   setAdminUserLockRequest,
   updateAdminAnnouncementRequest,
   updateAdminEventRequest,
+  getAllBadgesRequest,
+  createBadgeRequest,
+  updateBadgeRequest,
+  deleteBadgeRequest,
+  getAdminUserBadgesRequest,
+  awardBadgeRequest,
+  revokeBadgeRequest,
   type AdminUser,
   type AnnouncementItem,
+  type Badge,
   type JoinRequestDecision,
   type JoinRequestItem,
   type MemoryBoardPhoto,
   type MemoryBoardPhotoDecision,
-  type PortalEventItem
+  type PortalEventItem,
+  type UserBadge
 } from '../lib/authApi'
 import { 
   adminCreateChallengeRequest, 
@@ -60,7 +70,7 @@ import type { Challenge } from '../features/challenges/types'
 const USERS_PAGE_SIZE = 20
 const MAX_ANNOUNCEMENT_POLL_OPTIONS = 6
 
-type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos' | 'challenges'
+type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos' | 'challenges' | 'badges'
 type CreateContentType = 'announcement' | 'event'
 
 export default function AdminJoinRequests() {
@@ -137,6 +147,25 @@ export default function AdminJoinRequests() {
   const [challengeStatusInput, setChallengeStatusInput] = useState<'Active' | 'Hidden' | 'BeforeStart' | 'Ended'>('Active')
   
   const [challengeActionId, setChallengeActionId] = useState<number | null>(null)
+
+  const [allBadges, setAllBadges] = useState<Badge[]>([])
+  const [badgesLoading, setBadgesLoading] = useState(false)
+  const [badgeMessage, setBadgeMessage] = useState<string | null>(null)
+  const [badgeActionId, setBadgeActionId] = useState<number | null>(null)
+  const [badgeCreateName, setBadgeCreateName] = useState('')
+  const [badgeCreateDescription, setBadgeCreateDescription] = useState('')
+  const [badgeCreateSvgFile, setBadgeCreateSvgFile] = useState<File | null>(null)
+  const [badgeCreateSvgPreview, setBadgeCreateSvgPreview] = useState<string | null>(null)
+  const [badgeEditingId, setBadgeEditingId] = useState<number | null>(null)
+  const [badgeEditName, setBadgeEditName] = useState('')
+  const [badgeEditDescription, setBadgeEditDescription] = useState('')
+  const [badgeEditSvgFile, setBadgeEditSvgFile] = useState<File | null>(null)
+  const [badgeEditSvgPreview, setBadgeEditSvgPreview] = useState<string | null>(null)
+  const [badgeAwardUserId, setBadgeAwardUserId] = useState('')
+  const [badgeAwardBadgeId, setBadgeAwardBadgeId] = useState<number | null>(null)
+  const [badgeUserBadges, setBadgeUserBadges] = useState<UserBadge[]>([])
+  const [badgeUserBadgesLoading, setBadgeUserBadgesLoading] = useState(false)
+  const [badgeUserBadgesUserId, setBadgeUserBadgesUserId] = useState('')
 
   const loadChallenges = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -323,6 +352,184 @@ export default function AdminJoinRequests() {
     }
   }
 
+  const loadBadges = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setBadgesLoading(true)
+      setBadgeMessage(null)
+    }
+
+    const result = await getAllBadgesRequest()
+    if (result.ok && result.data) {
+      setAllBadges(result.data)
+    } else {
+      if (!silent) setBadgeMessage(result.error || 'Failed to load badges.')
+    }
+
+    if (!silent) setBadgesLoading(false)
+  }, [])
+
+  const handleBadgeSvgFileSelect = (
+    file: File | null,
+    setFile: (f: File | null) => void,
+    setPreview: (p: string | null) => void
+  ) => {
+    setFile(file)
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => setPreview(e.target?.result as string)
+      reader.readAsDataURL(file)
+    } else {
+      setPreview(null)
+    }
+  }
+
+  const handleCreateBadge = async () => {
+    const name = badgeCreateName.trim()
+    if (!name) {
+      setBadgeMessage('Badge name is required.')
+      return
+    }
+    if (!badgeCreateSvgFile) {
+      setBadgeMessage('Please select an SVG file.')
+      return
+    }
+
+    setBadgeActionId(0)
+    setBadgeMessage(null)
+
+    const result = await createBadgeRequest(name, badgeCreateDescription.trim() || null, badgeCreateSvgFile)
+    if (result.ok && result.data) {
+      setAllBadges((prev) => [result.data!, ...prev])
+      setBadgeCreateName('')
+      setBadgeCreateDescription('')
+      setBadgeCreateSvgFile(null)
+      setBadgeCreateSvgPreview(null)
+      setBadgeMessage('Badge created successfully.')
+    } else {
+      setBadgeMessage(result.error || 'Failed to create badge.')
+    }
+
+    setBadgeActionId(null)
+  }
+
+  const handleStartEditBadge = (badge: Badge) => {
+    setBadgeEditingId(badge.id)
+    setBadgeEditName(badge.name)
+    setBadgeEditDescription(badge.description ?? '')
+    setBadgeEditSvgFile(null)
+    setBadgeEditSvgPreview(null)
+  }
+
+  const handleCancelEditBadge = () => {
+    setBadgeEditingId(null)
+    setBadgeEditName('')
+    setBadgeEditDescription('')
+    setBadgeEditSvgFile(null)
+    setBadgeEditSvgPreview(null)
+  }
+
+  const handleSaveEditBadge = async (badgeId: number) => {
+    const name = badgeEditName.trim()
+    if (!name) {
+      setBadgeMessage('Badge name is required.')
+      return
+    }
+
+    setBadgeActionId(badgeId)
+    setBadgeMessage(null)
+
+    const result = await updateBadgeRequest(badgeId, name, badgeEditDescription.trim() || null, badgeEditSvgFile ?? undefined)
+    if (result.ok && result.data) {
+      setAllBadges((prev) => prev.map((b) => (b.id === badgeId ? result.data! : b)))
+      setBadgeEditingId(null)
+      setBadgeMessage('Badge updated successfully.')
+    } else {
+      setBadgeMessage(result.error || 'Failed to update badge.')
+    }
+
+    setBadgeActionId(null)
+  }
+
+  const handleDeleteBadge = async (badgeId: number) => {
+    const confirmed = window.confirm('Are you sure you want to delete this badge?')
+    if (!confirmed) return
+
+    setBadgeActionId(badgeId)
+    setBadgeMessage(null)
+
+    const result = await deleteBadgeRequest(badgeId)
+    if (result.ok) {
+      setAllBadges((prev) => prev.filter((b) => b.id !== badgeId))
+      setBadgeMessage('Badge deleted successfully.')
+    } else {
+      setBadgeMessage(result.error || 'Failed to delete badge.')
+    }
+
+    setBadgeActionId(null)
+  }
+
+  const handleLoadUserBadges = async () => {
+    const userId = parseInt(badgeUserBadgesUserId)
+    if (isNaN(userId) || userId <= 0) {
+      setBadgeMessage('Enter a valid user ID.')
+      return
+    }
+
+    setBadgeUserBadgesLoading(true)
+    setBadgeUserBadges([])
+
+    const result = await getAdminUserBadgesRequest(userId)
+    if (result.ok && result.data) {
+      setBadgeUserBadges(result.data)
+    } else {
+      setBadgeMessage(result.error || 'Failed to load user badges.')
+    }
+
+    setBadgeUserBadgesLoading(false)
+  }
+
+  const handleAwardBadge = async () => {
+    const userId = parseInt(badgeAwardUserId)
+    if (isNaN(userId) || userId <= 0) {
+      setBadgeMessage('Enter a valid user ID.')
+      return
+    }
+    if (!badgeAwardBadgeId) {
+      setBadgeMessage('Select a badge to award.')
+      return
+    }
+
+    setBadgeActionId(0)
+    setBadgeMessage(null)
+
+    const result = await awardBadgeRequest(userId, badgeAwardBadgeId)
+    if (result.ok && result.data) {
+      setBadgeMessage('Badge awarded successfully.')
+    } else {
+      setBadgeMessage(result.error || 'Failed to award badge.')
+    }
+
+    setBadgeActionId(null)
+  }
+
+  const handleRevokeBadge = async (badgeId: number, userId: number) => {
+    const confirmed = window.confirm('Revoke this badge from the user?')
+    if (!confirmed) return
+
+    setBadgeActionId(badgeId)
+    setBadgeMessage(null)
+
+    const result = await revokeBadgeRequest(badgeId, userId)
+    if (result.ok) {
+      setBadgeUserBadges((prev) => prev.filter((ub) => ub.badge.id !== badgeId))
+      setBadgeMessage('Badge revoked successfully.')
+    } else {
+      setBadgeMessage(result.error || 'Failed to revoke badge.')
+    }
+
+    setBadgeActionId(null)
+  }
+
     const [editingEventId, setEditingEventId] = useState<number | null>(null);
     const [editingEventTitleInput, setEditingEventTitleInput] = useState('')
   const [editingEventDateInput, setEditingEventDateInput] = useState('')
@@ -340,6 +547,7 @@ export default function AdminJoinRequests() {
   useGlobalToastMessage(usersMessage, setUsersMessage)
   useGlobalToastMessage(announcementsMessage, setAnnouncementsMessage)
   useGlobalToastMessage(memoryBoardMessage, setMemoryBoardMessage)
+  useGlobalToastMessage(badgeMessage, setBadgeMessage)
 
   const announcementPhotoInputRef = useRef<HTMLInputElement>(null)
   const eventPhotoInputRef = useRef<HTMLInputElement>(null)
@@ -495,6 +703,11 @@ export default function AdminJoinRequests() {
   }, [activeSection, loadChallenges])
 
   useEffect(() => {
+    if (activeSection !== 'badges') return
+    void loadBadges()
+  }, [activeSection, loadBadges])
+
+  useEffect(() => {
     const refreshActiveSection = () => {
       if (activeSection === 'requests') {
         void loadRequests({ silent: true })
@@ -513,6 +726,10 @@ export default function AdminJoinRequests() {
 
       if (activeSection === 'challenges') {
         void loadChallenges({ silent: true })
+      }
+
+      if (activeSection === 'badges') {
+        void loadBadges({ silent: true })
       }
     }
 
@@ -1061,6 +1278,14 @@ export default function AdminJoinRequests() {
               >
                 <Swords size={16} />
                 <span>Challenges</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab ${activeSection === 'badges' ? 'active' : ''}`}
+                onClick={() => setActiveSection('badges')}
+              >
+                <Award size={16} />
+                <span>Badges</span>
               </button>
             </div>
           </section>
@@ -1741,6 +1966,314 @@ export default function AdminJoinRequests() {
                         </div>
                       </article>
                     ))
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeSection === 'badges' && (
+            <section className="admin-section">
+              <div className="admin-surface">
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <Award size={18} />
+                    <h2 className="admin-surface__title">Manage Badges</h2>
+                  </div>
+                  <button
+                    type="button"
+                    className="neo-btn admin-btn admin-btn--primary"
+                    onClick={() => {
+                      setBadgeEditingId(null)
+                      setBadgeCreateName('')
+                      setBadgeCreateDescription('')
+                      setBadgeCreateSvgFile(null)
+                      setBadgeCreateSvgPreview(null)
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Plus size={18} />
+                    New Badge
+                  </button>
+                </div>
+
+                {badgeMessage && (
+                  <div className="admin-inline-note" style={{ margin: '15px', color: '#ff5f56' }}>
+                    {badgeMessage}
+                  </div>
+                )}
+
+                {/* Create Badge */}
+                <div className="admin-surface" style={{ padding: '16px', marginBottom: '20px' }}>
+                  <h3 style={{ margin: '0 0 12px', fontSize: '1rem' }}>Create New Badge</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="Badge name"
+                      value={badgeCreateName}
+                      onChange={(e) => setBadgeCreateName(e.target.value)}
+                      style={{ width: '100%', padding: '9px 10px' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Description (optional)"
+                      value={badgeCreateDescription}
+                      onChange={(e) => setBadgeCreateDescription(e.target.value)}
+                      style={{ width: '100%', padding: '9px 10px' }}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <button
+                        type="button"
+                        className="neo-btn admin-btn admin-btn--secondary"
+                        onClick={() => document.getElementById('badgeSvgInput')?.click()}
+                      >
+                        {badgeCreateSvgFile ? 'Change SVG' : 'Choose SVG'}
+                      </button>
+                      <input
+                        id="badgeSvgInput"
+                        type="file"
+                        hidden
+                        accept=".svg,image/svg+xml"
+                        onChange={(e) => handleBadgeSvgFileSelect(e.target.files?.[0] ?? null, setBadgeCreateSvgFile, setBadgeCreateSvgPreview)}
+                      />
+                      {badgeCreateSvgPreview && (
+                        <img src={badgeCreateSvgPreview} alt="Preview" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="neo-btn admin-btn admin-btn--primary"
+                      onClick={handleCreateBadge}
+                      disabled={badgeActionId === 0}
+                      style={{ alignSelf: 'flex-start', marginTop: '4px' }}
+                    >
+                      {badgeActionId === 0 ? 'Creating...' : 'Create Badge'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Badge List */}
+                <div className="admin-list">
+                  {badgesLoading ? (
+                    <div className="admin-list-empty">
+                      <RefreshCw className="spinner" size={24} />
+                      <p>Loading badges...</p>
+                    </div>
+                  ) : allBadges.length === 0 ? (
+                    <div className="admin-list-empty">
+                      <Award size={24} />
+                      <p>No badges created yet.</p>
+                    </div>
+                  ) : (
+                    allBadges.map((badge) => (
+                      <article key={badge.id} className="admin-request-card">
+                        <div className="admin-request-card__main">
+                          <div className="admin-request-card__user">
+                            <div className="admin-request-card__avatar" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
+                              <img src={badge.svgUrl} alt={badge.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            </div>
+                            {badgeEditingId === badge.id ? (
+                              <div className="admin-request-card__info" style={{ flex: 1 }}>
+                                <input
+                                  type="text"
+                                  value={badgeEditName}
+                                  onChange={(e) => setBadgeEditName(e.target.value)}
+                                  style={{ width: '100%', padding: '6px 8px', marginBottom: '6px' }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Description"
+                                  value={badgeEditDescription}
+                                  onChange={(e) => setBadgeEditDescription(e.target.value)}
+                                  style={{ width: '100%', padding: '6px 8px', marginBottom: '6px' }}
+                                />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <button
+                                    type="button"
+                                    className="neo-btn admin-btn admin-btn--secondary"
+                                    onClick={() => document.getElementById(`badgeEditSvgInput-${badge.id}`)?.click()}
+                                    style={{ fontSize: '0.8rem', padding: '4px 8px' }}
+                                  >
+                                    {badgeEditSvgFile ? 'Change SVG' : 'Replace SVG'}
+                                  </button>
+                                  <input
+                                    id={`badgeEditSvgInput-${badge.id}`}
+                                    type="file"
+                                    hidden
+                                    accept=".svg,image/svg+xml"
+                                    onChange={(e) => handleBadgeSvgFileSelect(e.target.files?.[0] ?? null, setBadgeEditSvgFile, setBadgeEditSvgPreview)}
+                                  />
+                                  {badgeEditSvgPreview && (
+                                    <img src={badgeEditSvgPreview} alt="Preview" style={{ width: '30px', height: '30px', objectFit: 'contain' }} />
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="admin-request-card__info">
+                                <div className="admin-request-card__name">{badge.name}</div>
+                                {badge.description && (
+                                  <div className="admin-request-card__meta">{badge.description}</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="admin-request-card__actions">
+                          {badgeEditingId === badge.id ? (
+                            <>
+                              <button
+                                type="button"
+                                className="neo-btn admin-btn admin-btn--success"
+                                onClick={() => void handleSaveEditBadge(badge.id)}
+                                disabled={badgeActionId === badge.id}
+                              >
+                                {badgeActionId === badge.id ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                className="neo-btn admin-btn admin-btn--secondary"
+                                onClick={handleCancelEditBadge}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="neo-btn admin-btn admin-btn--secondary"
+                                onClick={() => handleStartEditBadge(badge)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="neo-btn admin-btn admin-btn--danger"
+                                onClick={() => void handleDeleteBadge(badge.id)}
+                                disabled={badgeActionId === badge.id}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Award Badge Section */}
+              <div className="admin-surface" style={{ marginTop: '20px' }}>
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <Award size={18} />
+                    <h2 className="admin-surface__title">Award Badge to User</h2>
+                  </div>
+                </div>
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <input
+                    type="number"
+                    placeholder="User ID"
+                    value={badgeAwardUserId}
+                    onChange={(e) => setBadgeAwardUserId(e.target.value)}
+                    style={{ width: '100%', padding: '9px 10px' }}
+                  />
+                  <select
+                    value={badgeAwardBadgeId ?? ''}
+                    onChange={(e) => setBadgeAwardBadgeId(e.target.value ? parseInt(e.target.value) : null)}
+                    style={{ width: '100%', padding: '9px 10px' }}
+                  >
+                    <option value="">Select a badge...</option>
+                    {allBadges.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="neo-btn admin-btn admin-btn--primary"
+                    onClick={handleAwardBadge}
+                    disabled={badgeActionId === 0}
+                    style={{ alignSelf: 'flex-start' }}
+                  >
+                    {badgeActionId === 0 ? 'Awarding...' : 'Award Badge'}
+                  </button>
+                </div>
+              </div>
+
+              {/* View User Badges Section */}
+              <div className="admin-surface" style={{ marginTop: '20px' }}>
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <Award size={18} />
+                    <h2 className="admin-surface__title">View User Badges</h2>
+                  </div>
+                </div>
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="number"
+                      placeholder="User ID"
+                      value={badgeUserBadgesUserId}
+                      onChange={(e) => setBadgeUserBadgesUserId(e.target.value)}
+                      style={{ flex: 1, padding: '9px 10px' }}
+                    />
+                    <button
+                      type="button"
+                      className="neo-btn admin-btn admin-btn--primary"
+                      onClick={handleLoadUserBadges}
+                      disabled={badgeUserBadgesLoading}
+                    >
+                      {badgeUserBadgesLoading ? 'Loading...' : 'View Badges'}
+                    </button>
+                  </div>
+
+                  {badgeUserBadges.length === 0 && !badgeUserBadgesLoading && badgeUserBadgesUserId && (
+                    <p style={{ margin: '8px 0 0', fontSize: '0.9rem', opacity: 0.7 }}>
+                      No badges awarded to this user yet.
+                    </p>
+                  )}
+
+                  {badgeUserBadgesLoading && (
+                    <div className="admin-list-empty" style={{ padding: '20px' }}>
+                      <RefreshCw className="spinner" size={20} />
+                      <p>Loading user badges...</p>
+                    </div>
+                  )}
+
+                  {badgeUserBadges.length > 0 && (
+                    <div className="admin-list" style={{ marginTop: '8px' }}>
+                      {badgeUserBadges.map((ub) => (
+                        <article key={ub.id} className="admin-request-card">
+                          <div className="admin-request-card__main">
+                            <div className="admin-request-card__user">
+                              <div className="admin-request-card__avatar" style={{ width: '40px', height: '40px', flexShrink: 0 }}>
+                                <img src={ub.badge.svgUrl} alt={ub.badge.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              </div>
+                              <div className="admin-request-card__info">
+                                <div className="admin-request-card__name">{ub.badge.name}</div>
+                                <div className="admin-request-card__meta">
+                                  Awarded {new Date(ub.awardedAtUtc).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="admin-request-card__actions">
+                            <button
+                              type="button"
+                              className="neo-btn admin-btn admin-btn--danger"
+                              onClick={() => void handleRevokeBadge(ub.badge.id, parseInt(badgeUserBadgesUserId))}
+                              disabled={badgeActionId === ub.badge.id}
+                            >
+                              {badgeActionId === ub.badge.id ? 'Revoking...' : 'Revoke'}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

@@ -15,31 +15,32 @@ public static class LegacyPhotoNormalizer
             return;
         }
 
-        var files = Directory.GetFiles(photosDirectory)
+        var files = Directory.EnumerateFiles(photosDirectory)
             .Where(path => LegacyExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
             .ToArray();
 
-        foreach (var legacyPath in files)
-        {
-            var webpPath = Path.ChangeExtension(legacyPath, ".webp");
-            if (File.Exists(webpPath))
+        await Parallel.ForEachAsync(files, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken },
+            async (legacyPath, ct) =>
             {
-                webpPath = Path.Combine(
-                    photosDirectory,
-                    $"{Path.GetFileNameWithoutExtension(legacyPath)}-{Guid.NewGuid():N}.webp");
-            }
+                var webpPath = Path.ChangeExtension(legacyPath, ".webp");
+                if (File.Exists(webpPath))
+                {
+                    webpPath = Path.Combine(
+                        photosDirectory,
+                        $"{Path.GetFileNameWithoutExtension(legacyPath)}-{Guid.NewGuid():N}.webp");
+                }
 
-            try
-            {
-                using var image = await Image.LoadAsync(legacyPath, cancellationToken);
-                image.Mutate(ctx => ctx.AutoOrient());
-                await image.SaveAsWebpAsync(webpPath, new WebpEncoder { Quality = 65 }, cancellationToken);
-                File.Delete(legacyPath);
-            }
-            catch
-            {
-                // Keep original file if conversion fails.
-            }
-        }
+                try
+                {
+                    using var image = await Image.LoadAsync(legacyPath, ct);
+                    image.Mutate(ctx => ctx.AutoOrient());
+                    await image.SaveAsWebpAsync(webpPath, new WebpEncoder { Quality = 65 }, ct);
+                    File.Delete(legacyPath);
+                }
+                catch
+                {
+                    // Keep original file if conversion fails.
+                }
+            });
     }
 }

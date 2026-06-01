@@ -33,6 +33,7 @@ import {
   getMeRequest,
   getReceivedNotesPageRequest,
   getUserByIdRequest,
+  getUserBadgesRequest,
   sendNoteRequest,
   setAdminUserLockRequest,
   toggleNoteReactionRequest,
@@ -47,7 +48,8 @@ import {
   type NoteReaction,
   type NoteReactionType,
   type PagedNotes,
-  type User
+  type User,
+  type UserBadge
 } from '../lib/authApi'
 import { buildShareableStoryUrl } from '../lib/storyShare'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
@@ -117,6 +119,9 @@ export default function Profile() {
   const [reactingNoteIds, setReactingNoteIds] = useState<number[]>([])
   const [deletingGalleryPhotoIds, setDeletingGalleryPhotoIds] = useState<number[]>([])
   const [noteMessage, setNoteMessage] = useState<string | null>(null)
+  const [userBadges, setUserBadges] = useState<UserBadge[]>([])
+  const [badgeModalOpen, setBadgeModalOpen] = useState(false)
+
   const [adminTargetUser, setAdminTargetUser] = useState<AdminUser | null>(null)
   const [adminTargetUserLoading, setAdminTargetUserLoading] = useState(false)
   const [adminAccountActionRunning, setAdminAccountActionRunning] = useState(false)
@@ -220,6 +225,11 @@ export default function Profile() {
           }
         } else {
           setMe(null)
+        }
+
+        const badgesResult = await getUserBadgesRequest(userId)
+        if (!cancelled && badgesResult.ok && badgesResult.data) {
+          setUserBadges(badgesResult.data)
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -1078,6 +1088,45 @@ export default function Profile() {
                 </>
               )}
             </div>
+
+            {!isMobile && userBadges.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  marginTop: '12px',
+                  justifyContent: isTablet ? 'center' : 'flex-start'
+                }}
+              >
+                {userBadges.map((ub) => (
+                  <div
+                    key={ub.id}
+                    title={ub.badge.name + (ub.badge.description ? `: ${ub.badge.description}` : '')}
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      border: '2px solid black',
+                      borderRadius: '8px',
+                      padding: '6px',
+                      background: 'white',
+                      boxShadow: '3px 3px 0 black',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'default'
+                    }}
+                  >
+                    <img
+                      src={ub.badge.svgUrl}
+                      alt={ub.badge.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '12px' }}>
               {isOwnProfile && isEditingUsername ? (
                 <div
@@ -1160,6 +1209,28 @@ export default function Profile() {
                 <Award size={16} />
                 <span>POINTS: {profilePoints}</span>
               </div>
+              {isMobile && userBadges.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setBadgeModalOpen(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    width: 'fit-content',
+                    border: '3px solid black',
+                    boxShadow: '4px 4px 0 black',
+                    background: '#e4f5ff',
+                    padding: '8px 12px',
+                    fontWeight: 900,
+                    letterSpacing: '0.02em',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Award size={16} />
+                  <span>Badges ({userBadges.length})</span>
+                </button>
+              )}
               {showAdminUserDetails && (
                 <div
                   style={{
@@ -2639,6 +2710,111 @@ export default function Profile() {
         initialPhotoUrl={displayPhoto}
         mobileOpenUrl={mobileStoryOpenUrl}
       />
+
+      {badgeModalOpen && (
+        <div
+          className="admin-modal-overlay"
+          onClick={() => setBadgeModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 14 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fffdf6',
+              border: '4px solid black',
+              boxShadow: '12px 12px 0 black',
+              padding: '24px',
+              maxWidth: '450px',
+              width: '100%',
+              maxHeight: '80vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.3rem', textTransform: 'uppercase' }}>
+                Badges ({userBadges.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => setBadgeModalOpen(false)}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  padding: 0,
+                  border: '3px solid black',
+                  background: '#ff5f56',
+                  color: 'white',
+                  fontWeight: 900,
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {userBadges.length === 0 ? (
+              <p style={{ opacity: 0.6 }}>No badges earned yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {userBadges.map((ub) => (
+                  <div
+                    key={ub.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      border: '2px solid black',
+                      borderRadius: '8px',
+                      padding: '10px',
+                      background: 'white',
+                      boxShadow: '4px 4px 0 black'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <img
+                        src={ub.badge.svgUrl}
+                        alt={ub.badge.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: '0.95rem' }}>{ub.badge.name}</div>
+                      {ub.badge.description && (
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '2px' }}>{ub.badge.description}</div>
+                      )}
+                      <div style={{ fontSize: '0.75rem', opacity: 0.5, marginTop: '2px' }}>
+                        Awarded {new Date(ub.awardedAtUtc).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
     </>
   )
 }
