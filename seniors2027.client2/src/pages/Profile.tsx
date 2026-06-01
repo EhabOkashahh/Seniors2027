@@ -1088,43 +1088,6 @@ export default function Profile() {
                 </>
               )}
 
-              {!isMobile && userBadges.length > 0 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '8px',
-                    marginTop: '12px',
-                    justifyContent: 'center'
-                  }}
-                >
-                  {userBadges.map((ub) => (
-                    <div
-                      key={ub.id}
-                      title={ub.badge.name + (ub.badge.description ? `: ${ub.badge.description}` : '')}
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        border: '2px solid black',
-                        borderRadius: '8px',
-                        padding: '6px',
-                        background: 'white',
-                        boxShadow: '3px 3px 0 black',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'default'
-                      }}
-                    >
-                      <img
-                        src={ub.badge.svgUrl}
-                        alt={ub.badge.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '12px' }}>
@@ -1209,7 +1172,7 @@ export default function Profile() {
                 <Award size={16} />
                 <span>POINTS: {profilePoints}</span>
               </div>
-              {isMobile && userBadges.length > 0 && (
+              {userBadges.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setBadgeModalOpen(true)}
