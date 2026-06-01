@@ -25,19 +25,17 @@ public class MonthlyPointsResetService : BackgroundService
             try
             {
                 var now = DateTime.UtcNow;
-                var nextRun = now.Date.AddDays(1).AddHours(2);
-                var delay = nextRun - now;
 
-                if (delay.TotalMilliseconds > 0)
-                {
-                    await Task.Delay(delay, stoppingToken);
-                }
-
-                now = DateTime.UtcNow;
                 if (now.Day == 1)
                 {
                     await ExecuteMonthlyResetAsync(stoppingToken);
                 }
+
+                var todayAt2Am = now.Date.AddHours(2);
+                var nextRun = now < todayAt2Am ? todayAt2Am : todayAt2Am.AddDays(1);
+                var delay = nextRun - now;
+
+                await Task.Delay(delay, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
