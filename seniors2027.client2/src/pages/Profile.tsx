@@ -17,7 +17,7 @@ import {
   Trash2,
   X
 } from 'lucide-react'
-import PortalLayout from '../components/PortalLayout'
+
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import ImageCropEditorModal, { type ImageCropResult } from '../components/photo/ImageCropEditorModal'
 import SeniorStoryShareModal from '../components/story/SeniorStoryShareModal'
@@ -988,7 +988,7 @@ export default function Profile() {
   }
 
   return (
-    <PortalLayout>
+    <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="window" style={{ maxWidth: 'none', background: 'var(--retro-paper)' }}>
           <div className="window-header" style={{ background: 'var(--retro-yellow)' }}>
@@ -2639,7 +2639,7 @@ export default function Profile() {
         initialPhotoUrl={displayPhoto}
         mobileOpenUrl={mobileStoryOpenUrl}
       />
-    </PortalLayout>
+    </>
   )
 }
 

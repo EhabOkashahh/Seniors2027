@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, Outlet } from 'react-router-dom'
 import { Home, Users, LogOut, Shield, User as UserIcon, Images, Trophy } from 'lucide-react'
 import { motion } from 'framer-motion'
 import '../App.css'
@@ -10,13 +10,9 @@ import { getCurrentChallengeRequest } from '../lib/challengeApi'
 import { clearSession, setStoredRole, type AppUserRole } from '../lib/session'
 import ChallengeLogo from '../assets/Asset 4.svg'
 
-interface PortalLayoutProps {
-  children: React.ReactNode
-}
-
 const DIRECTORY_STATE_STORAGE_KEY = 'directory:lastQuery'
 
-export default function PortalLayout({ children }: PortalLayoutProps) {
+export default function PortalLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -134,7 +130,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
       {/* Main Content Area */}
       <main className="portal-main">
         <div className="portal-main-inner">
-          {children}
+          <Outlet />
         </div>
       </main>
 

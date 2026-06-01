@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock3, ImagePlus, Images, Trash2, Upload, X } from 'lucide-react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import PortalLayout from '../components/PortalLayout'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
 import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
@@ -300,7 +299,7 @@ export default function MemoryBoard() {
   }
 
   return (
-    <PortalLayout>
+    <>
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.34 }}>
         <div style={{ display: 'grid', gap: '18px' }}>
           <div className="window" style={{ maxWidth: '100%', boxShadow: '10px 10px 0 black' }}>
@@ -862,7 +861,7 @@ export default function MemoryBoard() {
           </div>
         </div>
       )}
-    </PortalLayout>
+    </>
   )
 }
 

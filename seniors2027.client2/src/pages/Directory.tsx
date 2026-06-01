@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import PortalLayout from '../components/PortalLayout'
+
+
 import { getUsersRequest, type DirectoryUser } from '../lib/authApi'
 import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 import { Search } from 'lucide-react'
@@ -128,7 +129,6 @@ export default function Directory() {
   }
 
   return (
-    <PortalLayout>
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -311,7 +311,6 @@ export default function Directory() {
           </div>
         </div>
       </motion.div>
-    </PortalLayout>
   )
 }
 

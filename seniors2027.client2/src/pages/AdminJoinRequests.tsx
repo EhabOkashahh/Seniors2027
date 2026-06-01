@@ -18,7 +18,7 @@ import {
   XCircle
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import PortalLayout from '../components/PortalLayout'
+
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import './AdminJoinRequests.css'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
@@ -981,7 +981,6 @@ export default function AdminJoinRequests() {
   const isUsersNextDisabled = usersLoading || !usersHasNextPage || adminUsers.length === 0
 
   return (
-    <PortalLayout>
       <motion.div
         className="admin-dashboard"
         initial={{ opacity: 0, y: 18 }}
@@ -2285,7 +2284,6 @@ export default function AdminJoinRequests() {
           </div>
         )}
       </motion.div>
-    </PortalLayout>
   )
 }
 

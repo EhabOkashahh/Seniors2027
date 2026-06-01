@@ -23,7 +23,6 @@ import {
   Swords,
   Clock
 } from 'lucide-react'
-import PortalLayout from '../components/PortalLayout'
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import Logo from '../assets/Logo.png'
 import NoteAsset from '../assets/Asset1.svg'
@@ -1327,7 +1326,7 @@ export default function PortalHome() {
     }
 
   return (
-    <PortalLayout>
+    <>
       <motion.div
         className="portal-home-shell"
         initial={{ opacity: 0, y: 20 }}
@@ -3600,7 +3599,7 @@ export default function PortalHome() {
           </motion.div>
         </div>
       )}
-    </PortalLayout>
+    </>
   )
 }
 

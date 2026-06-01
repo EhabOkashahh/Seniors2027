@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import PortalLayout from '../components/PortalLayout'
+
 import { getUsersRequest, type DirectoryUser } from '../lib/authApi'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
 import { getCurrentUserId } from '../lib/session'
@@ -127,7 +127,6 @@ export default function Leaderboard() {
   }
 
   return (
-    <PortalLayout>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -319,6 +318,6 @@ export default function Leaderboard() {
           </div>
         </div>
       </motion.div>
-    </PortalLayout>
   )
 }
+

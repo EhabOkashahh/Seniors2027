@@ -9,6 +9,7 @@ import Profile from './pages/Profile'
 import MemoryBoard from './pages/MemoryBoard'
 import ChallengeMode from './pages/ChallengeMode'
 import AdminJoinRequests from './pages/AdminJoinRequests'
+import PortalLayout from './components/PortalLayout'
 import GlobalToastHost from './components/GlobalToastHost'
 import { getAuthToken, getRoleFromToken, getStoredRole } from './lib/session'
 
@@ -133,30 +134,6 @@ function App() {
         />
         <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route
-          path="/portal"
-          element={
-            <PrivateRoute>
-              <PortalHome />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/directory"
-          element={
-            <PrivateRoute>
-              <Directory />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/leaderboard"
-          element={
-            <PrivateRoute>
-              <Leaderboard />
-            </PrivateRoute>
-          }
-        />
-        <Route
           path="/challenge"
           element={
             <PrivateRoute>
@@ -164,31 +141,17 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route
-          path="/profile/:id"
-          element={
-            <PrivateRoute>
-              <Profile />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/memoryboard"
-          element={
-            <PrivateRoute>
-              <MemoryBoard />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <AdminJoinRequests />
-            </AdminRoute>
-          }
-        />
-        <Route path="/admin/join-requests" element={<Navigate to="/admin" replace />} />
+        <Route element={<PrivateRoute><PortalLayout /></PrivateRoute>}>
+          <Route path="/portal" element={<PortalHome />} />
+          <Route path="/directory" element={<Directory />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/profile/:id" element={<Profile />} />
+          <Route path="/memoryboard" element={<MemoryBoard />} />
+        </Route>
+        <Route element={<AdminRoute><PortalLayout /></AdminRoute>}>
+          <Route path="/admin" element={<AdminJoinRequests />} />
+          <Route path="/admin/join-requests" element={<Navigate to="/admin" replace />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <GlobalToastHost />
