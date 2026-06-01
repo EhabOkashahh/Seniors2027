@@ -1155,45 +1155,47 @@ export default function Profile() {
                   )}
                 </div>
               )}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  width: 'fit-content',
-                  border: '3px solid black',
-                  boxShadow: '4px 4px 0 black',
-                  background: '#fff2b2',
-                  padding: '8px 12px',
-                  fontWeight: 900,
-                  letterSpacing: '0.02em'
-                }}
-              >
-                <Award size={16} />
-                <span>POINTS: {profilePoints}</span>
-              </div>
-              {userBadges.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setBadgeModalOpen(true)}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <div
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
+                    gap: '8px',
                     width: 'fit-content',
                     border: '3px solid black',
                     boxShadow: '4px 4px 0 black',
-                    background: '#e4f5ff',
+                    background: '#fff2b2',
                     padding: '8px 12px',
                     fontWeight: 900,
-                    letterSpacing: '0.02em',
-                    cursor: 'pointer'
+                    letterSpacing: '0.02em'
                   }}
                 >
                   <Award size={16} />
-                  <span>Badges ({userBadges.length})</span>
-                </button>
-              )}
+                  <span>POINTS: {profilePoints}</span>
+                </div>
+                {userBadges.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setBadgeModalOpen(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      width: 'fit-content',
+                      border: '3px solid black',
+                      boxShadow: '4px 4px 0 black',
+                      background: '#e4f5ff',
+                      padding: '8px 12px',
+                      fontWeight: 900,
+                      letterSpacing: '0.02em',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Award size={16} />
+                    <span>Badges ({userBadges.length})</span>
+                  </button>
+                )}
+              </div>
               {showAdminUserDetails && (
                 <div
                   style={{
