@@ -61,7 +61,7 @@ bool IsAllowedClientOrigin(string? origin)
 }
 
 // Add services to the container.
-builder.Services.AddDbContextPool<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions => sqlOptions.EnableRetryOnFailure(3)));
@@ -143,8 +143,16 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddRateLimiter(options =>
 {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-        RateLimitPartition.GetFixedWindowLimiter(
+    {
+        if (context.Request.Path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase))
+        {
+            return RateLimitPartition.GetNoLimiter(string.Empty);
+        }
+
+        return RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
@@ -152,7 +160,8 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
-            }));
+            });
+    });
 
     options.AddFixedWindowLimiter("AuthLogin", opt =>
     {
@@ -169,8 +178,6 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         opt.QueueLimit = 0;
     });
-
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -218,8 +225,6 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseRateLimiter();
-
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -227,6 +232,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowReactApp");
+
+app.UseRateLimiter();
 
 var photosDirectory = Path.Combine(app.Environment.ContentRootPath, "SeniorsPhotos");
 Directory.CreateDirectory(photosDirectory);

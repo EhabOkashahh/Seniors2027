@@ -284,17 +284,19 @@ export default function ChallengeMode() {
   const isPhotoRate = challenge?.uploadType === 'PhotoRate'
   const startAtMs = challenge?.startAtUtc ? new Date(challenge.startAtUtc).getTime() : 0
   const nowMs = Date.now()
-  const isUploadPhase = challengeStatus === 'Active' && startAtMs > nowMs && !isPhotoRate
+  const isBeforeVoting = challengeStatus === 'Active' && startAtMs > nowMs
+  const isUploadPhase = isBeforeVoting && !isPhotoRate
   const isVotingPhase = challengeStatus === 'Active' && startAtMs <= nowMs
+  const isJoinPhase = isBeforeVoting && isPhotoRate
 
   const currentUserIdNum = getCurrentUserId()
   const isInTeamWithSubmission = challenge?.participants?.some(p =>
     p.userId === currentUserIdNum && p.teamId != null
   ) ?? false
 
-  // Countdown timer during upload phase — auto-refetch when time comes
+  // Countdown timer during upload / join phase — auto-refetch when time comes
   useEffect(() => {
-    if (!isUploadPhase || !startAtMs || !challenge) return
+    if ((!isUploadPhase && !isJoinPhase) || !startAtMs || !challenge) return
     let interval: ReturnType<typeof setInterval>
     const tick = async () => {
       const diff = startAtMs - Date.now()
@@ -317,7 +319,7 @@ export default function ChallengeMode() {
     tick()
     interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [isUploadPhase, startAtMs, challenge, fetchSubmissions, fetchLeaderboard, recheckChallenge])
+  }, [isUploadPhase, isJoinPhase, startAtMs, challenge, fetchSubmissions, fetchLeaderboard, recheckChallenge])
 
   // Poll submissions + leaderboard during voting phase for realtime-ish updates
   useEffect(() => {
@@ -450,12 +452,12 @@ export default function ChallengeMode() {
             onSelectRole={handleJoinRole}
             isJoining={isJoining}
             errorMessage={joinError}
-            canChangeRole={challengeStatus === 'BeforeStart' || (challengeStatus === 'Active' && isUploadPhase)}
-            canJoinAsChallenger={challengeStatus === 'BeforeStart' || isUploadPhase}
+            canChangeRole={challengeStatus === 'BeforeStart' || isUploadPhase || isJoinPhase}
+            canJoinAsChallenger={challengeStatus === 'BeforeStart' || isUploadPhase || isJoinPhase}
           />
 
           {/* Challengers & Spectators Tables — hide once voting phase starts */}
-          {(challengeStatus === 'BeforeStart' || isUploadPhase) && challenge.participants && challenge.participants.length > 0 && (
+          {(challengeStatus === 'BeforeStart' || isUploadPhase || isJoinPhase) && challenge.participants && challenge.participants.length > 0 && (
             <div style={{ display: 'flex', gap: '30px', marginTop: '20px', flexWrap: 'wrap' }}>
               {['Challenger', 'Spectator'].map((role) => {
                 const items = challenge.participants.filter(p => p.role === role)
@@ -629,7 +631,7 @@ export default function ChallengeMode() {
             </div>
           )}
 
-          {challengeStatus !== 'BeforeStart' && !isUploadPhase && (
+          {challengeStatus !== 'BeforeStart' && !isUploadPhase && !isJoinPhase && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '40px' }}>
               {challengeStatus === 'Ended' ? (
                 <HallOfFame topThree={leaderboard} />
@@ -648,7 +650,7 @@ export default function ChallengeMode() {
                 </p>
               </div>
             </div>
-          ) : isUploadPhase ? (
+          ) : isUploadPhase || isJoinPhase ? (
             <div style={{ textAlign: 'center', padding: '100px 0' }}>
               <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
                 <Clock size={64} style={{ opacity: 0.4 }} />
@@ -660,7 +662,9 @@ export default function ChallengeMode() {
                 </p>
                 {selectedRole !== 'challenger' && (
                   <p style={{ fontSize: '1rem', fontWeight: 800, opacity: 0.4, marginTop: '10px' }}>
-                    Join as Challenger to upload your entry before the deadline
+                    {isPhotoRate
+                      ? 'Join as Challenger to enter with your profile photo'
+                      : 'Join as Challenger to upload your entry before the deadline'}
                   </p>
                 )}
               </div>
