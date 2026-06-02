@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Onboarding from './pages/Onboarding'
 import Login from './pages/Login'
 import PortalHome from './pages/PortalHome'
@@ -11,15 +12,9 @@ import ChallengeMode from './pages/ChallengeMode'
 import AdminJoinRequests from './pages/AdminJoinRequests'
 import PortalLayout from './components/PortalLayout'
 import GlobalToastHost from './components/GlobalToastHost'
-import { getAuthToken, getRoleFromToken, getStoredRole } from './lib/session'
+import { getAuthToken } from './lib/session'
 
 const hasAuthToken = () => Boolean(getAuthToken())
-const hasAdminAccess = () => {
-  const token = getAuthToken()
-  if (!token) return false
-  const role = getStoredRole() ?? getRoleFromToken(token)
-  return role === 'Admin'
-}
 
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   if (hasAuthToken()) return <Navigate to="/portal" replace />
@@ -28,12 +23,6 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   if (!hasAuthToken()) return <Navigate to="/login" replace />
-  return children
-}
-
-function AdminRoute({ children }: { children: ReactNode }) {
-  if (!hasAuthToken()) return <Navigate to="/login" replace />
-  if (!hasAdminAccess()) return <Navigate to="/portal" replace />
   return children
 }
 
@@ -110,8 +99,19 @@ function ModalScrollLockOnDialogOpen() {
   return null
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false
+    }
+  }
+})
+
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <Router>
       <ScrollToTopOnRouteChange />
       <ModalScrollLockOnDialogOpen />
@@ -147,8 +147,6 @@ function App() {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/memoryboard" element={<MemoryBoard />} />
-        </Route>
-        <Route element={<AdminRoute><PortalLayout /></AdminRoute>}>
           <Route path="/admin" element={<AdminJoinRequests />} />
           <Route path="/admin/join-requests" element={<Navigate to="/admin" replace />} />
         </Route>
@@ -156,6 +154,7 @@ function App() {
       </Routes>
       <GlobalToastHost />
     </Router>
+    </QueryClientProvider>
   )
 }
 

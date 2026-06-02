@@ -5,9 +5,9 @@ import { motion } from 'framer-motion'
 import '../App.css'
 import RetroGridBackground from './landing/RetroGridBackground'
 import NotificationBell from './NotificationBell'
-import { getMeRequest } from '../lib/authApi'
 import { getCurrentChallengeRequest } from '../lib/challengeApi'
-import { clearSession, setStoredRole, type AppUserRole } from '../lib/session'
+import { clearSession, setStoredRole } from '../lib/session'
+import { useCurrentUser } from '../hooks/useQueries'
 import ChallengeLogo from '../assets/Asset 4.svg'
 
 const DIRECTORY_STATE_STORAGE_KEY = 'directory:lastQuery'
@@ -16,9 +16,17 @@ export default function PortalLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [myProfilePath, setMyProfilePath] = useState('/profile/1')
-  const [myRole, setMyRole] = useState<AppUserRole | null>(null)
   const [isChallengeLoading, setIsChallengeLoading] = useState(false)
+
+  const { data: currentUser } = useCurrentUser()
+  const myProfilePath = currentUser?.id ? `/profile/${currentUser.id}` : '/profile/1'
+  const myRole = currentUser?.role ?? null
+
+  useEffect(() => {
+    if (currentUser?.role) {
+      setStoredRole(currentUser.role)
+    }
+  }, [currentUser?.role])
 
   const handleChallengeClick = () => {
     setIsChallengeLoading(true)
@@ -32,18 +40,6 @@ export default function PortalLayout() {
       }, remaining)
     })
   }
-
-  useEffect(() => {
-    const run = async () => {
-      const meResult = await getMeRequest()
-      if (meResult.ok && meResult.data?.id) {
-        setMyProfilePath(`/profile/${meResult.data.id}`)
-        setMyRole(meResult.data.role ?? null)
-        setStoredRole(meResult.data.role ?? null)
-      }
-    }
-    void run()
-  }, [])
 
   const navItems = [
     { name: 'Dashboard', path: '/portal', icon: <Home size={20} /> },

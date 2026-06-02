@@ -1,8 +1,10 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Bell, Heart, MessageCircle, Megaphone, Calendar, Swords, CheckSquare, Check, UserCheck, Trash2 } from 'lucide-react'
-import { getNotificationsRequest, getUnreadCountRequest, markNotificationReadRequest, markAllNotificationsReadRequest, clearAllNotificationsRequest, type NotificationItem } from '../lib/notificationApi'
+import { getNotificationsRequest, markNotificationReadRequest, markAllNotificationsReadRequest, clearAllNotificationsRequest, type NotificationItem } from '../lib/notificationApi'
 import { subscribeAppUpdatesRealtime } from '../lib/appUpdatesRealtime'
+import { useUnreadNotificationCount } from '../hooks/useQueries'
 
 function timeAgo(dateString: string): string {
   const now = Date.now()
@@ -48,48 +50,40 @@ function getTypeColor(type: string): string {
 
 export default function NotificationBell() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [isOpen, setIsOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [loading, setLoading] = useState(false)
   const bellRef = useRef<HTMLDivElement>(null)
-  const initialized = useRef(false)
 
-  const fetchUnreadCount = useCallback(async () => {
-    const result = await getUnreadCountRequest()
-    if (result.ok && result.data) {
-      setUnreadCount(result.data.count)
+  const { data: queryUnreadCount } = useUnreadNotificationCount()
+
+  useEffect(() => {
+    if (queryUnreadCount !== undefined) {
+      setUnreadCount(queryUnreadCount)
     }
-  }, [])
+  }, [queryUnreadCount])
 
-  const fetchNotifications = useCallback(async () => {
+  useEffect(() => {
+    const cleanup = subscribeAppUpdatesRealtime({
+      onNotificationReceived: () => {
+        queryClient.invalidateQueries({ queryKey: ['unreadNotificationCount'] })
+        queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      }
+    })
+
+    return () => cleanup()
+  }, [queryClient])
+
+  const fetchNotifications = async () => {
     setLoading(true)
     const result = await getNotificationsRequest(1, 20)
     if (result.ok && result.data) {
       setNotifications(result.data.items)
     }
     setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    if (initialized.current) return
-    initialized.current = true
-
-    fetchUnreadCount()
-    fetchNotifications()
-
-    const cleanup = subscribeAppUpdatesRealtime({
-      onNotificationReceived: () => {
-        fetchUnreadCount()
-        fetchNotifications()
-      }
-    })
-
-    return () => {
-      cleanup()
-      initialized.current = false
-    }
-  }, [fetchUnreadCount, fetchNotifications])
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

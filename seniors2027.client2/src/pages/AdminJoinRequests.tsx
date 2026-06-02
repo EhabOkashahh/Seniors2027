@@ -18,7 +18,8 @@ import {
   Users,
   XCircle
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
+import { hasAdminAccess } from '../lib/session'
 
 import GenderCapAvatar from '../components/GenderCapAvatar'
 import './AdminJoinRequests.css'
@@ -74,6 +75,8 @@ type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos' | '
 type CreateContentType = 'announcement' | 'event'
 
 export default function AdminJoinRequests() {
+  if (!hasAdminAccess()) return <Navigate to="/portal" replace />
+
   const navigate = useNavigate()
   const [activeSection, setActiveSection] = useState<AdminSection>('requests')
 

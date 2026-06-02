@@ -61,6 +61,13 @@ export function clearSession(): void {
   localStorage.removeItem(ROLE_STORAGE_KEY)
 }
 
+export function hasAdminAccess(): boolean {
+  const token = getAuthToken()
+  if (!token) return false
+  const role = getStoredRole() ?? getRoleFromToken(token)
+  return role === 'Admin'
+}
+
 export function setStoredRole(role: AppUserRole | null | undefined): void {
   if (role === 'Admin' || role === 'Member') {
     localStorage.setItem(ROLE_STORAGE_KEY, role)
