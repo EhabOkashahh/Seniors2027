@@ -22,8 +22,7 @@ const EXIT_TO_TOP_MS = 1050
 const WAITING_APPROVAL_POLL_MS = 1000
 const DEFAULT_JOIN_REQUEST_MESSAGE = 'Your request has been sent successfully.'
 const OTP_VERIFIED_NOTICE = 'OTP verified. Complete username, gender, and photo to enter the portal.'
-const SCHOOL_EMAIL_PATTERN = /^3242\d{5}@sha\.edu\.eg$/i
-const SCHOOL_EMAIL_CONSTRAINT_MESSAGE = 'Use this format: 3242#####@sha.edu.eg (exactly 5 digits after 3242).'
+
 
 type ExitPhase = 'idle' | 'reverseToCenter' | 'reverseFireworks' | 'reverseToTop'
 type Gender = 'male' | 'female' | ''
@@ -193,7 +192,6 @@ export default function Login() {
 
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailPattern.test(trimmedEmail)) return 'Enter a valid email address to continue.'
-      if (!SCHOOL_EMAIL_PATTERN.test(trimmedEmail)) return SCHOOL_EMAIL_CONSTRAINT_MESSAGE
 
       if (otpRequestedFor.toLowerCase() === trimmedEmail.toLowerCase()) return null
 

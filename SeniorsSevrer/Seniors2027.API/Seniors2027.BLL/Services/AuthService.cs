@@ -6,8 +6,6 @@ using Seniors2027.DAL.Interfaces;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 using System.Text.Json;
-using System.Text.RegularExpressions;
-
 namespace Seniors2027.BLL.Services;
 
 public class AuthService(
@@ -19,10 +17,6 @@ public class AuthService(
 {
     private const int LoginOtpLifetimeMinutes = 20;
     private const int MaxSocialLinksCount = 8;
-    private const string AllowedLoginEmailFormatMessage = "Email must match: 3242#####@sha.edu.eg (exactly 5 digits after 3242).";
-    private static readonly Regex AllowedLoginEmailRegex = new(
-        "^3242\\d{5}@sha\\.edu\\.eg$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IJwtService _jwtService = jwtService;
@@ -42,10 +36,6 @@ public class AuthService(
         if (string.IsNullOrWhiteSpace(email))
         {
             throw new ArgumentException("Email is required");
-        }
-        if (!AllowedLoginEmailRegex.IsMatch(email))
-        {
-            throw new ArgumentException(AllowedLoginEmailFormatMessage);
         }
 
         var user = await GetUserAuthSnapshotAsync(email);
@@ -72,10 +62,6 @@ public class AuthService(
         if (string.IsNullOrWhiteSpace(email))
         {
             throw new ArgumentException("Email is required");
-        }
-        if (!AllowedLoginEmailRegex.IsMatch(email))
-        {
-            throw new ArgumentException(AllowedLoginEmailFormatMessage);
         }
 
         if (string.IsNullOrWhiteSpace(otp))
