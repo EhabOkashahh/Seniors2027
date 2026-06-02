@@ -240,6 +240,7 @@ public class DailyHighlightService : IDailyHighlightService
                 .ThenInclude(m => m.MentionedUser)
             .Include(h => h.Reactions)
                 .ThenInclude(r => r.User)
+            .AsSplitQuery()
             .AsQueryable();
 
         return asNoTracking ? query.AsNoTracking() : query;

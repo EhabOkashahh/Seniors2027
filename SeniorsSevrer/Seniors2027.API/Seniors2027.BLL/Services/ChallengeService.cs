@@ -130,6 +130,7 @@ public class ChallengeService : IChallengeService
             .Where(c => c.Status != "Hidden" && c.Status != "Ended")
             .OrderByDescending(c => c.Status == "Active" ? 3 : c.Status == "BeforeStart" ? 2 : 1)
             .ThenByDescending(c => c.CreatedAtUtc)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(cancellationToken);
 
         if (challenge == null)
@@ -181,6 +182,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Votes.Where(v => v.VoterUserId == currentUserId))
             .Include(c => c.Teams)
                 .ThenInclude(t => t.Members)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -358,6 +360,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Submissions)
             .Include(c => c.Teams)
                 .ThenInclude(t => t.Members)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -619,6 +622,7 @@ public class ChallengeService : IChallengeService
         var challenge = await _context.Challenges
             .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
             .Include(c => c.Votes.Where(v => v.VoterUserId == currentUserId))
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -709,6 +713,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Submissions)
             .Include(c => c.Messages)
             .Include(c => c.Teams).ThenInclude(t => t.Members)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -742,6 +747,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Submissions)
             .Include(c => c.Messages)
             .Include(c => c.Teams).ThenInclude(t => t.Members)
+            .AsSplitQuery()
             .FirstAsync(c => c.Id == challengeId, cancellationToken);
 
         // Cancel if too few challengers or submissions
@@ -845,6 +851,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Submissions)
             .Include(c => c.Participants)
             .Include(c => c.Teams).ThenInclude(t => t.Members)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
         if (challenge == null)
@@ -1131,6 +1138,7 @@ public class ChallengeService : IChallengeService
         var cancelCandidates = await _context.Challenges
             .Include(c => c.Participants)
             .Include(c => c.Submissions)
+            .AsSplitQuery()
             .Where(c => c.Status == "Active" && c.StartAtUtc <= now && c.EndAtUtc > now)
             .ToListAsync(cancellationToken);
 
@@ -1165,6 +1173,7 @@ public class ChallengeService : IChallengeService
             .Include(c => c.Submissions)
             .Include(c => c.Messages)
             .Include(c => c.Teams).ThenInclude(t => t.Members)
+            .AsSplitQuery()
             .Where(c => c.Status == "Active" && c.EndAtUtc <= now)
             .ToListAsync(cancellationToken);
 
