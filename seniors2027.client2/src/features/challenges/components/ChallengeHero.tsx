@@ -5,9 +5,10 @@ interface ChallengeHeroProps {
   description: string
   logoUrl?: string
   bigLogo?: boolean
+  uploadType?: string
 }
 
-export default function ChallengeHero({ title, description, logoUrl, bigLogo }: ChallengeHeroProps) {
+export default function ChallengeHero({ title, description, logoUrl, bigLogo, uploadType }: ChallengeHeroProps) {
   return (
     <div style={{ textAlign: 'center', marginBottom: '20px', marginTop: '20px' }}>
       <motion.div
@@ -75,7 +76,7 @@ export default function ChallengeHero({ title, description, logoUrl, bigLogo }: 
           </h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px 40px' }}>
             {[
-              "Upload one video only",
+              ...(uploadType !== 'PhotoRate' ? ["Upload one video only"] : []),
               "Vote once only",
               "You cannot vote for yourself",
               "Top 3 winners get points"

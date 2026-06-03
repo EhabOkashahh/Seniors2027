@@ -427,6 +427,7 @@ export default function ChallengeMode() {
           description={challenge.description}
           logoUrl={challenge.logoUrl || undefined}
           bigLogo
+          uploadType={challenge.uploadType}
         />
 
         <ChallengeActions 

@@ -1064,7 +1064,7 @@ public class ChallengeService : IChallengeService
         var topSubmissions = await _context.ChallengeSubmissions
             .AsNoTracking()
             .Include(s => s.Team).ThenInclude(t => t.Members).ThenInclude(m => m.User)
-            .Where(s => s.ChallengeId == challenge.Id)
+            .Where(s => s.ChallengeId == challenge.Id && !string.IsNullOrWhiteSpace(s.User.Username))
             .Select(s => new
             {
                 s.Id,

@@ -78,6 +78,7 @@ public class MonthlyPointsResetService : BackgroundService
             {
                 var top = await context.Users
                     .AsNoTracking()
+                    .Where(u => !string.IsNullOrWhiteSpace(u.Username))
                     .OrderByDescending(u => u.Points)
                     .ThenBy(u => u.Username)
                     .Take(3)

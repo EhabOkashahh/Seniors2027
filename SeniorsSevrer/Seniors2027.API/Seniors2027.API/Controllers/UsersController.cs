@@ -34,6 +34,7 @@ public class UsersController : ControllerBase
 
         var query = _context.Users
             .AsNoTracking()
+            .Where(u => !string.IsNullOrWhiteSpace(u.Username))
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
