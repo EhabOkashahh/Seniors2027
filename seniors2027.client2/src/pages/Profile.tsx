@@ -434,7 +434,7 @@ export default function Profile() {
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
   const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
   const sharedSongPlaybackUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? buildSpotifyEmbedPlaybackUrl(sharedSongEmbedUrl) : null
-  const safeSharedSongEmbedUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? sharedSongEmbedUrl : null
+  const safeSharedSongEmbedUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? toEmbedUrl(sharedSongEmbedUrl) : null
   const showAdminUserDetails = Boolean(isAdmin && profileUser)
   const showAdminProfileActions = Boolean(isAdmin && !isOwnProfile && profileUser)
   const isTargetLocked = adminTargetUser?.isLocked === true
@@ -3055,6 +3055,33 @@ function isSafeEmbedUrl(value: string): boolean {
     return ALLOWED_EMBED_DOMAINS.some((domain) => host === domain || host.endsWith('.' + domain))
   } catch {
     return false
+  }
+}
+
+function toEmbedUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl)
+    const host = url.hostname.toLowerCase()
+    if (host === 'open.spotify.com' || host.endsWith('.spotify.com') || host === 'spotify.com')
+    {
+      if (!url.pathname.startsWith('/embed/'))
+      {
+        url.pathname = '/embed' + url.pathname
+      }
+    }
+    if ((host === 'www.youtube.com' || host === 'youtube.com') && url.pathname === '/watch')
+    {
+      const v = url.searchParams.get('v')
+      if (v) return `https://www.youtube.com/embed/${v}`
+    }
+    if (host === 'youtu.be')
+    {
+      const id = url.pathname.slice(1)
+      if (id) return `https://www.youtube.com/embed/${id}`
+    }
+    return url.toString()
+  } catch {
+    return rawUrl
   }
 }
 
