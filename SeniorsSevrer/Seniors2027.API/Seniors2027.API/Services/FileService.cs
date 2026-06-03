@@ -58,18 +58,39 @@ public sealed class FileService : IFileService
         return false;
     }
 
+    public async Task<string?> EnsureMediaOnCloudAsync(string mediaUrl, string folder)
+    {
+        if (string.IsNullOrWhiteSpace(mediaUrl))
+            return null;
+
+        if (mediaUrl.Contains("res.cloudinary.com", StringComparison.OrdinalIgnoreCase))
+            return mediaUrl;
+
+        var localPath = ResolveLocalPath(mediaUrl);
+        if (localPath == null || !System.IO.File.Exists(localPath))
+            return null;
+
+        var ext = Path.GetExtension(localPath);
+        var fileName = $"{Guid.NewGuid():N}{ext}";
+        var result = await _cloudinaryService.UploadImageFromPathAsync(localPath, fileName, folder);
+        return result.SecureUrl;
+    }
+
     private string? ResolveLocalPath(string mediaUrl)
     {
-        if (!Uri.TryCreate(mediaUrl, UriKind.Absolute, out var uri))
+        string? fileName = null;
+
+        if (Uri.TryCreate(mediaUrl, UriKind.Absolute, out var uri))
         {
-            return null;
+            fileName = Path.GetFileName(uri.LocalPath);
+        }
+        else if (mediaUrl.Contains('/'))
+        {
+            fileName = Path.GetFileName(mediaUrl);
         }
 
-        var fileName = Path.GetFileName(uri.LocalPath);
         if (string.IsNullOrWhiteSpace(fileName))
-        {
             return null;
-        }
 
         if (mediaUrl.Contains("/ChallengeMedia/", StringComparison.OrdinalIgnoreCase))
         {

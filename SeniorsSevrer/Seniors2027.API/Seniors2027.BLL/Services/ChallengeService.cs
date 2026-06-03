@@ -177,11 +177,13 @@ public class ChallengeService : IChallengeService
         await AutoEndExpiredChallengesAsync(cancellationToken);
 
         var challenge = await _context.Challenges
-            .Include(c => c.Participants.Where(p => p.UserId == currentUserId))
+            .Include(c => c.Participants)
+                .ThenInclude(p => p.User)
             .Include(c => c.Submissions.Where(s => s.UserId == currentUserId))
             .Include(c => c.Votes.Where(v => v.VoterUserId == currentUserId))
             .Include(c => c.Teams)
                 .ThenInclude(t => t.Members)
+                    .ThenInclude(m => m.User)
             .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
 
@@ -251,11 +253,12 @@ public class ChallengeService : IChallengeService
             if (existingSubmission == null)
             {
                 var user = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == currentUserId, cancellationToken);
+                var mediaUrl = await _fileService.EnsureMediaOnCloudAsync(user.PhotoUrl ?? "", "challenge-submissions");
                 var submission = new ChallengeSubmission
                 {
                     ChallengeId = challengeId,
                     UserId = currentUserId,
-                    MediaUrl = user.PhotoUrl ?? "",
+                    MediaUrl = mediaUrl ?? user.PhotoUrl ?? "",
                     MediaType = "Image",
                     CreatedAtUtc = DateTime.UtcNow
                 };
@@ -283,9 +286,9 @@ public class ChallengeService : IChallengeService
             throw new InvalidOperationException("Challenge is hidden.");
 
         List<ChallengeSubmission> submissions;
-        if (challenge.Status == "Active" && DateTime.UtcNow < challenge.StartAtUtc && challenge.UploadType != "PhotoRate")
+        if (challenge.Status == "Active" && DateTime.UtcNow < challenge.StartAtUtc)
         {
-            // During upload phase, show only the current user's submissions or their team's
+            // During upload/join phase, show only the current user's submissions or their team's
             var userTeamIds = await _context.ChallengeTeamMembers
                 .Where(m => m.UserId == currentUserId && m.Team.ChallengeId == challengeId)
                 .Select(m => m.TeamId)
@@ -696,7 +699,7 @@ public class ChallengeService : IChallengeService
         if (challenge.Status == "Hidden")
             throw new InvalidOperationException("Challenge is hidden.");
 
-        if (challenge.Status == "BeforeStart")
+        if (challenge.Status == "BeforeStart" || (challenge.Status == "Active" && DateTime.UtcNow < challenge.StartAtUtc))
             return new List<ChallengeLeaderboardItemDto>();
 
         return await GetLeaderboardInternalAsync(challenge, currentUserId, cancellationToken);
