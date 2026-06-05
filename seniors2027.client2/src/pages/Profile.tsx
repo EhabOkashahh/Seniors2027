@@ -55,7 +55,7 @@ import { buildShareableStoryUrl } from '../lib/storyShare'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 
-type SpotifyEmbedController = { addListener: (event: string, cb: (e: { data?: { duration?: number } }) => void) => void }
+type SpotifyEmbedController = { addListener: (event: string, cb: (e: { data?: { duration?: number } }) => void) => void; play: () => void }
 type SpotifyIframeApiType = { createController: (el: HTMLDivElement, opts: Record<string, unknown>, cb: (ctrl: SpotifyEmbedController) => void) => void }
 type SpotifyIframeApiWindow = Window & typeof globalThis & {
   _spotifyIframeApi?: SpotifyIframeApiType
@@ -96,6 +96,7 @@ export default function Profile() {
   const [favoriteSongDurationMs, setFavoriteSongDurationMs] = useState(300000)
   const spotifyApiContainerRef = useRef<HTMLDivElement>(null)
   const spotifyEmbedControllerRef = useRef<unknown>(null)
+  const profileSpotifyContainerRef = useRef<HTMLDivElement>(null)
   const [draggedSocialLink, setDraggedSocialLink] = useState<string | null>(null)
   const [socialLinkDropTarget, setSocialLinkDropTarget] = useState<string | null>(null)
   const [photoUpdating, setPhotoUpdating] = useState(false)
@@ -446,7 +447,6 @@ export default function Profile() {
   const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
   const sharedSongStartSeconds = sharedSongEmbedUrl ? extractStartTimeFromUrl(sharedSongEmbedUrl) : 0
   const sharedSongDurationSeconds = extractDurationFromUrl(sharedSongEmbedUrl)
-  const sharedSongPlaybackUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? buildSpotifyEmbedPlaybackUrl(sharedSongEmbedUrl) : null
   const safeSharedSongEmbedUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? toEmbedUrl(sharedSongEmbedUrl) : null
   const showAdminUserDetails = Boolean(isAdmin && profileUser)
   const showAdminProfileActions = Boolean(isAdmin && !isOwnProfile && profileUser)
@@ -579,6 +579,51 @@ export default function Profile() {
       cancelled = true
     }
   }, [isFavoriteSongModalOpen, favoriteSongInput])
+
+  // Autoplay Spotify embed on profile display
+  useEffect(() => {
+    const url = safeSharedSongEmbedUrl
+    if (!url || !isSpotifyEmbedUrl(url)) return
+
+    const trackId = extractSpotifyTrackIdFromUrl(url)
+    if (!trackId) return
+
+    const container = profileSpotifyContainerRef.current
+    if (!container) return
+
+    container.innerHTML = ''
+
+    const win = window as unknown as SpotifyIframeApiWindow
+
+    const createAndPlay = (api: SpotifyIframeApiType) => {
+      const startAt = extractStartTimeFromUrl(url)
+      const options: Record<string, unknown> = {
+        width: '100%',
+        height: '80',
+        uri: `spotify:track:${trackId}`
+      }
+      if (startAt > 0) options.startAt = startAt
+      api.createController(container, options, (EmbedController) => {
+        ;(EmbedController as SpotifyEmbedController).play()
+      })
+    }
+
+    if (win._spotifyIframeApi) {
+      createAndPlay(win._spotifyIframeApi)
+    } else {
+      win.onSpotifyIframeApiReady = (api) => {
+        win._spotifyIframeApi = api
+        createAndPlay(api)
+      }
+      if (!document.getElementById('spotify-iframe-api')) {
+        const script = document.createElement('script')
+        script.id = 'spotify-iframe-api'
+        script.src = 'https://open.spotify.com/embed/iframe-api/v1'
+        script.async = true
+        document.body.appendChild(script)
+      }
+    }
+  }, [safeSharedSongEmbedUrl])
 
   const navigateExpandedGalleryPhoto = (direction: 'prev' | 'next') => {
     if (!expandedGalleryPhoto || galleryPhotos.length === 0) return
@@ -1522,10 +1567,21 @@ export default function Profile() {
                     maxWidth: '320px'
                   }}
                 >
-                  {safeSharedSongEmbedUrl && (
+                  {safeSharedSongEmbedUrl && isSpotifyEmbedUrl(safeSharedSongEmbedUrl) ? (
+                    <div
+                      ref={profileSpotifyContainerRef}
+                      style={{
+                        borderRadius: '12px',
+                        width: '100%',
+                        maxWidth: '320px',
+                        height: '80px',
+                        overflow: 'hidden'
+                      }}
+                    />
+                  ) : safeSharedSongEmbedUrl ? (
                     <iframe
                       title={`${displayName} favorite song`}
-                      src={sharedSongPlaybackUrl ?? safeSharedSongEmbedUrl}
+                      src={safeSharedSongEmbedUrl}
                       width="100%"
                       height="80"
                       allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
@@ -1537,7 +1593,7 @@ export default function Profile() {
                         maxWidth: '320px'
                       }}
                     />
-                  )}
+                  ) : null}
 
                   {safeSharedSongEmbedUrl && (
                     <div
@@ -3274,6 +3330,14 @@ function extractEmbedUrl(raw: string): string | null {
   return iframeMatch ? iframeMatch[1] : trimmed
 }
 
+function isSpotifyEmbedUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.toLowerCase() === 'open.spotify.com'
+  } catch {
+    return false
+  }
+}
+
 function isSafeEmbedUrl(value: string): boolean {
   try {
     const url = new URL(value)
@@ -3309,17 +3373,6 @@ function toEmbedUrl(rawUrl: string): string {
     return url.toString()
   } catch {
     return rawUrl
-  }
-}
-
-function buildSpotifyEmbedPlaybackUrl(embedUrl: string): string | null {
-  if (!isSafeEmbedUrl(embedUrl)) return null
-  try {
-    const url = new URL(embedUrl)
-    url.searchParams.set('autoplay', 'true')
-    return url.toString()
-  } catch {
-    return null
   }
 }
 
