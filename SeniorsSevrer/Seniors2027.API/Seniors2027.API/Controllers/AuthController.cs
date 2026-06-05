@@ -372,6 +372,8 @@ public class AuthController(
             candidate = WebUtility.HtmlDecode(match.Groups["src"].Value.Trim());
         }
 
+        var startTimeSeconds = ExtractStartTimeFromUrl(candidate);
+
         if (!TryExtractSpotifyTrackId(candidate, out var trackId))
         {
             validationError = "Only Spotify track links are allowed.";
@@ -379,7 +381,21 @@ public class AuthController(
         }
 
         normalizedEmbedUrl = $"https://open.spotify.com/embed/track/{trackId}";
+        if (startTimeSeconds.HasValue)
+        {
+            normalizedEmbedUrl += $"?t={startTimeSeconds.Value}";
+        }
         return true;
+    }
+
+    private static int? ExtractStartTimeFromUrl(string url)
+    {
+        var queryMatch = Regex.Match(url, @"[?&]t=(\d+)", RegexOptions.IgnoreCase);
+        if (queryMatch.Success && int.TryParse(queryMatch.Groups[1].Value, out var t) && t > 0)
+        {
+            return t;
+        }
+        return null;
     }
 
     private static bool TryExtractSpotifyTrackId(string value, out string trackId)
