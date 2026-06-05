@@ -1296,12 +1296,11 @@ export default function Profile() {
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                     Created: {adminTargetUser?.createdAt ? formatAdminDate(adminTargetUser.createdAt) : (adminTargetUserLoading ? 'Loading...' : 'Not available')}
-            </div>
-            <div ref={spotifyApiContainerRef} style={{ display: 'none' }} />
-          </div>
-        </div>
-      )}
-              {showAdminProfileActions && (
+                  </div>
+                </div>
+              </div>
+            )}
+            {showAdminProfileActions && (
                 <div
                   style={{
                     display: 'flex',
@@ -2104,6 +2103,7 @@ export default function Profile() {
                 {favoriteSongSaving ? 'Saving...' : 'Save Song'}
               </button>
             </div>
+            <div ref={spotifyApiContainerRef} style={{ display: 'none' }} />
           </div>
         </div>
       )}
