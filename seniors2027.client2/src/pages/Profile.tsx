@@ -58,7 +58,7 @@ import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 type SpotifyEmbedController = { addListener: (event: string, cb: (e: { data?: { duration?: number } }) => void) => void }
 type SpotifyIframeApiType = { createController: (el: HTMLDivElement, opts: Record<string, unknown>, cb: (ctrl: SpotifyEmbedController) => void) => void }
 type SpotifyIframeApiWindow = Window & typeof globalThis & {
-  SpotifyIframeApi?: SpotifyIframeApiType
+  _spotifyIframeApi?: SpotifyIframeApiType
   onSpotifyIframeApiReady?: (api: SpotifyIframeApiType) => void
 }
 
@@ -534,6 +534,8 @@ export default function Profile() {
     const container = spotifyApiContainerRef.current
     if (!container) return
 
+    container.innerHTML = ''
+
     const onApiReady = (IFrameAPI: SpotifyIframeApiType) => {
       if (cancelled) return
       const options = { width: '100%', height: '80', uri: `spotify:track:${trackId}` }
@@ -548,21 +550,29 @@ export default function Profile() {
           }
         }
         ;(EmbedController as SpotifyEmbedController).addListener('playback_update', onUpdate)
+        EmbedController.addListener('playback_error', () => {
+          if (!gotDuration) {
+            gotDuration = true
+          }
+        })
       })
     }
 
-    const scriptId = 'spotify-iframe-api'
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script')
-      script.id = scriptId
-      script.src = 'https://open.spotify.com/embed/iframe-api/v1'
-      script.async = true
-      document.body.appendChild(script)
-      ;(window as unknown as SpotifyIframeApiWindow).onSpotifyIframeApiReady = onApiReady
-    } else if ((window as unknown as SpotifyIframeApiWindow).SpotifyIframeApi) {
-      onApiReady((window as unknown as SpotifyIframeApiWindow).SpotifyIframeApi!)
+    const win = window as unknown as SpotifyIframeApiWindow
+    if (win._spotifyIframeApi) {
+      onApiReady(win._spotifyIframeApi)
     } else {
-      ;(window as unknown as SpotifyIframeApiWindow).onSpotifyIframeApiReady = onApiReady
+      win.onSpotifyIframeApiReady = (api) => {
+        win._spotifyIframeApi = api
+        onApiReady(api)
+      }
+      if (!document.getElementById('spotify-iframe-api')) {
+        const script = document.createElement('script')
+        script.id = 'spotify-iframe-api'
+        script.src = 'https://open.spotify.com/embed/iframe-api/v1'
+        script.async = true
+        document.body.appendChild(script)
+      }
     }
 
     return () => {
