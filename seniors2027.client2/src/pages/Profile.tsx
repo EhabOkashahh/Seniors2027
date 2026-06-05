@@ -1530,12 +1530,12 @@ export default function Profile() {
                     />
                   )}
 
-                  {safeSharedSongEmbedUrl && sharedSongStartSeconds > 0 && (
+                  {safeSharedSongEmbedUrl && (
                     <div
                       style={{
                         width: '100%',
                         maxWidth: '320px',
-                        marginTop: '4px',
+                        marginTop: safeSharedSongEmbedUrl ? '4px' : 0,
                         display: 'grid',
                         gap: '2px'
                       }}
@@ -1552,35 +1552,43 @@ export default function Profile() {
                             borderRadius: '2px'
                           }}
                         >
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${Math.min(100, (sharedSongStartSeconds / sharedSongDurationSeconds) * 100)}%`,
-                            background: '#1db954',
-                            borderRadius: '1px'
-                          }}
-                        />
+                          {sharedSongDurationSeconds > 0 && (
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${Math.min(100, (sharedSongStartSeconds / sharedSongDurationSeconds) * 100)}%`,
+                                background: '#1db954',
+                                borderRadius: '1px'
+                              }}
+                            />
+                          )}
                         </div>
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: `${Math.min(100, (sharedSongStartSeconds / sharedSongDurationSeconds) * 100)}%`,
-                            width: '10px',
-                            height: '10px',
-                            background: '#1db954',
-                            border: '2px solid black',
-                            borderRadius: '50%',
-                            transform: 'translateX(-50%)'
-                          }}
-                        />
+                        {sharedSongStartSeconds > 0 && sharedSongDurationSeconds > 0 && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: `${Math.min(100, (sharedSongStartSeconds / sharedSongDurationSeconds) * 100)}%`,
+                              width: '10px',
+                              height: '10px',
+                              background: '#1db954',
+                              border: '2px solid black',
+                              borderRadius: '50%',
+                              transform: 'translateX(-50%)'
+                            }}
+                          />
+                        )}
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', fontWeight: 700, opacity: 0.55 }}>
-                        <span>0:00</span>
-                        <span>{formatSeconds(sharedSongDurationSeconds)}</span>
-                      </div>
-                      <div style={{ fontWeight: 800, fontSize: '0.7rem', opacity: 0.65, textAlign: 'right' }}>
-                        Starts at {formatSeconds(sharedSongStartSeconds)}
-                      </div>
+                      {sharedSongDurationSeconds > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', fontWeight: 700, opacity: 0.55 }}>
+                          <span>0:00</span>
+                          <span>{formatSeconds(sharedSongDurationSeconds)}</span>
+                        </div>
+                      )}
+                      {sharedSongStartSeconds > 0 && (
+                        <div style={{ fontWeight: 800, fontSize: '0.7rem', opacity: 0.65, textAlign: 'right' }}>
+                          Starts at {formatSeconds(sharedSongStartSeconds)}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -3359,16 +3367,16 @@ function extractSpotifyTrackIdFromUrl(url: string): string | null {
 }
 
 function extractDurationFromUrl(url: string | null): number {
-  if (!url) return 300
+  if (!url) return 0
   try {
     const parsed = new URL(url)
     const d = parsed.searchParams.get('d')
     if (d) {
       const seconds = parseInt(d, 10)
-      return !isNaN(seconds) && seconds > 0 ? seconds : 300
+      return !isNaN(seconds) && seconds > 0 ? seconds : 0
     }
   } catch { }
-  return 300
+  return 0
 }
 
 function formatAdminDate(value: string | undefined): string {
