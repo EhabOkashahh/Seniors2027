@@ -196,14 +196,19 @@ public class ChallengeService : IChallengeService
         if (dto.Role != "Challenger" && dto.Role != "Spectator")
             throw new InvalidOperationException("Role must be 'Challenger' or 'Spectator'.");
 
-        // Block new joins during voting phase
+        // During voting phase, only allow new spectator joins; block new challengers and role switches
         if (challenge.Status == "Active" && DateTime.UtcNow >= challenge.StartAtUtc)
         {
             var existingParticipant = challenge.Participants.FirstOrDefault(p => p.UserId == currentUserId);
             if (existingParticipant == null)
-                throw new InvalidOperationException("Cannot join a challenge after the voting phase has started.");
-            if (existingParticipant.Role != dto.Role)
+            {
+                if (dto.Role != "Spectator")
+                    throw new InvalidOperationException("Cannot join as a challenger after the voting phase has started.");
+            }
+            else if (existingParticipant.Role != dto.Role)
+            {
                 throw new InvalidOperationException("Cannot switch roles after the voting phase has started.");
+            }
         }
 
         var participant = challenge.Participants.FirstOrDefault(p => p.UserId == currentUserId);
