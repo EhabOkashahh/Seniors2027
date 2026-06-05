@@ -372,7 +372,8 @@ public class AuthController(
             candidate = WebUtility.HtmlDecode(match.Groups["src"].Value.Trim());
         }
 
-        var startTimeSeconds = ExtractStartTimeFromUrl(candidate);
+        var startTimeSeconds = ExtractQueryParamAsInt(candidate, "t");
+        var durationSeconds = ExtractQueryParamAsInt(candidate, "d");
 
         if (!TryExtractSpotifyTrackId(candidate, out var trackId))
         {
@@ -381,19 +382,23 @@ public class AuthController(
         }
 
         normalizedEmbedUrl = $"https://open.spotify.com/embed/track/{trackId}";
-        if (startTimeSeconds.HasValue)
+        var queryParams = new List<string>();
+        if (startTimeSeconds.HasValue) queryParams.Add($"t={startTimeSeconds.Value}");
+        if (durationSeconds.HasValue) queryParams.Add($"d={durationSeconds.Value}");
+        if (queryParams.Count > 0)
         {
-            normalizedEmbedUrl += $"?t={startTimeSeconds.Value}";
+            normalizedEmbedUrl += "?" + string.Join("&", queryParams);
         }
         return true;
     }
 
-    private static int? ExtractStartTimeFromUrl(string url)
+    private static int? ExtractQueryParamAsInt(string url, string paramName)
     {
-        var queryMatch = Regex.Match(url, @"[?&]t=(\d+)", RegexOptions.IgnoreCase);
-        if (queryMatch.Success && int.TryParse(queryMatch.Groups[1].Value, out var t) && t > 0)
+        var pattern = $@"[?&]{Regex.Escape(paramName)}=(\d+)";
+        var queryMatch = Regex.Match(url, pattern, RegexOptions.IgnoreCase);
+        if (queryMatch.Success && int.TryParse(queryMatch.Groups[1].Value, out var val) && val > 0)
         {
-            return t;
+            return val;
         }
         return null;
     }

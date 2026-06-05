@@ -86,6 +86,9 @@ export default function Profile() {
   const [favoriteSongSaving, setFavoriteSongSaving] = useState(false)
   const [favoriteSongMessage, setFavoriteSongMessage] = useState<string | null>(null)
   const [favoriteSongStartSeconds, setFavoriteSongStartSeconds] = useState(0)
+  const [favoriteSongDurationMs, setFavoriteSongDurationMs] = useState(300000)
+  const spotifyApiContainerRef = useRef<HTMLDivElement>(null)
+  const spotifyEmbedControllerRef = useRef<unknown>(null)
   const [draggedSocialLink, setDraggedSocialLink] = useState<string | null>(null)
   const [socialLinkDropTarget, setSocialLinkDropTarget] = useState<string | null>(null)
   const [photoUpdating, setPhotoUpdating] = useState(false)
@@ -435,6 +438,7 @@ export default function Profile() {
   const visibleSocialLinks = normalizeSocialLinks(profileUser?.socialLinks)
   const sharedSongEmbedUrl = profileUser?.favoriteSongEmbedUrl?.trim() || null
   const sharedSongStartSeconds = sharedSongEmbedUrl ? extractStartTimeFromUrl(sharedSongEmbedUrl) : 0
+  const sharedSongDurationSeconds = extractDurationFromUrl(sharedSongEmbedUrl)
   const sharedSongPlaybackUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? buildSpotifyEmbedPlaybackUrl(sharedSongEmbedUrl) : null
   const safeSharedSongEmbedUrl = sharedSongEmbedUrl && isSafeEmbedUrl(sharedSongEmbedUrl) ? toEmbedUrl(sharedSongEmbedUrl) : null
   const showAdminUserDetails = Boolean(isAdmin && profileUser)
@@ -509,6 +513,55 @@ export default function Profile() {
       }
     })
   }, [location.search])
+
+  useEffect(() => {
+    if (!isFavoriteSongModalOpen) return
+
+    const rawUrl = favoriteSongInput.trim()
+    const trackId = extractSpotifyTrackIdFromUrl(rawUrl)
+    if (!trackId) return
+
+    setFavoriteSongDurationMs(300000)
+
+    let cancelled = false
+    const container = spotifyApiContainerRef.current
+    if (!container) return
+
+    const onApiReady = (IFrameAPI: { createController: (el: HTMLDivElement, opts: Record<string, unknown>, cb: (ctrl: Record<string, unknown>) => void) => void }) => {
+      if (cancelled) return
+      const options = { width: '100%', height: '80', uri: `spotify:track:${trackId}` }
+      IFrameAPI.createController(container, options, (EmbedController) => {
+        if (cancelled) return
+        spotifyEmbedControllerRef.current = EmbedController
+        let gotDuration = false
+        const onUpdate = (e: { data?: { duration?: number } }) => {
+          if (!gotDuration && e.data?.duration) {
+            gotDuration = true
+            setFavoriteSongDurationMs(e.data.duration)
+          }
+        }
+        EmbedController.addListener('playback_update', onUpdate)
+      })
+    }
+
+    const scriptId = 'spotify-iframe-api'
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement('script')
+      script.id = scriptId
+      script.src = 'https://open.spotify.com/embed/iframe-api/v1'
+      script.async = true
+      document.body.appendChild(script)
+      ;(window as Record<string, unknown>).onSpotifyIframeApiReady = onApiReady
+    } else if ((window as Record<string, unknown>).SpotifyIframeApi) {
+      onApiReady((window as Record<string, unknown>).SpotifyIframeApi as Parameters<typeof onApiReady>[0])
+    } else {
+      ;(window as Record<string, unknown>).onSpotifyIframeApiReady = onApiReady
+    }
+
+    return () => {
+      cancelled = true
+    }
+  }, [isFavoriteSongModalOpen, favoriteSongInput])
 
   const navigateExpandedGalleryPhoto = (direction: 'prev' | 'next') => {
     if (!expandedGalleryPhoto || galleryPhotos.length === 0) return
@@ -655,6 +708,7 @@ export default function Profile() {
     if (favoriteSongSaving) return
     setIsFavoriteSongModalOpen(false)
     setFavoriteSongStartSeconds(0)
+    setFavoriteSongDurationMs(300000)
   }
 
   const handleAddSocialLink = () => {
@@ -780,11 +834,13 @@ export default function Profile() {
     setFavoriteSongSaving(true)
     setFavoriteSongMessage(null)
 
-    // Strip any existing ?t= from input and append the start time
-    const cleanInput = stripQueryParam(favoriteSongInput, 't')
-    const inputWithStart = favoriteSongStartSeconds > 0
-      ? cleanInput + (cleanInput.includes('?') ? '&' : '?') + `t=${favoriteSongStartSeconds}`
-      : cleanInput
+    // Strip any existing ?t= and &d= from input and append the start time and duration
+    const cleanInput = stripQueryParam(stripQueryParam(favoriteSongInput, 't'), 'd')
+    const params: string[] = []
+    if (favoriteSongStartSeconds > 0) params.push(`t=${favoriteSongStartSeconds}`)
+    const durationSec = Math.floor(favoriteSongDurationMs / 1000)
+    if (durationSec > 0) params.push(`d=${durationSec}`)
+    const inputWithStart = cleanInput + (params.length > 0 ? (cleanInput.includes('?') ? '&' : '?') + params.join('&') : '')
 
     const extractedUrl = extractEmbedUrl(inputWithStart)
     if (extractedUrl && !isSafeEmbedUrl(extractedUrl)) {
@@ -1240,9 +1296,11 @@ export default function Profile() {
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                     Created: {adminTargetUser?.createdAt ? formatAdminDate(adminTargetUser.createdAt) : (adminTargetUserLoading ? 'Loading...' : 'Not available')}
-                  </div>
-                </div>
-              )}
+            </div>
+            <div ref={spotifyApiContainerRef} style={{ display: 'none' }} />
+          </div>
+        </div>
+      )}
               {showAdminProfileActions && (
                 <div
                   style={{
@@ -1489,19 +1547,19 @@ export default function Profile() {
                             borderRadius: '2px'
                           }}
                         >
-                          <div
-                            style={{
-                              height: '100%',
-                              width: `${Math.min(100, (sharedSongStartSeconds / 300) * 100)}%`,
-                              background: '#1db954',
-                              borderRadius: '1px'
-                            }}
-                          />
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${Math.min(100, (sharedSongStartSeconds / sharedSongDurationSeconds) * 100)}%`,
+                            background: '#1db954',
+                            borderRadius: '1px'
+                          }}
+                        />
                         </div>
                         <div
                           style={{
                             position: 'absolute',
-                            left: `${Math.min(100, (sharedSongStartSeconds / 300) * 100)}%`,
+                            left: `${Math.min(100, (sharedSongStartSeconds / sharedSongDurationSeconds) * 100)}%`,
                             width: '10px',
                             height: '10px',
                             background: '#1db954',
@@ -1510,6 +1568,10 @@ export default function Profile() {
                             transform: 'translateX(-50%)'
                           }}
                         />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', fontWeight: 700, opacity: 0.55 }}>
+                        <span>0:00</span>
+                        <span>{formatSeconds(sharedSongDurationSeconds)}</span>
                       </div>
                       <div style={{ fontWeight: 800, fontSize: '0.7rem', opacity: 0.65, textAlign: 'right' }}>
                         Starts at {formatSeconds(sharedSongStartSeconds)}
@@ -1978,13 +2040,13 @@ export default function Profile() {
                       const rect = event.currentTarget.getBoundingClientRect()
                       const x = event.clientX - rect.left
                       const pct = Math.max(0, Math.min(1, x / rect.width))
-                      setFavoriteSongStartSeconds(Math.round(pct * 300))
+                      setFavoriteSongStartSeconds(Math.round(pct * favoriteSongDurationMs / 1000))
                     }}
                   >
                     <div
                       style={{
                         height: '100%',
-                        width: `${(favoriteSongStartSeconds / 300) * 100}%`,
+                        width: `${(favoriteSongStartSeconds / (favoriteSongDurationMs / 1000)) * 100}%`,
                         background: 'linear-gradient(90deg, #1db954, #1ed760)',
                         borderRadius: '3px',
                         transition: 'width 0.1s'
@@ -1994,7 +2056,7 @@ export default function Profile() {
                   <div
                     style={{
                       position: 'absolute',
-                      left: `${(favoriteSongStartSeconds / 300) * 100}%`,
+                      left: `${(favoriteSongStartSeconds / (favoriteSongDurationMs / 1000)) * 100}%`,
                       width: '16px',
                       height: '16px',
                       background: '#1db954',
@@ -2008,7 +2070,7 @@ export default function Profile() {
                   <input
                     type="range"
                     min={0}
-                    max={300}
+                    max={Math.floor(favoriteSongDurationMs / 1000)}
                     step={1}
                     value={favoriteSongStartSeconds}
                     onChange={(event) => setFavoriteSongStartSeconds(Number(event.target.value))}
@@ -2026,7 +2088,7 @@ export default function Profile() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 700, opacity: 0.6 }}>
                   <span>0:00</span>
-                  <span>5:00</span>
+                  <span>{formatSeconds(Math.floor(favoriteSongDurationMs / 1000))}</span>
                 </div>
               </div>
             )}
@@ -3274,6 +3336,33 @@ function formatSeconds(seconds: number): string {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function extractSpotifyTrackIdFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (!parsed.hostname.includes('spotify.com')) return null
+    const segments = parsed.pathname.split('/').filter(Boolean)
+    const trackIndex = segments.findIndex((s) => s.toLowerCase() === 'track')
+    if (trackIndex >= 0 && trackIndex + 1 < segments.length) {
+      const id = segments[trackIndex + 1]
+      if (/^[A-Za-z0-9]{22}$/.test(id)) return id
+    }
+  } catch { }
+  return null
+}
+
+function extractDurationFromUrl(url: string | null): number {
+  if (!url) return 300
+  try {
+    const parsed = new URL(url)
+    const d = parsed.searchParams.get('d')
+    if (d) {
+      const seconds = parseInt(d, 10)
+      return !isNaN(seconds) && seconds > 0 ? seconds : 300
+    }
+  } catch { }
+  return 300
 }
 
 function formatAdminDate(value: string | undefined): string {
