@@ -2007,3 +2007,34 @@ export async function revokeBadgeRequest(badgeId: number, userId: number): Promi
     return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
   }
 }
+
+export async function sendAdminNotificationsRequest(payload: {
+  userIds?: number[]
+  type: string
+  message: string
+  link?: string
+}): Promise<ApiResult<{ sentCount: number }>> {
+  try {
+    const token = getAuthToken()
+    if (!token) return { ok: false, error: 'Missing auth token' }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/notifications/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    })
+
+    if (!response.ok) {
+      const message = await safeError(response)
+      return { ok: false, error: message }
+    }
+
+    const data = (await response.json()) as { sentCount: number }
+    return { ok: true, data }
+  } catch {
+    return { ok: false, error: 'Server is unreachable. Wake up the seniors API and try again.' }
+  }
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { motion } from 'framer-motion'
 import {
   Award,
+  Bell,
   CheckCircle2,
   ImagePlus,
   Images,
@@ -11,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Send,
   Shield,
   Swords,
   Trash2,
@@ -58,7 +60,8 @@ import {
   type MemoryBoardPhoto,
   type MemoryBoardPhotoDecision,
   type PortalEventItem,
-  type UserBadge
+  type UserBadge,
+  sendAdminNotificationsRequest
 } from '../lib/authApi'
 import { 
   adminCreateChallengeRequest, 
@@ -71,7 +74,7 @@ import type { Challenge } from '../features/challenges/types'
 const USERS_PAGE_SIZE = 20
 const MAX_ANNOUNCEMENT_POLL_OPTIONS = 6
 
-type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos' | 'challenges' | 'badges'
+type AdminSection = 'requests' | 'users' | 'announcements' | 'approvePhotos' | 'challenges' | 'badges' | 'notifications'
 type CreateContentType = 'announcement' | 'event'
 
 export default function AdminJoinRequests() {
@@ -169,6 +172,12 @@ export default function AdminJoinRequests() {
   const [badgeUserBadges, setBadgeUserBadges] = useState<UserBadge[]>([])
   const [badgeUserBadgesLoading, setBadgeUserBadgesLoading] = useState(false)
   const [badgeUserBadgesUserId, setBadgeUserBadgesUserId] = useState('')
+
+  const [notifMessage, setNotifMessage] = useState('')
+  const [notifType, setNotifType] = useState('admin_message')
+  const [notifLink, setNotifLink] = useState('')
+  const [notifSending, setNotifSending] = useState(false)
+  const [notifResult, setNotifResult] = useState<string | null>(null)
 
   const loadChallenges = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!silent) {
@@ -531,6 +540,30 @@ export default function AdminJoinRequests() {
     }
 
     setBadgeActionId(null)
+  }
+
+  const handleSendNotification = async () => {
+    if (!notifMessage.trim()) return
+
+    setNotifSending(true)
+    setNotifResult(null)
+
+    const result = await sendAdminNotificationsRequest({
+      message: notifMessage.trim(),
+      type: notifType.trim() || 'admin_message',
+      link: notifLink.trim() || undefined
+    })
+
+    if (result.ok) {
+      setNotifResult(`Sent to ${result.data?.sentCount ?? 0} user(s).`)
+      setNotifMessage('')
+      setNotifType('admin_message')
+      setNotifLink('')
+    } else {
+      setNotifResult(result.error || 'Failed to send notification.')
+    }
+
+    setNotifSending(false)
   }
 
     const [editingEventId, setEditingEventId] = useState<number | null>(null);
@@ -1289,6 +1322,14 @@ export default function AdminJoinRequests() {
               >
                 <Award size={16} />
                 <span>Badges</span>
+              </button>
+              <button
+                type="button"
+                className={`admin-tab ${activeSection === 'notifications' ? 'active' : ''}`}
+                onClick={() => setActiveSection('notifications')}
+              >
+                <Bell size={16} />
+                <span>Notifications</span>
               </button>
             </div>
           </section>
@@ -2278,6 +2319,85 @@ export default function AdminJoinRequests() {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeSection === 'notifications' && (
+            <section className="admin-section">
+              <div className="admin-surface">
+                <div className="admin-surface__header">
+                  <div className="admin-surface__title-wrap">
+                    <Bell size={18} />
+                    <h2 className="admin-surface__title">Push Notification</h2>
+                  </div>
+                </div>
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontWeight: 800, display: 'block', marginBottom: '4px', fontSize: '0.85rem' }}>
+                      Message <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <textarea
+                      value={notifMessage}
+                      onChange={(e) => setNotifMessage(e.target.value)}
+                      placeholder="Write the notification message..."
+                      rows={4}
+                      style={{ width: '100%', padding: '9px 10px', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 800, display: 'block', marginBottom: '4px', fontSize: '0.85rem' }}>
+                      Type
+                    </label>
+                    <input
+                      type="text"
+                      value={notifType}
+                      onChange={(e) => setNotifType(e.target.value)}
+                      placeholder="admin_message"
+                      style={{ width: '100%', padding: '9px 10px' }}
+                    />
+                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '2px' }}>
+                      Used for icon/color. Existing types: announcement, event, new_challenge, admin_message
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 800, display: 'block', marginBottom: '4px', fontSize: '0.85rem' }}>
+                      Link (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={notifLink}
+                      onChange={(e) => setNotifLink(e.target.value)}
+                      placeholder="/portal"
+                      style={{ width: '100%', padding: '9px 10px' }}
+                    />
+                  </div>
+
+                  {notifResult && (
+                    <div style={{
+                      padding: '12px',
+                      border: '3px solid black',
+                      fontWeight: 900,
+                      fontSize: '0.9rem',
+                      background: notifResult.startsWith('Sent') ? '#d4edda' : '#f8d7da'
+                    }}>
+                      {notifResult}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className="neo-btn admin-btn admin-btn--primary"
+                    onClick={handleSendNotification}
+                    disabled={notifSending || !notifMessage.trim()}
+                    style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Send size={16} />
+                    {notifSending ? 'Sending...' : 'Send to All Users'}
+                  </button>
                 </div>
               </div>
             </section>

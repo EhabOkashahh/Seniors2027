@@ -440,7 +440,7 @@ public class AdminController(
         if (allUserIds.Count > 0)
         {
             var notifications = allUserIds
-                .Select(uid => (uid, "announcement", $"New announcement: {title}", (string?)"/portal"))
+                .Select(uid => new CreateNotificationItem(uid, "announcement", $"New announcement: {title}", "/portal"))
                 .ToList();
             await _notificationService.CreateNotificationsBulkAsync(notifications);
         }
@@ -725,7 +725,7 @@ public class AdminController(
         if (allUserIds.Count > 0)
         {
             var notifications = allUserIds
-                .Select(uid => (uid, "event", $"New event: {title}", (string?)"/portal"))
+                .Select(uid => new CreateNotificationItem(uid, "event", $"New event: {title}", "/portal"))
                 .ToList();
             await _notificationService.CreateNotificationsBulkAsync(notifications);
         }

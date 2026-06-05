@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Seniors2027.BLL.DTOs;
 using Seniors2027.BLL.DTOs.Challenges;
 using Seniors2027.BLL.Interfaces;
 using Seniors2027.DAL.Data;
@@ -102,7 +103,7 @@ public class ChallengeService : IChallengeService
             if (allUserIds.Count > 0)
             {
                 var notifications = allUserIds
-                    .Select(uid => (uid, "new_challenge", $"New challenge: {challenge.Title}", (string?)$"/challenge?challengeId={challenge.Id}"))
+                    .Select(uid => new CreateNotificationItem(uid, "new_challenge", $"New challenge: {challenge.Title}", $"/challenge?challengeId={challenge.Id}"))
                     .ToList();
                 await _notificationService.CreateNotificationsBulkAsync(notifications);
             }
@@ -1052,7 +1053,7 @@ public class ChallengeService : IChallengeService
             if (allUserIds.Count > 0)
             {
                 var notifications = allUserIds
-                    .Select(uid => (uid, "new_challenge", $"New challenge: {challenge.Title}", (string?)$"/challenge?challengeId={challenge.Id}"))
+                    .Select(uid => new CreateNotificationItem(uid, "new_challenge", $"New challenge: {challenge.Title}", $"/challenge?challengeId={challenge.Id}"))
                     .ToList();
                 await _notificationService.CreateNotificationsBulkAsync(notifications);
             }

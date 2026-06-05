@@ -108,17 +108,18 @@ public class NotificationService : INotificationService
         await _realtimeNotifier.NotifyNotificationReceivedAsync(userId);
     }
 
-    public async Task CreateNotificationsBulkAsync(IReadOnlyList<(int userId, string type, string message, string? link)> notifications)
+    public async Task CreateNotificationsBulkAsync(IReadOnlyList<CreateNotificationItem> notifications)
     {
         if (notifications.Count == 0) return;
 
         var now = DateTime.UtcNow;
         var entities = notifications.Select(n => new Notification
         {
-            UserId = n.userId,
-            Type = n.type,
-            Message = n.message,
-            Link = n.link,
+            UserId = n.UserId,
+            Type = n.Type,
+            Message = n.Message,
+            Link = n.Link,
+            ImageUrl = n.ImageUrl,
             IsRead = false,
             CreatedAt = now
         }).ToList();
@@ -128,7 +129,7 @@ public class NotificationService : INotificationService
 
         foreach (var notification in notifications)
         {
-            await _realtimeNotifier.NotifyNotificationReceivedAsync(notification.userId);
+            await _realtimeNotifier.NotifyNotificationReceivedAsync(notification.UserId);
         }
     }
 
