@@ -55,7 +55,7 @@ import { buildShareableStoryUrl } from '../lib/storyShare'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 
-type SpotifyEmbedController = { addListener: (event: string, cb: (e: { data?: { duration?: number } }) => void) => void; play: () => void; setVolume: (vol: number) => void }
+type SpotifyEmbedController = { addListener: (event: string, cb: (e: { data?: { duration?: number } }) => void) => void; play: () => void }
 type SpotifyIframeApiType = { createController: (el: HTMLDivElement, opts: Record<string, unknown>, cb: (ctrl: SpotifyEmbedController) => void) => void }
 type SpotifyIframeApiWindow = Window & typeof globalThis & {
   _spotifyIframeApi?: SpotifyIframeApiType
@@ -541,9 +541,7 @@ export default function Profile() {
       const options = { width: '100%', height: '80', uri: `spotify:track:${trackId}` }
       IFrameAPI.createController(container, options, (EmbedController) => {
         if (cancelled) return
-        const ctrl = EmbedController as SpotifyEmbedController
-        ctrl.setVolume(0.6)
-        spotifyEmbedControllerRef.current = ctrl
+        spotifyEmbedControllerRef.current = EmbedController
         let gotDuration = false
         const onUpdate = (e: { data?: { duration?: number } }) => {
           if (!gotDuration && e.data?.duration) {
@@ -551,8 +549,8 @@ export default function Profile() {
             setFavoriteSongDurationMs(e.data.duration)
           }
         }
-        ctrl.addListener('playback_update', onUpdate)
-        ctrl.addListener('playback_error', () => {
+        ;(EmbedController as SpotifyEmbedController).addListener('playback_update', onUpdate)
+        ;(EmbedController as SpotifyEmbedController).addListener('playback_error', () => {
           if (!gotDuration) {
             gotDuration = true
           }
@@ -606,9 +604,7 @@ export default function Profile() {
       }
       if (startAt > 0) options.startAt = startAt
       api.createController(container, options, (EmbedController) => {
-        const ctrl = EmbedController as SpotifyEmbedController
-        ctrl.setVolume(0.6)
-        ctrl.play()
+        ;(EmbedController as SpotifyEmbedController).play()
       })
     }
 
