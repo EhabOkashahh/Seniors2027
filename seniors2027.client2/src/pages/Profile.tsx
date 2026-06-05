@@ -1528,7 +1528,6 @@ export default function Profile() {
                       src={sharedSongPlaybackUrl ?? safeSharedSongEmbedUrl}
                       width="100%"
                       height="80"
-                      loading="lazy"
                       allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                       style={{
                         display: 'block',
@@ -3317,7 +3316,7 @@ function buildSpotifyEmbedPlaybackUrl(embedUrl: string): string | null {
   if (!isSafeEmbedUrl(embedUrl)) return null
   try {
     const url = new URL(embedUrl)
-    url.searchParams.set('autoplay', '1')
+    url.searchParams.set('autoplay', 'true')
     return url.toString()
   } catch {
     return null
