@@ -55,6 +55,13 @@ import { buildShareableStoryUrl } from '../lib/storyShare'
 import { useGlobalToastMessage } from '../lib/useGlobalToastMessage'
 import { openUserWebsiteFromIdentity } from '../lib/userWebsiteNavigation'
 
+type SpotifyEmbedController = { addListener: (event: string, cb: (e: { data?: { duration?: number } }) => void) => void }
+type SpotifyIframeApiType = { createController: (el: HTMLDivElement, opts: Record<string, unknown>, cb: (ctrl: SpotifyEmbedController) => void) => void }
+type SpotifyIframeApiWindow = Window & typeof globalThis & {
+  SpotifyIframeApi?: SpotifyIframeApiType
+  onSpotifyIframeApiReady?: (api: SpotifyIframeApiType) => void
+}
+
 export default function Profile() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -527,7 +534,7 @@ export default function Profile() {
     const container = spotifyApiContainerRef.current
     if (!container) return
 
-    const onApiReady = (IFrameAPI: { createController: (el: HTMLDivElement, opts: Record<string, unknown>, cb: (ctrl: Record<string, unknown>) => void) => void }) => {
+    const onApiReady = (IFrameAPI: SpotifyIframeApiType) => {
       if (cancelled) return
       const options = { width: '100%', height: '80', uri: `spotify:track:${trackId}` }
       IFrameAPI.createController(container, options, (EmbedController) => {
@@ -540,7 +547,7 @@ export default function Profile() {
             setFavoriteSongDurationMs(e.data.duration)
           }
         }
-        EmbedController.addListener('playback_update', onUpdate)
+        ;(EmbedController as SpotifyEmbedController).addListener('playback_update', onUpdate)
       })
     }
 
@@ -551,11 +558,11 @@ export default function Profile() {
       script.src = 'https://open.spotify.com/embed/iframe-api/v1'
       script.async = true
       document.body.appendChild(script)
-      ;(window as Record<string, unknown>).onSpotifyIframeApiReady = onApiReady
-    } else if ((window as Record<string, unknown>).SpotifyIframeApi) {
-      onApiReady((window as Record<string, unknown>).SpotifyIframeApi as Parameters<typeof onApiReady>[0])
+      ;(window as unknown as SpotifyIframeApiWindow).onSpotifyIframeApiReady = onApiReady
+    } else if ((window as unknown as SpotifyIframeApiWindow).SpotifyIframeApi) {
+      onApiReady((window as unknown as SpotifyIframeApiWindow).SpotifyIframeApi!)
     } else {
-      ;(window as Record<string, unknown>).onSpotifyIframeApiReady = onApiReady
+      ;(window as unknown as SpotifyIframeApiWindow).onSpotifyIframeApiReady = onApiReady
     }
 
     return () => {
@@ -1296,7 +1303,6 @@ export default function Profile() {
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                     Created: {adminTargetUser?.createdAt ? formatAdminDate(adminTargetUser.createdAt) : (adminTargetUserLoading ? 'Loading...' : 'Not available')}
-                  </div>
                 </div>
               </div>
             )}
