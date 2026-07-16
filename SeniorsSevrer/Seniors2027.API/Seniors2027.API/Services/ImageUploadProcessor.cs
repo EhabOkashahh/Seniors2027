@@ -34,6 +34,7 @@ public sealed class ImageUploadProcessor : IImageUploadProcessor
         [ImageUploadPurpose.MemoryBoard] = "memory-board"
     };
 
+
     private readonly ICloudinaryService _cloudinaryService;
 
     public ImageUploadProcessor(ICloudinaryService cloudinaryService)
